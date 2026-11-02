@@ -2,6 +2,7 @@
 
 [ext_resource type="PackedScene" path="res://scenes/rooms/test_room.tscn" id="1_test_room"]
 [ext_resource type="PackedScene" uid="uid://c0kby6c65arr6" path="res://scenes/player/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/test/test_target.tscn" id="3_sugp2"]
 
 [node name="Main" type="Node2D" unique_id=188951295]
 
@@ -9,3 +10,6 @@
 
 [node name="Player" parent="." unique_id=1106719307 instance=ExtResource("2_player")]
 position = Vector2(576, 324)
+
+[node name="TestTarget" parent="." unique_id=2076245974 instance=ExtResource("3_sugp2")]
+position = Vector2(255, 437)
