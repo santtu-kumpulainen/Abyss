@@ -1,0 +1,956 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/00.png" id="1_kcxca"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/01.png" id="2_wu6kc"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/02.png" id="3_vl5x3"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/03.png" id="4_hf70h"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/04.png" id="5_br033"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/05.png" id="6_yxbbv"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/06.png" id="7_i3t8j"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/07.png" id="8_puj6w"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/08.png" id="9_weyo7"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/09.png" id="10_aavm7"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/10.png" id="11_pj5ou"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_east/11.png" id="12_s0ax0"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/00.png" id="13_oks5q"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/01.png" id="14_j6i8e"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/02.png" id="15_v22og"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/03.png" id="16_x44o6"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/04.png" id="17_bouru"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/05.png" id="18_mk70x"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/06.png" id="19_rcn13"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/07.png" id="20_pvl6s"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/08.png" id="21_tjfvg"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/09.png" id="22_6jdy5"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/10.png" id="23_1hlvx"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north/11.png" id="24_kjp33"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/00.png" id="25_1el00"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/01.png" id="26_xh0wn"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/02.png" id="27_2miyi"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/03.png" id="28_yw71d"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/04.png" id="29_f40i5"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/05.png" id="30_f027p"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/06.png" id="31_yqr7x"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/07.png" id="32_y77k0"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/08.png" id="33_wsfb1"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/09.png" id="34_4ppsw"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/10.png" id="35_o6hv6"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-east/11.png" id="36_2l4dt"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/00.png" id="37_7xkws"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/01.png" id="38_trfr0"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/02.png" id="39_vs7s1"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/03.png" id="40_biusg"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/04.png" id="41_jjo1c"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/05.png" id="42_dynbx"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/06.png" id="43_jgpgo"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/07.png" id="44_ilsvr"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/08.png" id="45_rjc26"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/09.png" id="46_r73sf"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/10.png" id="47_8lsc1"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_north-west/11.png" id="48_da8gh"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/00.png" id="49_lql4n"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/01.png" id="50_xac67"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/02.png" id="51_q6uek"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/03.png" id="52_p8g1t"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/04.png" id="53_8wgym"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/05.png" id="54_pwcq6"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/06.png" id="55_vt2h2"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/07.png" id="56_beyrk"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/08.png" id="57_hcurc"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/09.png" id="58_eywli"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/10.png" id="59_r4j0o"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south/11.png" id="60_vttbc"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/00.png" id="61_tsuyq"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/01.png" id="62_uurxi"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/02.png" id="63_3r164"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/03.png" id="64_3cw64"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/04.png" id="65_xgr1u"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/05.png" id="66_i0dsw"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/06.png" id="67_60spv"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/07.png" id="68_jaknw"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/08.png" id="69_dbwah"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/09.png" id="70_gepxm"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/10.png" id="71_ni47n"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-east/11.png" id="72_j2s4g"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/00.png" id="73_amwcd"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/01.png" id="74_qu7co"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/02.png" id="75_rbsxo"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/03.png" id="76_tok1d"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/04.png" id="77_ndd5x"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/05.png" id="78_ietrt"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/06.png" id="79_wsnae"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/07.png" id="80_hi5cc"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/08.png" id="81_cqa4h"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/09.png" id="82_s2med"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/10.png" id="83_tad84"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_south-west/11.png" id="84_an11s"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/00.png" id="85_s5o8j"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/01.png" id="86_fdxry"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/02.png" id="87_2uxt3"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/03.png" id="88_q8d3h"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/04.png" id="89_g52mh"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/05.png" id="90_s7vdi"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/06.png" id="91_jmntj"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/07.png" id="92_vy5td"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/08.png" id="93_c56sh"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/09.png" id="94_0eww2"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/10.png" id="95_lppue"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/idle_west/11.png" id="96_17lo1"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/00.png" id="97_1ia2b"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/01.png" id="98_b2wjc"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/02.png" id="99_dxjnk"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/03.png" id="100_una5b"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/04.png" id="101_u7hna"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/05.png" id="102_1cps6"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/06.png" id="103_okgo7"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/07.png" id="104_xwkcl"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/08.png" id="105_25sjx"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/09.png" id="106_g0ack"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/10.png" id="107_om2fo"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_east/11.png" id="108_t4oak"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/00.png" id="109_pwmvh"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/01.png" id="110_uo667"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/02.png" id="111_n323o"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/03.png" id="112_8y3av"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/04.png" id="113_6tsa2"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/05.png" id="114_hmhve"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/06.png" id="115_6hxv0"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/07.png" id="116_ewrwr"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/08.png" id="117_t2s8r"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/09.png" id="118_jss13"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north/10.png" id="119_bh7dx"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/00.png" id="120_ld4yr"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/01.png" id="121_rxkps"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/02.png" id="122_tvb6g"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/03.png" id="123_pypi3"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/04.png" id="124_xq7eg"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/05.png" id="125_bnaub"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/06.png" id="126_jgyyo"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/07.png" id="127_86kjv"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/08.png" id="128_7ycrp"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/09.png" id="129_sbj7u"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/10.png" id="130_awiu7"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/11.png" id="131_85vvt"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-east/12.png" id="132_uiva0"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/00.png" id="133_rueeh"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/01.png" id="134_pj1x3"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/02.png" id="135_cklwc"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/03.png" id="136_iw72q"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/04.png" id="137_djco5"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/05.png" id="138_sw3xv"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/06.png" id="139_lefm3"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/07.png" id="140_ijng3"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/08.png" id="141_s8wlm"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/09.png" id="142_si1jj"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_north-west/10.png" id="143_snwd2"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/00.png" id="144_1me8s"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/01.png" id="145_12dmh"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/02.png" id="146_nq46w"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/03.png" id="147_qg4ty"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/04.png" id="148_6k7et"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/05.png" id="149_yoltq"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/06.png" id="150_6nvv4"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/07.png" id="151_ccsvg"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/08.png" id="152_a4qbj"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/09.png" id="153_7qk4b"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south/10.png" id="154_txunk"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/00.png" id="155_2nfgw"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/01.png" id="156_6orci"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/02.png" id="157_ap0v2"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/03.png" id="158_hw72h"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/04.png" id="159_2acj3"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/05.png" id="160_qtmlj"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/06.png" id="161_x0x5q"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/07.png" id="162_deb8s"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/08.png" id="163_4p2xe"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/09.png" id="164_cpi3t"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/10.png" id="165_o4of8"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-east/11.png" id="166_gl3p0"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/00.png" id="167_j1hh0"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/01.png" id="168_ecw1t"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/02.png" id="169_bhwgw"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/03.png" id="170_tgdmb"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/04.png" id="171_fs8ub"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/05.png" id="172_ht3dt"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/06.png" id="173_6ylte"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/07.png" id="174_11ney"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/08.png" id="175_xewa2"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/09.png" id="176_m16fw"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/10.png" id="177_54js6"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_south-west/11.png" id="178_7d6wk"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/00.png" id="179_7mqnt"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/01.png" id="180_84haq"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/02.png" id="181_1htar"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/03.png" id="182_kokbh"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/04.png" id="183_ooj08"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/05.png" id="184_fd342"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/06.png" id="185_b2hy6"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/07.png" id="186_pxdw3"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/08.png" id="187_dbliv"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/09.png" id="188_6sadf"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/mage-hero-128/walk_west/10.png" id="189_lwr4e"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2bqge"]
+atlas = ExtResource("13_oks5q")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pbdij"]
+atlas = ExtResource("14_j6i8e")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pnlfc"]
+atlas = ExtResource("15_v22og")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kudei"]
+atlas = ExtResource("16_x44o6")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8n456"]
+atlas = ExtResource("17_bouru")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ah4aa"]
+atlas = ExtResource("18_mk70x")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_scv4f"]
+atlas = ExtResource("19_rcn13")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5hewh"]
+atlas = ExtResource("20_pvl6s")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_8l6mx"]
+atlas = ExtResource("21_tjfvg")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_r5vru"]
+atlas = ExtResource("22_6jdy5")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_un0my"]
+atlas = ExtResource("23_1hlvx")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jbpyj"]
+atlas = ExtResource("24_kjp33")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ewy3m"]
+atlas = ExtResource("109_pwmvh")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wgipj"]
+atlas = ExtResource("110_uo667")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hmvnm"]
+atlas = ExtResource("111_n323o")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5rwqt"]
+atlas = ExtResource("112_8y3av")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7ebr3"]
+atlas = ExtResource("113_6tsa2")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v2gqp"]
+atlas = ExtResource("114_hmhve")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_uvjso"]
+atlas = ExtResource("115_6hxv0")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x1t16"]
+atlas = ExtResource("116_ewrwr")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_1bq3l"]
+atlas = ExtResource("117_t2s8r")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6226b"]
+atlas = ExtResource("118_jss13")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_30e7n"]
+atlas = ExtResource("119_bh7dx")
+region = Rect2(0, 0, 164, 164)
+margin = Rect2(2, 4, 4, 4)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_kcxca")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_wu6kc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_vl5x3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_hf70h")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_br033")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_yxbbv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_i3t8j")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_puj6w")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_weyo7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_aavm7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_pj5ou")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_s0ax0")
+}],
+"loop": 1,
+"name": &"idle_east",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2bqge")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pbdij")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pnlfc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kudei")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8n456")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ah4aa")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_scv4f")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5hewh")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_8l6mx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_r5vru")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_un0my")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jbpyj")
+}],
+"loop": 1,
+"name": &"idle_north",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("25_1el00")
+}, {
+"duration": 1.0,
+"texture": ExtResource("26_xh0wn")
+}, {
+"duration": 1.0,
+"texture": ExtResource("27_2miyi")
+}, {
+"duration": 1.0,
+"texture": ExtResource("28_yw71d")
+}, {
+"duration": 1.0,
+"texture": ExtResource("29_f40i5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("30_f027p")
+}, {
+"duration": 1.0,
+"texture": ExtResource("31_yqr7x")
+}, {
+"duration": 1.0,
+"texture": ExtResource("32_y77k0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("33_wsfb1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("34_4ppsw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("35_o6hv6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("36_2l4dt")
+}],
+"loop": 1,
+"name": &"idle_north_east",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("37_7xkws")
+}, {
+"duration": 1.0,
+"texture": ExtResource("38_trfr0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("39_vs7s1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("40_biusg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("41_jjo1c")
+}, {
+"duration": 1.0,
+"texture": ExtResource("42_dynbx")
+}, {
+"duration": 1.0,
+"texture": ExtResource("43_jgpgo")
+}, {
+"duration": 1.0,
+"texture": ExtResource("44_ilsvr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("45_rjc26")
+}, {
+"duration": 1.0,
+"texture": ExtResource("46_r73sf")
+}, {
+"duration": 1.0,
+"texture": ExtResource("47_8lsc1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("48_da8gh")
+}],
+"loop": 1,
+"name": &"idle_north_west",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("49_lql4n")
+}, {
+"duration": 1.0,
+"texture": ExtResource("50_xac67")
+}, {
+"duration": 1.0,
+"texture": ExtResource("51_q6uek")
+}, {
+"duration": 1.0,
+"texture": ExtResource("52_p8g1t")
+}, {
+"duration": 1.0,
+"texture": ExtResource("53_8wgym")
+}, {
+"duration": 1.0,
+"texture": ExtResource("54_pwcq6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("55_vt2h2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("56_beyrk")
+}, {
+"duration": 1.0,
+"texture": ExtResource("57_hcurc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("58_eywli")
+}, {
+"duration": 1.0,
+"texture": ExtResource("59_r4j0o")
+}, {
+"duration": 1.0,
+"texture": ExtResource("60_vttbc")
+}],
+"loop": 1,
+"name": &"idle_south",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("61_tsuyq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("62_uurxi")
+}, {
+"duration": 1.0,
+"texture": ExtResource("63_3r164")
+}, {
+"duration": 1.0,
+"texture": ExtResource("64_3cw64")
+}, {
+"duration": 1.0,
+"texture": ExtResource("65_xgr1u")
+}, {
+"duration": 1.0,
+"texture": ExtResource("66_i0dsw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("67_60spv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("68_jaknw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("69_dbwah")
+}, {
+"duration": 1.0,
+"texture": ExtResource("70_gepxm")
+}, {
+"duration": 1.0,
+"texture": ExtResource("71_ni47n")
+}, {
+"duration": 1.0,
+"texture": ExtResource("72_j2s4g")
+}],
+"loop": 1,
+"name": &"idle_south_east",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("73_amwcd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("74_qu7co")
+}, {
+"duration": 1.0,
+"texture": ExtResource("75_rbsxo")
+}, {
+"duration": 1.0,
+"texture": ExtResource("76_tok1d")
+}, {
+"duration": 1.0,
+"texture": ExtResource("77_ndd5x")
+}, {
+"duration": 1.0,
+"texture": ExtResource("78_ietrt")
+}, {
+"duration": 1.0,
+"texture": ExtResource("79_wsnae")
+}, {
+"duration": 1.0,
+"texture": ExtResource("80_hi5cc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("81_cqa4h")
+}, {
+"duration": 1.0,
+"texture": ExtResource("82_s2med")
+}, {
+"duration": 1.0,
+"texture": ExtResource("83_tad84")
+}, {
+"duration": 1.0,
+"texture": ExtResource("84_an11s")
+}],
+"loop": 1,
+"name": &"idle_south_west",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("85_s5o8j")
+}, {
+"duration": 1.0,
+"texture": ExtResource("86_fdxry")
+}, {
+"duration": 1.0,
+"texture": ExtResource("87_2uxt3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("88_q8d3h")
+}, {
+"duration": 1.0,
+"texture": ExtResource("89_g52mh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("90_s7vdi")
+}, {
+"duration": 1.0,
+"texture": ExtResource("91_jmntj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("92_vy5td")
+}, {
+"duration": 1.0,
+"texture": ExtResource("93_c56sh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("94_0eww2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("95_lppue")
+}, {
+"duration": 1.0,
+"texture": ExtResource("96_17lo1")
+}],
+"loop": 1,
+"name": &"idle_west",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("97_1ia2b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("98_b2wjc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("99_dxjnk")
+}, {
+"duration": 1.0,
+"texture": ExtResource("100_una5b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("101_u7hna")
+}, {
+"duration": 1.0,
+"texture": ExtResource("102_1cps6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("103_okgo7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("104_xwkcl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("105_25sjx")
+}, {
+"duration": 1.0,
+"texture": ExtResource("106_g0ack")
+}, {
+"duration": 1.0,
+"texture": ExtResource("107_om2fo")
+}, {
+"duration": 1.0,
+"texture": ExtResource("108_t4oak")
+}],
+"loop": 1,
+"name": &"walk_east",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ewy3m")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wgipj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_hmvnm")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5rwqt")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7ebr3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v2gqp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_uvjso")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x1t16")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_1bq3l")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6226b")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_30e7n")
+}],
+"loop": 1,
+"name": &"walk_north",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("120_ld4yr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("121_rxkps")
+}, {
+"duration": 1.0,
+"texture": ExtResource("122_tvb6g")
+}, {
+"duration": 1.0,
+"texture": ExtResource("123_pypi3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("124_xq7eg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("125_bnaub")
+}, {
+"duration": 1.0,
+"texture": ExtResource("126_jgyyo")
+}, {
+"duration": 1.0,
+"texture": ExtResource("127_86kjv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("128_7ycrp")
+}, {
+"duration": 1.0,
+"texture": ExtResource("129_sbj7u")
+}, {
+"duration": 1.0,
+"texture": ExtResource("130_awiu7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("131_85vvt")
+}, {
+"duration": 1.0,
+"texture": ExtResource("132_uiva0")
+}],
+"loop": 1,
+"name": &"walk_north_east",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("133_rueeh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("134_pj1x3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("135_cklwc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("136_iw72q")
+}, {
+"duration": 1.0,
+"texture": ExtResource("137_djco5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("138_sw3xv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("139_lefm3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("140_ijng3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("141_s8wlm")
+}, {
+"duration": 1.0,
+"texture": ExtResource("142_si1jj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("143_snwd2")
+}],
+"loop": 1,
+"name": &"walk_north_west",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("144_1me8s")
+}, {
+"duration": 1.0,
+"texture": ExtResource("145_12dmh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("146_nq46w")
+}, {
+"duration": 1.0,
+"texture": ExtResource("147_qg4ty")
+}, {
+"duration": 1.0,
+"texture": ExtResource("148_6k7et")
+}, {
+"duration": 1.0,
+"texture": ExtResource("149_yoltq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("150_6nvv4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("151_ccsvg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("152_a4qbj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("153_7qk4b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("154_txunk")
+}],
+"loop": 1,
+"name": &"walk_south",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("155_2nfgw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("156_6orci")
+}, {
+"duration": 1.0,
+"texture": ExtResource("157_ap0v2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("158_hw72h")
+}, {
+"duration": 1.0,
+"texture": ExtResource("159_2acj3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("160_qtmlj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("161_x0x5q")
+}, {
+"duration": 1.0,
+"texture": ExtResource("162_deb8s")
+}, {
+"duration": 1.0,
+"texture": ExtResource("163_4p2xe")
+}, {
+"duration": 1.0,
+"texture": ExtResource("164_cpi3t")
+}, {
+"duration": 1.0,
+"texture": ExtResource("165_o4of8")
+}, {
+"duration": 1.0,
+"texture": ExtResource("166_gl3p0")
+}],
+"loop": 1,
+"name": &"walk_south_east",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("167_j1hh0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("168_ecw1t")
+}, {
+"duration": 1.0,
+"texture": ExtResource("169_bhwgw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("170_tgdmb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("171_fs8ub")
+}, {
+"duration": 1.0,
+"texture": ExtResource("172_ht3dt")
+}, {
+"duration": 1.0,
+"texture": ExtResource("173_6ylte")
+}, {
+"duration": 1.0,
+"texture": ExtResource("174_11ney")
+}, {
+"duration": 1.0,
+"texture": ExtResource("175_xewa2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("176_m16fw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("177_54js6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("178_7d6wk")
+}],
+"loop": 1,
+"name": &"walk_south_west",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("179_7mqnt")
+}, {
+"duration": 1.0,
+"texture": ExtResource("180_84haq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("181_1htar")
+}, {
+"duration": 1.0,
+"texture": ExtResource("182_kokbh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("183_ooj08")
+}, {
+"duration": 1.0,
+"texture": ExtResource("184_fd342")
+}, {
+"duration": 1.0,
+"texture": ExtResource("185_b2hy6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("186_pxdw3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("187_dbliv")
+}, {
+"duration": 1.0,
+"texture": ExtResource("188_6sadf")
+}, {
+"duration": 1.0,
+"texture": ExtResource("189_lwr4e")
+}],
+"loop": 1,
+"name": &"walk_west",
+"speed": 12.0
+}]
