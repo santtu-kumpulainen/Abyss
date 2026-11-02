@@ -1,0 +1,621 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_000.png" id="1_obkhp"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_001.png" id="2_3eo7v"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_002.png" id="3_8e0aw"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_003.png" id="4_eynsw"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_004.png" id="5_p38de"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_005.png" id="6_06kj7"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_006.png" id="7_37eia"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_007.png" id="8_qn3ya"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_008.png" id="9_u8i80"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_009.png" id="10_8an02"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_010.png" id="11_gkwiw"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_011.png" id="12_6tbow"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_012.png" id="13_axch1"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_013.png" id="14_qf4b8"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_014.png" id="15_112dw"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Idle/Front - Idle_015.png" id="16_76lg0"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_000.png" id="17_3gq8x"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_001.png" id="18_50xme"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_002.png" id="19_qa0oh"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_003.png" id="20_lp3cj"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_004.png" id="21_eysfb"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_005.png" id="22_1wyrg"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_006.png" id="23_aggim"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_007.png" id="24_pg7p2"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_008.png" id="25_pyhva"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_009.png" id="26_5chg4"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_010.png" id="27_oqtva"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_011.png" id="28_n7ntl"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_012.png" id="29_onv6b"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_013.png" id="30_7cwal"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_014.png" id="31_cjhv5"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Idle/Left - Idle_015.png" id="32_07cw7"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_000.png" id="33_yp1e3"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_001.png" id="34_lei4q"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_002.png" id="35_b47et"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_003.png" id="36_iy1ch"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_004.png" id="37_2kvlk"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_005.png" id="38_etplc"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_006.png" id="39_dcji0"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_007.png" id="40_vqm60"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_008.png" id="41_b608o"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_009.png" id="42_dk0bn"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_010.png" id="43_u7gqr"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_011.png" id="44_g10by"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_012.png" id="45_b7c0b"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_013.png" id="46_b16xa"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_014.png" id="47_77l08"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Idle/Right - Idle_015.png" id="48_l0ti2"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_000.png" id="49_y1sli"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_001.png" id="50_1g3o0"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_002.png" id="51_c2aa6"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_003.png" id="52_xyvoy"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_004.png" id="53_sc1c7"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_005.png" id="54_yp47m"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_006.png" id="55_l8p0s"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_007.png" id="56_6vjpr"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_008.png" id="57_dls2d"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_009.png" id="58_uhg2b"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_010.png" id="59_yyt7d"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_011.png" id="60_04dn1"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_012.png" id="61_bnsyr"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_013.png" id="62_20t6b"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_014.png" id="63_yfk8g"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Idle/Back - Idle_015.png" id="64_jgu6d"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_000.png" id="65_twxc4"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_001.png" id="66_3us2s"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_002.png" id="67_yk0n0"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_003.png" id="68_m2a26"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_004.png" id="69_icq3y"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_005.png" id="70_5q18t"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_006.png" id="71_eui3d"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_007.png" id="72_exhqw"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_008.png" id="73_6drjj"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_009.png" id="74_hp50o"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_010.png" id="75_jtkvn"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_011.png" id="76_tjxpn"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_012.png" id="77_k62qp"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_013.png" id="78_mvcci"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_014.png" id="79_rxvil"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_015.png" id="80_cnc2w"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_016.png" id="81_i18h7"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_017.png" id="82_uvu8k"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_018.png" id="83_aye0k"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Front - Walking/Front - Walking_019.png" id="84_t56yc"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_000.png" id="85_qw3oi"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_001.png" id="86_htgxs"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_002.png" id="87_7tqvj"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_003.png" id="88_2uvnj"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_004.png" id="89_sxfpt"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_005.png" id="90_akv05"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_006.png" id="91_tm4yj"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_007.png" id="92_ogw0o"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_008.png" id="93_qle4w"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_009.png" id="94_gxwxy"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_010.png" id="95_chyxl"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_011.png" id="96_1e503"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_012.png" id="97_jk8d1"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_013.png" id="98_h2xci"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_014.png" id="99_twq1b"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_015.png" id="100_n1dng"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_016.png" id="101_n75lj"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_017.png" id="102_mwot2"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_018.png" id="103_irnch"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Left - Walking/Left - Walking_019.png" id="104_3xxm1"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_000.png" id="105_jl4qh"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_001.png" id="106_p44h7"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_002.png" id="107_mwt3f"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_003.png" id="108_02ivy"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_004.png" id="109_52g07"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_005.png" id="110_pjju5"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_006.png" id="111_fwvcu"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_007.png" id="112_q710u"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_008.png" id="113_yahnw"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_009.png" id="114_fypwe"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_010.png" id="115_tr2fd"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_011.png" id="116_41twm"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_012.png" id="117_r4g0a"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_013.png" id="118_xia43"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_014.png" id="119_q2lv0"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_015.png" id="120_271dw"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_016.png" id="121_8easq"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_017.png" id="122_abr6n"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_018.png" id="123_63274"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Right - Walking/Right - Walking_019.png" id="124_lej6c"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_000.png" id="125_mshfq"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_001.png" id="126_b2p4o"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_002.png" id="127_lbtpr"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_003.png" id="128_mnru2"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_004.png" id="129_pp3aq"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_005.png" id="130_qc4l7"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_006.png" id="131_5ms0j"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_007.png" id="132_dr8pc"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_008.png" id="133_tp3jc"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_009.png" id="134_176fo"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_010.png" id="135_3ixx2"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_011.png" id="136_0o1fh"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_012.png" id="137_86ot0"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_013.png" id="138_cusct"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_014.png" id="139_8w5fc"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_015.png" id="140_lpv12"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_016.png" id="141_bmln3"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_017.png" id="142_ivdf4"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_018.png" id="143_0nkeh"]
+[ext_resource type="Texture2D" path="res://assets/characters/enemies/Giant Goblin/PNG/PNG Sequences/Back - Walking/Back - Walking_019.png" id="144_fnihu"]
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_obkhp")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_3eo7v")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_8e0aw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_eynsw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_p38de")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_06kj7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_37eia")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_qn3ya")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_u8i80")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_8an02")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_gkwiw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_6tbow")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_axch1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_qf4b8")
+}, {
+"duration": 1.0,
+"texture": ExtResource("15_112dw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("16_76lg0")
+}],
+"loop": 1,
+"name": &"idle_down",
+"speed": 16.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("17_3gq8x")
+}, {
+"duration": 1.0,
+"texture": ExtResource("18_50xme")
+}, {
+"duration": 1.0,
+"texture": ExtResource("19_qa0oh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("20_lp3cj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("21_eysfb")
+}, {
+"duration": 1.0,
+"texture": ExtResource("22_1wyrg")
+}, {
+"duration": 1.0,
+"texture": ExtResource("23_aggim")
+}, {
+"duration": 1.0,
+"texture": ExtResource("24_pg7p2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("25_pyhva")
+}, {
+"duration": 1.0,
+"texture": ExtResource("26_5chg4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("27_oqtva")
+}, {
+"duration": 1.0,
+"texture": ExtResource("28_n7ntl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("29_onv6b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("30_7cwal")
+}, {
+"duration": 1.0,
+"texture": ExtResource("31_cjhv5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("32_07cw7")
+}],
+"loop": 1,
+"name": &"idle_left",
+"speed": 16.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("33_yp1e3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("34_lei4q")
+}, {
+"duration": 1.0,
+"texture": ExtResource("35_b47et")
+}, {
+"duration": 1.0,
+"texture": ExtResource("36_iy1ch")
+}, {
+"duration": 1.0,
+"texture": ExtResource("37_2kvlk")
+}, {
+"duration": 1.0,
+"texture": ExtResource("38_etplc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("39_dcji0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("40_vqm60")
+}, {
+"duration": 1.0,
+"texture": ExtResource("41_b608o")
+}, {
+"duration": 1.0,
+"texture": ExtResource("42_dk0bn")
+}, {
+"duration": 1.0,
+"texture": ExtResource("43_u7gqr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("44_g10by")
+}, {
+"duration": 1.0,
+"texture": ExtResource("45_b7c0b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("46_b16xa")
+}, {
+"duration": 1.0,
+"texture": ExtResource("47_77l08")
+}, {
+"duration": 1.0,
+"texture": ExtResource("48_l0ti2")
+}],
+"loop": 1,
+"name": &"idle_right",
+"speed": 16.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("49_y1sli")
+}, {
+"duration": 1.0,
+"texture": ExtResource("50_1g3o0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("51_c2aa6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("52_xyvoy")
+}, {
+"duration": 1.0,
+"texture": ExtResource("53_sc1c7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("54_yp47m")
+}, {
+"duration": 1.0,
+"texture": ExtResource("55_l8p0s")
+}, {
+"duration": 1.0,
+"texture": ExtResource("56_6vjpr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("57_dls2d")
+}, {
+"duration": 1.0,
+"texture": ExtResource("58_uhg2b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("59_yyt7d")
+}, {
+"duration": 1.0,
+"texture": ExtResource("60_04dn1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("61_bnsyr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("62_20t6b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("63_yfk8g")
+}, {
+"duration": 1.0,
+"texture": ExtResource("64_jgu6d")
+}],
+"loop": 1,
+"name": &"idle_up",
+"speed": 16.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("65_twxc4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("66_3us2s")
+}, {
+"duration": 1.0,
+"texture": ExtResource("67_yk0n0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("68_m2a26")
+}, {
+"duration": 1.0,
+"texture": ExtResource("69_icq3y")
+}, {
+"duration": 1.0,
+"texture": ExtResource("70_5q18t")
+}, {
+"duration": 1.0,
+"texture": ExtResource("71_eui3d")
+}, {
+"duration": 1.0,
+"texture": ExtResource("72_exhqw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("73_6drjj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("74_hp50o")
+}, {
+"duration": 1.0,
+"texture": ExtResource("75_jtkvn")
+}, {
+"duration": 1.0,
+"texture": ExtResource("76_tjxpn")
+}, {
+"duration": 1.0,
+"texture": ExtResource("77_k62qp")
+}, {
+"duration": 1.0,
+"texture": ExtResource("78_mvcci")
+}, {
+"duration": 1.0,
+"texture": ExtResource("79_rxvil")
+}, {
+"duration": 1.0,
+"texture": ExtResource("80_cnc2w")
+}, {
+"duration": 1.0,
+"texture": ExtResource("81_i18h7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("82_uvu8k")
+}, {
+"duration": 1.0,
+"texture": ExtResource("83_aye0k")
+}, {
+"duration": 1.0,
+"texture": ExtResource("84_t56yc")
+}],
+"loop": 1,
+"name": &"walk_down",
+"speed": 24.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("85_qw3oi")
+}, {
+"duration": 1.0,
+"texture": ExtResource("86_htgxs")
+}, {
+"duration": 1.0,
+"texture": ExtResource("87_7tqvj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("88_2uvnj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("89_sxfpt")
+}, {
+"duration": 1.0,
+"texture": ExtResource("90_akv05")
+}, {
+"duration": 1.0,
+"texture": ExtResource("91_tm4yj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("92_ogw0o")
+}, {
+"duration": 1.0,
+"texture": ExtResource("93_qle4w")
+}, {
+"duration": 1.0,
+"texture": ExtResource("94_gxwxy")
+}, {
+"duration": 1.0,
+"texture": ExtResource("95_chyxl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("96_1e503")
+}, {
+"duration": 1.0,
+"texture": ExtResource("97_jk8d1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("98_h2xci")
+}, {
+"duration": 1.0,
+"texture": ExtResource("99_twq1b")
+}, {
+"duration": 1.0,
+"texture": ExtResource("100_n1dng")
+}, {
+"duration": 1.0,
+"texture": ExtResource("101_n75lj")
+}, {
+"duration": 1.0,
+"texture": ExtResource("102_mwot2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("103_irnch")
+}, {
+"duration": 1.0,
+"texture": ExtResource("104_3xxm1")
+}],
+"loop": 1,
+"name": &"walk_left",
+"speed": 24.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("105_jl4qh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("106_p44h7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("107_mwt3f")
+}, {
+"duration": 1.0,
+"texture": ExtResource("108_02ivy")
+}, {
+"duration": 1.0,
+"texture": ExtResource("109_52g07")
+}, {
+"duration": 1.0,
+"texture": ExtResource("110_pjju5")
+}, {
+"duration": 1.0,
+"texture": ExtResource("111_fwvcu")
+}, {
+"duration": 1.0,
+"texture": ExtResource("112_q710u")
+}, {
+"duration": 1.0,
+"texture": ExtResource("113_yahnw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("114_fypwe")
+}, {
+"duration": 1.0,
+"texture": ExtResource("115_tr2fd")
+}, {
+"duration": 1.0,
+"texture": ExtResource("116_41twm")
+}, {
+"duration": 1.0,
+"texture": ExtResource("117_r4g0a")
+}, {
+"duration": 1.0,
+"texture": ExtResource("118_xia43")
+}, {
+"duration": 1.0,
+"texture": ExtResource("119_q2lv0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("120_271dw")
+}, {
+"duration": 1.0,
+"texture": ExtResource("121_8easq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("122_abr6n")
+}, {
+"duration": 1.0,
+"texture": ExtResource("123_63274")
+}, {
+"duration": 1.0,
+"texture": ExtResource("124_lej6c")
+}],
+"loop": 1,
+"name": &"walk_right",
+"speed": 24.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("125_mshfq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("126_b2p4o")
+}, {
+"duration": 1.0,
+"texture": ExtResource("127_lbtpr")
+}, {
+"duration": 1.0,
+"texture": ExtResource("128_mnru2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("129_pp3aq")
+}, {
+"duration": 1.0,
+"texture": ExtResource("130_qc4l7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("131_5ms0j")
+}, {
+"duration": 1.0,
+"texture": ExtResource("132_dr8pc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("133_tp3jc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("134_176fo")
+}, {
+"duration": 1.0,
+"texture": ExtResource("135_3ixx2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("136_0o1fh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("137_86ot0")
+}, {
+"duration": 1.0,
+"texture": ExtResource("138_cusct")
+}, {
+"duration": 1.0,
+"texture": ExtResource("139_8w5fc")
+}, {
+"duration": 1.0,
+"texture": ExtResource("140_lpv12")
+}, {
+"duration": 1.0,
+"texture": ExtResource("141_bmln3")
+}, {
+"duration": 1.0,
+"texture": ExtResource("142_ivdf4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("143_0nkeh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("144_fnihu")
+}],
+"loop": 1,
+"name": &"walk_up",
+"speed": 24.0
+}]

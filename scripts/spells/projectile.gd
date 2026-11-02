@@ -1,7 +1,7 @@
 class_name Projectile
 extends Area2D
 ## Straight-flying spell projectile configured by a Spell resource.
-## Hits the first world body or damageable target it touches (calling
+## Hits the first world body, damageable target or hurtbox it touches (calling
 ## take_damage() once if the body has it), then frees itself. Never hits its
 ## source or player characters. Collision: layer "player_projectiles",
 ## mask "world" + "enemies".
@@ -31,6 +31,7 @@ func _ready() -> void:
 		queue_free()
 		return
 	body_entered.connect(_on_body_entered)
+	area_entered.connect(_on_area_entered)
 	if spell.frames:
 		_sprite.sprite_frames = spell.frames
 		_sprite.play(spell.animation)
@@ -57,6 +58,11 @@ func _on_body_entered(body: Node) -> void:
 		body.take_damage(spell.damage)
 	set_deferred(&"monitoring", false)
 	queue_free()
+
+
+## Hurtbox areas (e.g. an enemy's body-sized Area2D) count as hits on their parent.
+func _on_area_entered(area: Area2D) -> void:
+	_on_body_entered(area.get_parent())
 
 
 ## Safety net on top of the collision mask: the Swordsman still uses the
