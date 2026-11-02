@@ -1,13 +1,13 @@
-[gd_resource type="SpriteFrames" format=3]
+[gd_resource type="SpriteFrames" format=3 uid="uid://hho7jh47et87"]
 
-[ext_resource type="Texture2D" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_attack_with_shadow.png" id="1_qghfr"]
-[ext_resource type="Texture2D" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Death_with_shadow.png" id="2_r1n0w"]
-[ext_resource type="Texture2D" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Hurt_with_shadow.png" id="3_8jr1d"]
-[ext_resource type="Texture2D" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Idle_with_shadow.png" id="4_22h61"]
-[ext_resource type="Texture2D" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Run_Attack_with_shadow.png" id="5_tkta0"]
-[ext_resource type="Texture2D" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Run_with_shadow.png" id="6_dvbpa"]
-[ext_resource type="Texture2D" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Walk_Attack_with_shadow.png" id="7_p17or"]
-[ext_resource type="Texture2D" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Walk_with_shadow.png" id="8_msb3g"]
+[ext_resource type="Texture2D" uid="uid://bh2w041fh40ta" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_attack_with_shadow.png" id="1_qghfr"]
+[ext_resource type="Texture2D" uid="uid://b84oqk6enwdwq" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Death_with_shadow.png" id="2_r1n0w"]
+[ext_resource type="Texture2D" uid="uid://cbprf620vb7u7" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Hurt_with_shadow.png" id="3_8jr1d"]
+[ext_resource type="Texture2D" uid="uid://fe8i2e75c4kc" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Idle_with_shadow.png" id="4_22h61"]
+[ext_resource type="Texture2D" uid="uid://cfg10oevmon85" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Run_Attack_with_shadow.png" id="5_tkta0"]
+[ext_resource type="Texture2D" uid="uid://du7swjb3tfbhc" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Run_with_shadow.png" id="6_dvbpa"]
+[ext_resource type="Texture2D" uid="uid://b78r4gpowv3j2" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Walk_Attack_with_shadow.png" id="7_p17or"]
+[ext_resource type="Texture2D" uid="uid://c6ls45aub7s7h" path="res://assets/characters/player/level_1/With_shadow/Swordsman_lvl1_Walk_with_shadow.png" id="8_msb3g"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_y07hs"]
 atlas = ExtResource("1_qghfr")
