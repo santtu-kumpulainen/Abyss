@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/test/test_target.gd" id="1_target"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(28, 28)
+
+[node name="TestTarget" type="StaticBody2D"]
+collision_layer = 4
+collision_mask = 0
+script = ExtResource("1_target")
+
+[node name="Polygon2D" type="Polygon2D" parent="."]
+color = Color(0.75, 0.2, 0.25, 1)
+polygon = PackedVector2Array(-14, -14, 14, -14, 14, 14, -14, 14)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")
