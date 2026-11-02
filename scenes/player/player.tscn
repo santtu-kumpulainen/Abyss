@@ -1,21 +1,21 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://c0kby6c65arr6"]
 
-[ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
-[ext_resource type="SpriteFrames" path="res://scenes/player/sprite_frames/player_level_1.tres" id="2_frames_lvl1"]
+[ext_resource type="Script" uid="uid://dj6tk5cby2so6" path="res://scripts/player/player.gd" id="1_player"]
+[ext_resource type="SpriteFrames" uid="uid://hho7jh47et87" path="res://scenes/player/sprite_frames/player_level_1.tres" id="2_frames_lvl1"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_feet"]
 radius = 6.0
 
-[node name="Player" type="CharacterBody2D"]
+[node name="Player" type="CharacterBody2D" unique_id=1875647500]
 motion_mode = 1
 script = ExtResource("1_player")
 sprite_frames = ExtResource("2_frames_lvl1")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=826002550]
 texture_filter = 1
 position = Vector2(0, -10)
 sprite_frames = ExtResource("2_frames_lvl1")
 animation = &"idle_down"
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1468222486]
 shape = SubResource("CircleShape2D_feet")
