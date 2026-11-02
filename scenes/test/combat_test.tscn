@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" path="res://scenes/rooms/test_room.tscn" id="1_test_room"]
 [ext_resource type="PackedScene" path="res://scenes/mage/mage.tscn" id="2_mage"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="3_goblin"]
+[ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="4_game_over"]
 
 [node name="CombatTest" type="Node2D"]
 
@@ -13,3 +14,6 @@ position = Vector2(250, 324)
 
 [node name="GiantGoblin" parent="." instance=ExtResource("3_goblin")]
 position = Vector2(800, 324)
+
+[node name="GameOverOverlay" parent="." node_paths=PackedStringArray("player") instance=ExtResource("4_game_over")]
+player = NodePath("../Mage")
