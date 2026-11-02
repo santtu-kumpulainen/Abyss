@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/enemies/enemy.gd" id="1_enemy"]
 [ext_resource type="Script" path="res://scripts/components/health.gd" id="2_health"]
+[ext_resource type="PackedScene" path="res://scenes/ui/health_bar.tscn" id="3_health_bar"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_feet"]
 radius = 12.0
@@ -36,3 +37,10 @@ shape = SubResource("CapsuleShape2D_body")
 [node name="Health" type="Node" parent="."]
 script = ExtResource("2_health")
 max_health = 50.0
+
+[node name="HealthBar" parent="." node_paths=PackedStringArray("health") instance=ExtResource("3_health_bar")]
+offset_left = -18.0
+offset_top = -72.0
+offset_right = 18.0
+offset_bottom = -67.0
+health = NodePath("../Health")
