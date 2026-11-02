@@ -4,6 +4,7 @@
 [ext_resource type="SpriteFrames" path="res://scenes/mage/sprite_frames/mage.tres" id="2_frames"]
 [ext_resource type="Script" path="res://scripts/spells/spell_caster.gd" id="3_caster"]
 [ext_resource type="Resource" path="res://scenes/spells/fire_ball/fire_ball.tres" id="4_fire_ball"]
+[ext_resource type="Script" path="res://scripts/components/health.gd" id="5_health"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_feet"]
 radius = 8.0
@@ -28,3 +29,6 @@ shape = SubResource("CircleShape2D_feet")
 position = Vector2(0, -27)
 script = ExtResource("3_caster")
 spell = ExtResource("4_fire_ball")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("5_health")
