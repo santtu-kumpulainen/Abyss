@@ -1,0 +1,51 @@
+{
+  "name": "MAGE \u2014 Animated Hero Sprite",
+  "size": [
+    128,
+    128
+  ],
+  "directions": [
+    "south",
+    "south-east",
+    "east",
+    "north-east",
+    "north",
+    "north-west",
+    "west",
+    "south-west"
+  ],
+  "animations": {
+    "idle": {
+      "south": 12,
+      "south-east": 12,
+      "east": 12,
+      "north-east": 12,
+      "north": 12,
+      "north-west": 12,
+      "west": 12,
+      "south-west": 12
+    },
+    "walk": {
+      "south": 11,
+      "south-east": 12,
+      "east": 12,
+      "north-east": 13,
+      "north": 11,
+      "north-west": 11,
+      "west": 11,
+      "south-west": 12
+    }
+  },
+  "loop": true,
+  "recommended_fps": 12,
+  "anchor": "bottom-center",
+  "format": "PNG, straight alpha, indexed",
+  "frame_order": "filenames ascending, then back to 00",
+  "more_for_this_hero": {
+    "part2": "https://gegx.itch.io/mage-attack-128",
+    "part3": "https://gegx.itch.io/mage-combat-128",
+    "part4": "https://gegx.itch.io/mage-motion-128",
+    "colour_variants": "https://gegx.itch.io/mage-colours-128",
+    "bundle": "https://itch.io/s/201076/mage-hero-complete-set-128-px-8-directions"
+  }
+}
