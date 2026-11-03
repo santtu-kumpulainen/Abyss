@@ -21,6 +21,7 @@
 [ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster.tscn" id="e_blood"]
 [ext_resource type="PackedScene" path="res://scenes/items/item_pickup.tscn" id="12_item_pickup"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/upgrade_station.tscn" id="13_upgrade_station"]
+[ext_resource type="PackedScene" path="res://scenes/ui/victory_overlay.tscn" id="14_victory"]
 
 [sub_resource type="Resource" id="Room_2_4"]
 script = ExtResource("10_room_spec")
@@ -209,3 +210,5 @@ script = ExtResource("8_run_state")
 
 [node name="GameOverOverlay" parent="." node_paths=PackedStringArray("player") instance=ExtResource("7_game_over")]
 player = NodePath("../Mage")
+
+[node name="VictoryOverlay" parent="." instance=ExtResource("14_victory")]
