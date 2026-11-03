@@ -17,14 +17,30 @@ signal cast(projectile: Projectile)
 var damage_multiplier := 1.0
 ## Multiplies the spell's cooldown (1.0 = unchanged, lower = faster).
 var cooldown_multiplier := 1.0
+## Arcane Momentum: after one of this caster's projectiles hits an Enemy, the
+## next cast within `momentum_window` seconds has its cooldown reduced by this
+## fraction (0 = off). One charge at a time; it does not stack.
+var momentum := 0.0
+var momentum_window := 1.5
 
 var _cooldown_left := 0.0
+var _momentum_left := 0.0
 ## `spell` with the modifiers applied (`spell` itself when unmodified).
 var _cast_spell: Spell
 
 
 func _physics_process(delta: float) -> void:
 	_cooldown_left = maxf(_cooldown_left - delta, 0.0)
+	_momentum_left = maxf(_momentum_left - delta, 0.0)
+
+
+## True while an Arcane Momentum charge is waiting for the next cast.
+func has_momentum() -> bool:
+	return momentum > 0.0 and _momentum_left > 0.0
+
+
+func cooldown_left() -> float:
+	return _cooldown_left
 
 
 func can_cast() -> bool:
@@ -57,8 +73,17 @@ func try_cast(target: Vector2) -> Projectile:
 	container.add_child(projectile)
 	projectile.global_position = global_position
 	_cooldown_left = _cast_spell.cooldown
+	if has_momentum():
+		_cooldown_left *= 1.0 - momentum
+		_momentum_left = 0.0
+	projectile.hit.connect(_on_projectile_hit)
 	cast.emit(projectile)
 	return projectile
+
+
+func _on_projectile_hit(body: Node) -> void:
+	if momentum > 0.0 and body is Enemy:
+		_momentum_left = momentum_window
 
 
 func _rebuild_cast_spell() -> void:

@@ -19,6 +19,10 @@ signal cleared
 signal enemy_defeated(enemy: Enemy)
 ## Emitted when status_text() changes for reasons other than the signals above.
 signal status_changed
+## Emitted once for each enemy joining the encounter (scene-placed ones when
+## the room becomes ready, spawned ones such as survival waves when added).
+## The Dungeon applies run scaling here.
+signal enemy_registered(enemy: Enemy)
 
 enum State { IDLE, COMBAT, CLEARED }
 
@@ -77,6 +81,34 @@ func add_encounter_enemies(scenes: Array[PackedScene]) -> void:
 		get_node(^"Enemies").add_child(enemy, true)
 
 
+## Difficulty pressure: adds up to `count` enemies (cycling through `scenes`)
+## at SpawnPoints markers not used by the first `used` enemies and at least
+## `min_door_distance` from every door, so nothing spawns on top of another
+## enemy or next to an arriving Mage. If too few safe markers are free, fewer
+## enemies are added. Returns the number added. Call before the room enters the tree.
+func add_extra_enemies(scenes: Array[PackedScene], count: int, used: int, min_door_distance: float = 180.0) -> int:
+	if scenes.is_empty() or count <= 0 or not has_node(^"SpawnPoints"):
+		return 0
+	var spawn_root := get_node(^"SpawnPoints") as Node2D
+	var doors := get_node(^"Doors").get_children()
+	var added := 0
+	var points := spawn_root.get_children()
+	for i in range(used, points.size()):
+		if added >= count:
+			break
+		var pos := spawn_root.position + (points[i] as Node2D).position
+		var safe := doors.all(func(door: Node2D) -> bool:
+			return pos.distance_to(door.position + (door.get_parent() as Node2D).position) >= min_door_distance)
+		if not safe:
+			continue
+		var enemy := scenes[added % scenes.size()].instantiate() as Enemy
+		enemy.position = pos
+		enemy.detection_radius = spawn_detection_radius
+		get_node(^"Enemies").add_child(enemy, true)
+		added += 1
+	return added
+
+
 ## True when the Mage may leave through an open door (the Dungeon checks this).
 func can_exit() -> bool:
 	return state == State.CLEARED
@@ -122,6 +154,7 @@ func _register_enemy(enemy: Enemy, active: bool) -> void:
 	enemy.died.connect(_on_enemy_died.bind(enemy))
 	_set_enemy_active(enemy, active)
 	enemies_remaining = _enemies.size()
+	enemy_registered.emit(enemy)
 
 
 ## True when the running encounter is won (checked after each kill).

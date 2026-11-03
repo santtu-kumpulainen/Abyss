@@ -34,6 +34,8 @@ const DIRECTIONS: Array[StringName] = [
 var facing: StringName = &"south"
 ## Run modifier applied on top of `speed` (set by the Dungeon from RunState).
 var speed_multiplier := 1.0
+## Run modifier on all damage taken (set by the Dungeon from RunState).
+var damage_taken_multiplier := 1.0
 ## Set by end_run(): take_damage() does nothing.
 var invulnerable := false
 
@@ -69,7 +71,7 @@ func _physics_process(_delta: float) -> void:
 func take_damage(amount: float) -> void:
 	if invulnerable:
 		return
-	health.take_damage(amount)
+	health.take_damage(amount * damage_taken_multiplier)
 	if not health.is_dead():
 		_sprite.modulate = Color(1.0, 0.4, 0.4)
 		create_tween().tween_property(_sprite, ^"modulate", Color.WHITE, 0.15)
