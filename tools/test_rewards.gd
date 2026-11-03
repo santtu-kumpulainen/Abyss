@@ -122,9 +122,14 @@ func _test_run_state_unit() -> void:
 	run.leveled_up.connect(func(l: int) -> void: levels.append(l))
 	run.add_rewards(49, 3)
 	_check(run.level == 1 and run.xp == 49 and levels.is_empty(), "RunState: 49 XP stays Lv 1")
-	run.add_rewards(151, 0)  # 200 total: 50 -> Lv 2, 100 -> Lv 3, 50 left (< 150)
-	_check(run.level == 3 and run.xp == 50 and levels == [2, 3] and run.currency == 3,
-			"RunState: multiple level-ups carry leftover XP (Lv %d, XP %d, %s)" % [run.level, run.xp, levels])
+	run.add_rewards(51, 0)  # 100 total: 50 -> Lv 2, 50 left (< 100)
+	_check(run.level == 2 and run.xp == 50 and levels == [2] and run.currency == 3,
+			"RunState: level-up carries leftover XP (Lv %d, XP %d, %s)" % [run.level, run.xp, levels])
+	run.add_rewards(500, 0)  # Lv 3 is the cap: excess XP is discarded, no Lv 4+
+	_check(run.level == 3 and run.xp == 0 and levels == [2, 3] and run.is_max_level(),
+			"RunState: capped at Lv 3, excess XP discarded (Lv %d, XP %d, %s)" % [run.level, run.xp, levels])
+	run.add_rewards(999, 0)
+	_check(run.level == 3 and run.xp == 0 and levels == [2, 3], "RunState: more XP at cap emits no level-up")
 	run.reset()
 	_check(run.level == 1 and run.xp == 0 and run.currency == 0, "RunState: reset() clears progression")
 	run.free()
