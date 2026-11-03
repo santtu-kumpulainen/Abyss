@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/arena_room.tscn" id="1_arena_room"]
+[ext_resource type="PackedScene" path="res://scenes/mage/mage.tscn" id="2_mage"]
+[ext_resource type="PackedScene" path="res://scenes/ui/room_hud.tscn" id="3_room_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="4_game_over"]
+
+[node name="RoomTest" type="Node2D"]
+
+[node name="ArenaRoom" parent="." instance=ExtResource("1_arena_room")]
+
+[node name="Mage" parent="." instance=ExtResource("2_mage")]
+position = Vector2(576, 580)
+
+[node name="RoomHud" parent="." node_paths=PackedStringArray("room") instance=ExtResource("3_room_hud")]
+room = NodePath("../ArenaRoom")
+
+[node name="GameOverOverlay" parent="." node_paths=PackedStringArray("player") instance=ExtResource("4_game_over")]
+player = NodePath("../Mage")
