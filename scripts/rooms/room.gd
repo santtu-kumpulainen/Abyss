@@ -13,6 +13,8 @@ extends Node2D
 signal state_changed(state: State)
 signal enemies_remaining_changed(count: int)
 signal cleared
+## Emitted once for each encounter enemy that dies (used for run rewards).
+signal enemy_defeated(enemy: Enemy)
 
 enum State { IDLE, COMBAT, CLEARED }
 
@@ -93,7 +95,10 @@ func _on_trigger_body_entered(body: Node2D) -> void:
 
 
 func _on_enemy_died(enemy: Enemy) -> void:
+	if not _enemies.has(enemy):
+		return
 	_enemies.erase(enemy)
+	enemy_defeated.emit(enemy)
 	enemies_remaining = _enemies.size()
 	enemies_remaining_changed.emit(enemies_remaining)
 	if state == State.COMBAT and enemies_remaining == 0:
