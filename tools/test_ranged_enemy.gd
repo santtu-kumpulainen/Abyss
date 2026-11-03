@@ -32,8 +32,9 @@ func _run() -> void:
 
 ## Loads the Cave test room, starts combat and freezes every enemy except the caster.
 func _setup_room() -> Array:
+	var scene_id := current_scene.get_instance_id() if current_scene else 0
 	change_scene_to_file(ROOM_SCENE)
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	var room := current_scene.get_node(^"Room") as Room
 	var mage := current_scene.get_node(^"Mage") as Mage
 	var caster := room.get_node(^"Enemies/DemonCaster") as RangedEnemy
@@ -174,8 +175,9 @@ func _test_mage_death() -> void:
 
 
 func _test_dungeon_integration() -> void:
+	var scene_id := current_scene.get_instance_id() if current_scene else 0
 	change_scene_to_file(DUNGEON_SCENE)
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	var dungeon := current_scene as Dungeon
 	dungeon.enter_room(CAVE, &"DoorBottom")
 	await _frames(2)
@@ -215,8 +217,9 @@ func _test_dungeon_integration() -> void:
 	_check(dungeon.run_state.xp == xp and dungeon.run_state.currency == currency, "revisit grants no duplicate rewards")
 
 	# Restart resets the run and the caster returns.
+	scene_id = current_scene.get_instance_id() if current_scene else 0
 	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).restart()
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	dungeon = current_scene as Dungeon
 	_check(dungeon.run_state.xp == 0 and dungeon.run_state.currency == 0 and dungeon.run_state.level == 1, "Restart resets the run")
 	dungeon.enter_room(CAVE, &"DoorBottom")
@@ -253,3 +256,12 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Scene changes are deferred: waits until a new, ready scene (not `old_id`) is current.
+func _wait_for_scene(old_id: int) -> void:
+	for i in 600:
+		if current_scene != null and current_scene.get_instance_id() != old_id and current_scene.is_node_ready():
+			break
+		await process_frame
+	await _frames(2)

@@ -1,0 +1,45 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/templates/crypt_template.tscn" id="1_template"]
+[ext_resource type="Script" path="res://scripts/rooms/rune_puzzle_room.gd" id="2_script"]
+[ext_resource type="Script" path="res://scripts/rooms/rune_switch.gd" id="3_rune"]
+[ext_resource type="Script" path="res://scripts/rooms/treasure_chest.gd" id="4_chest"]
+
+[node name="RunePuzzleRoom" instance=ExtResource("1_template")]
+script = ExtResource("2_script")
+
+[node name="Visuals" parent="." index="0"]
+variation_seed = 23
+
+[node name="RuneSun" type="Area2D" parent="Decor"]
+position = Vector2(380, 360)
+script = ExtResource("3_rune")
+
+[node name="RuneMoon" type="Area2D" parent="Decor"]
+position = Vector2(576, 290)
+script = ExtResource("3_rune")
+rune_id = "moon"
+
+[node name="RuneStar" type="Area2D" parent="Decor"]
+position = Vector2(772, 360)
+script = ExtResource("3_rune")
+rune_id = "star"
+
+[node name="TreasureChest" type="Area2D" parent="Decor"]
+position = Vector2(576, 520)
+script = ExtResource("4_chest")
+treasure_id = &"rune_sigil"
+
+[node name="Plaque" type="Label" parent="Decor"]
+offset_left = 336.0
+offset_top = 70.0
+offset_right = 816.0
+offset_bottom = 120.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.75, 0.9, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "\"First the Moon rises, then the Sun follows,
+and the Star closes the night.\""
+horizontal_alignment = 1

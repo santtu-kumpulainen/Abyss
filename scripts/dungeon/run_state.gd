@@ -16,7 +16,9 @@ extends Node
 ## gold and a required level. Items (ITEMS) are collected once per run from
 ## room pickups. Stat bonuses from both are summed on demand, so re-applying
 ## them never stacks. After the boss dies, one relic (RELICS) can be chosen
-## once; it adds to the same bonus sums.
+## once; it adds to the same bonus sums. Treasure chests (TREASURES) in the
+## optional treasure rooms are claimed once per run: their gold is added once,
+## stat keys join the bonus sums and "heal" is applied by the owner.
 ##
 ## Economy (current dungeon, full clear): tier-1 rooms (Lv 1) give ~56 XP and
 ## ~246 gold, tier-2 rooms (Lv 2) ~114 XP and ~488 gold, so a Mage reaches the
@@ -28,6 +30,7 @@ signal leveled_up(level: int)
 signal upgrade_purchased(id: StringName)
 signal item_collected(id: StringName)
 signal relic_chosen(id: StringName)
+signal treasure_claimed(id: StringName)
 
 const MAX_LEVEL := 3
 
@@ -54,6 +57,16 @@ const RELICS := {
 	&"vital_relic": {"name": "Vital Relic", "effect": "+30 max HP, heal 30", "max_health": 30.0},
 }
 
+## Treasure-room chest rewards (same effect keys, plus "gold" and "heal"),
+## each claimable once per run. Kept below the boss relics in strength.
+const TREASURES := {
+	&"survivor_cache": {"name": "Survivor's Cache", "effect": "+150 gold, restore 50 HP", "gold": 150, "heal": 50.0},
+	&"rune_sigil": {"name": "Rune Sigil", "effect": "-10% spell cooldown", "cooldown": 0.1},
+}
+
+## Effect keys that give lasting stat bonuses (summed by _bonus_sum()).
+const STAT_KEYS: Array[String] = ["max_health", "damage", "cooldown", "speed"]
+
 ## XP needed for level 1 -> 2; level N -> N+1 needs N times this.
 @export var xp_per_level: int = 50
 ## Mage max HP gained per level-up.
@@ -75,6 +88,8 @@ var collected := {}
 var boss_defeated := false
 ## Chosen post-boss relic id (&"" until chosen).
 var relic: StringName = &""
+## Claimed treasure ids (id -> true), in claim order.
+var treasures := {}
 ## Encounter enemies defeated this run (including the boss).
 var enemies_defeated: int = 0
 
@@ -157,6 +172,22 @@ func choose_relic(id: StringName) -> bool:
 	return true
 
 
+func is_treasure_claimed(id: StringName) -> bool:
+	return treasures.has(id)
+
+
+## Claims treasure `id` once, adding its gold. Returns false (and changes
+## nothing) if it is unknown or already claimed this run.
+func claim_treasure(id: StringName) -> bool:
+	if not TREASURES.has(id) or is_treasure_claimed(id):
+		return false
+	treasures[id] = true
+	currency += int(TREASURES[id].get("gold", 0))
+	changed.emit()
+	treasure_claimed.emit(id)
+	return true
+
+
 ## Spell damage multiplier from level, upgrades and items (1.0 = base).
 func spell_damage_multiplier() -> float:
 	return 1.0 + damage_bonus_per_level * (level - 1) + _bonus_sum(&"damage")
@@ -178,19 +209,22 @@ func reset() -> void:
 	currency = 0
 	purchased.clear()
 	collected.clear()
+	treasures.clear()
 	boss_defeated = false
 	relic = &""
 	enemies_defeated = 0
 	changed.emit()
 
 
-## Sum of effect `key` over purchased upgrades, collected items and the relic.
+## Sum of effect `key` over purchased upgrades, collected items, claimed treasures and the relic.
 func _bonus_sum(key: String) -> float:
 	var total := 0.0
 	for id: StringName in purchased:
 		total += UPGRADES[id].get(key, 0.0)
 	for id: StringName in collected:
 		total += ITEMS[id].get(key, 0.0)
+	for id: StringName in treasures:
+		total += TREASURES[id].get(key, 0.0)
 	if not relic.is_empty():
 		total += RELICS[relic].get(key, 0.0)
 	return total

@@ -2,7 +2,7 @@ class_name RunHud
 extends CanvasLayer
 ## Shows the run's level, XP progress and currency, e.g. "Lv 2   XP 30/100   Gold 15",
 ## or "Lv 3 (MAX)   Gold 15" at the level cap, and the collected run items
-## with their effects below it. show_message() briefly shows a centred
+## (and lasting treasure bonuses) with their effects below it. show_message() briefly shows a centred
 ## announcement (e.g. level-up unlocks).
 
 ## Seconds a message stays fully visible before fading out.
@@ -29,6 +29,11 @@ func _refresh() -> void:
 	var item_lines: Array[String] = []
 	for id: StringName in _run_state.collected:
 		item_lines.append("%s (%s)" % [RunState.ITEMS[id]["name"], RunState.ITEMS[id]["effect"]])
+	# Treasures with lasting stat bonuses are listed like items.
+	for id: StringName in _run_state.treasures:
+		var data: Dictionary = RunState.TREASURES[id]
+		if RunState.STAT_KEYS.any(func(key: String) -> bool: return data.has(key)):
+			item_lines.append("%s (%s)" % [data["name"], data["effect"]])
 	_items.text = "
 ".join(item_lines)
 	_items.visible = not item_lines.is_empty()
