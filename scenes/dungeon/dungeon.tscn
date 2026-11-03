@@ -1,0 +1,23 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon/dungeon.gd" id="1_dungeon"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/arena_room.tscn" id="2_hall"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/crypt_room.tscn" id="3_crypt"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/cave_room.tscn" id="4_cave"]
+[ext_resource type="PackedScene" path="res://scenes/mage/mage.tscn" id="5_mage"]
+[ext_resource type="PackedScene" path="res://scenes/ui/room_hud.tscn" id="6_room_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="7_game_over"]
+
+[node name="Dungeon" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_dungeon")
+rooms = Array[PackedScene]([ExtResource("2_hall"), ExtResource("3_crypt"), ExtResource("4_cave")])
+links = PackedStringArray("0:DoorRight - 1:DoorLeft", "1:DoorTop - 2:DoorBottom")
+
+[node name="Mage" parent="." instance=ExtResource("5_mage")]
+position = Vector2(576, 580)
+
+[node name="RoomHud" parent="." instance=ExtResource("6_room_hud")]
+
+[node name="GameOverOverlay" parent="." node_paths=PackedStringArray("player") instance=ExtResource("7_game_over")]
+player = NodePath("../Mage")
