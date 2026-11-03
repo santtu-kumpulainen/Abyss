@@ -21,6 +21,7 @@ func _ready() -> void:
 
 ## Reloads the current scene, resetting every character, health bar and projectile.
 func restart() -> void:
+	get_tree().paused = false
 	get_tree().reload_current_scene()
 
 

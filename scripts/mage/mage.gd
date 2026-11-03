@@ -4,6 +4,7 @@ extends CharacterBody2D
 ## SpellCaster that fires its equipped Spell toward the mouse while "attack"
 ## is held. Animations are named "<action>_<direction>" (see mage.tres).
 ## Takes damage via take_damage(); on death input stops and `died` is emitted.
+## end_run() (victory) stops input and makes the Mage ignore further damage.
 
 signal died
 
@@ -33,6 +34,8 @@ const DIRECTIONS: Array[StringName] = [
 var facing: StringName = &"south"
 ## Run modifier applied on top of `speed` (set by the Dungeon from RunState).
 var speed_multiplier := 1.0
+## Set by end_run(): take_damage() does nothing.
+var invulnerable := false
 
 @onready var caster: SpellCaster = $SpellCaster
 @onready var health: Health = $Health
@@ -64,6 +67,8 @@ func _physics_process(_delta: float) -> void:
 
 
 func take_damage(amount: float) -> void:
+	if invulnerable:
+		return
 	health.take_damage(amount)
 	if not health.is_dead():
 		_sprite.modulate = Color(1.0, 0.4, 0.4)
@@ -72,6 +77,14 @@ func take_damage(amount: float) -> void:
 
 func is_dead() -> bool:
 	return health.is_dead()
+
+
+## Ends the run (victory): stops movement and casting, ignores further damage.
+func end_run() -> void:
+	invulnerable = true
+	velocity = Vector2.ZERO
+	set_physics_process(false)
+	_play(&"idle")
 
 
 ## Maps a vector to one of the eight direction names.
