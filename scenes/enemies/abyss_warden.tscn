@@ -47,7 +47,7 @@ position = Vector2(0, -48)
 shape = SubResource("CapsuleShape2D_boss_body")
 
 [node name="Health" parent="." index="3"]
-max_health = 700.0
+max_health = 2100.0
 
 [node name="HealthBar" parent="." index="4"]
 visible = false
