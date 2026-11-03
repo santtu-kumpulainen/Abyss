@@ -37,7 +37,7 @@ func _refresh() -> void:
 		Room.State.COMBAT:
 			_label.text = "Enemies remaining: %d" % room.enemies_remaining
 		Room.State.CLEARED:
-			_label.text = "Room cleared"
+			_label.text = room.cleared_text
 		_:
 			_label.text = ""
 	_label.visible = not _label.text.is_empty()
