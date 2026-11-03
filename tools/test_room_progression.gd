@@ -158,9 +158,11 @@ func _test_gates() -> void:
 	var boss_room := _dungeon.current_room
 	_check(_dungeon.current_index == _dungeon.index_at(BOSS), "boss gate leads to the boss room")
 	await _frames(2)
-	_check(boss_room.state == Room.State.CLEARED and boss_room.enemies_remaining == 0
-			and _door(boss_room, &"DoorBottom").is_open(), "boss room is an empty placeholder with its exit open")
-	_check(_room_hud_text() == boss_room.cleared_text and _room_hud_text().contains("Boss"), "boss placeholder HUD text (%s)" % _room_hud_text())
+	_check(boss_room.state == Room.State.COMBAT and boss_room.enemies_remaining == 1
+			and not _door(boss_room, &"DoorBottom").is_open(), "boss fight starts on entry and locks the exit (see test_boss.gd)")
+	await _kill_all(boss_room)
+	_check(boss_room.state == Room.State.CLEARED and _door(boss_room, &"DoorBottom").is_open()
+			and _room_hud_text() == boss_room.cleared_text, "boss room clears and reopens after victory (%s)" % _room_hud_text())
 
 
 func _test_restart() -> void:
