@@ -1,13 +1,21 @@
 @tool
 class_name Door
 extends StaticBody2D
-## Room exit. Locked: solid wall (world layer) drawn as an iron portcullis.
-## Unlocked: collision disabled so characters can pass; only a faint
-## threshold is drawn so the floor shows through.
+## Room exit. Locked or sealed: solid wall (world layer) drawn as an iron
+## portcullis. Otherwise: collision disabled so characters can pass; only a
+## faint threshold is drawn so the floor shows through.
 
 @export var locked: bool = false:
 	set(value):
 		locked = value
+		if is_node_ready():
+			_apply()
+
+## A sealed door leads nowhere (no connected room): it stays shut even while
+## unlocked. Room only toggles `locked`, so sealing survives room clears.
+@export var sealed: bool = false:
+	set(value):
+		sealed = value
 		if is_node_ready():
 			_apply()
 
@@ -28,15 +36,20 @@ func _ready() -> void:
 	_apply()
 
 
+## True when characters can walk through.
+func is_open() -> bool:
+	return not locked and not sealed
+
+
 func _apply() -> void:
 	# Deferred: lock/unlock can happen during physics callbacks.
-	_shape.set_deferred(&"disabled", not locked)
+	_shape.set_deferred(&"disabled", is_open())
 	queue_redraw()
 
 
 func _draw() -> void:
 	var rect := Rect2(-size / 2.0, size)
-	if not locked:
+	if is_open():
 		draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 3.0), open_color)
 		draw_rect(Rect2(rect.position.x, rect.end.y - 3.0, rect.size.x, 3.0), open_color)
 		return
