@@ -1,0 +1,114 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/obstacle.tscn" id="2_obstacle"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="3_goblin"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/demon.tscn" id="3_demon"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/Blue-green_crystal_dark_shadow1.png" id="4_blue_green_crystal_dark_shadow1"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/Blue-green_crystal_light_shadow2.png" id="5_blue_green_crystal_light_shadow2"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/Beige_rpck_dark_shadow2.png" id="6_beige_rpck_dark_shadow2"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/Beige_rpck_light_shadow3.png" id="7_beige_rpck_light_shadow3"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/caveman_statue_dark_shadow1.png" id="8_caveman_statue_dark_shadow1"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/Bonefire_dark_shadow.png" id="9_bonefire_dark_shadow"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/mushroom1_dark_shadow1.png" id="10_mushroom1_dark_shadow1"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/mushroom2_dark_shadow2.png" id="11_mushroom2_dark_shadow2"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/mushroom4_dark_shadow1.png" id="12_mushroom4_dark_shadow1"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/white_crystal_dark_shadow1.png" id="13_white_crystal_dark_shadow1"]
+[ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/Dinosaur_skeleton__head_dark_shadow.png" id="14_dinosaur_skeleton__head_dark_shadow"]
+[ext_resource type="Resource" path="res://scenes/rooms/themes/cave_theme.tres" id="15_cave_theme"]
+
+[node name="CaveRoom" instance=ExtResource("1_base")]
+
+[node name="Visuals" parent="." index="0"]
+theme = ExtResource("15_cave_theme")
+variation_seed = 3
+
+[node name="CrystalWest" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(380, 300)
+texture = ExtResource("4_blue_green_crystal_dark_shadow1")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(44, 20)
+
+[node name="CrystalEast" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(772, 420)
+texture = ExtResource("5_blue_green_crystal_light_shadow2")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(44, 20)
+
+[node name="RockSpireWest" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(210, 470)
+texture = ExtResource("6_beige_rpck_dark_shadow2")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(30, 16)
+
+[node name="RockSpireEast" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(940, 200)
+texture = ExtResource("7_beige_rpck_light_shadow3")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(30, 16)
+
+[node name="StatueTopLeft" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(110, 130)
+texture = ExtResource("8_caveman_statue_dark_shadow1")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(48, 22)
+
+[node name="StatueBottomRight" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(1050, 570)
+texture = ExtResource("8_caveman_statue_dark_shadow1")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(48, 22)
+
+[node name="BonfirePit" type="Sprite2D" parent="Decor"]
+position = Vector2(576, 316)
+scale = Vector2(1, 1)
+texture = ExtResource("9_bonefire_dark_shadow")
+offset = Vector2(0, -32)
+
+[node name="Mushroom1" type="Sprite2D" parent="Decor"]
+position = Vector2(70, 450)
+scale = Vector2(1, 1)
+texture = ExtResource("10_mushroom1_dark_shadow1")
+offset = Vector2(0, -32)
+
+[node name="Mushroom2" type="Sprite2D" parent="Decor"]
+position = Vector2(1080, 110)
+scale = Vector2(1, 1)
+texture = ExtResource("11_mushroom2_dark_shadow2")
+offset = Vector2(0, -32)
+
+[node name="Mushroom3" type="Sprite2D" parent="Decor"]
+position = Vector2(300, 590)
+scale = Vector2(1, 1)
+texture = ExtResource("12_mushroom4_dark_shadow1")
+offset = Vector2(0, -32)
+
+[node name="WhiteCrystal" type="Sprite2D" parent="Decor"]
+position = Vector2(860, 590)
+scale = Vector2(1, 1)
+texture = ExtResource("13_white_crystal_dark_shadow1")
+offset = Vector2(0, -32)
+
+[node name="DinoSkull" type="Sprite2D" parent="Decor"]
+position = Vector2(430, 170)
+scale = Vector2(1, 1)
+texture = ExtResource("14_dinosaur_skeleton__head_dark_shadow")
+offset = Vector2(0, -32)
+
+[node name="GiantGoblin1" parent="Enemies" instance=ExtResource("3_goblin")]
+position = Vector2(200, 200)
+detection_radius = 800.0
+
+[node name="Demon" parent="Enemies" instance=ExtResource("3_demon")]
+position = Vector2(576, 120)
+detection_radius = 800.0
+
+[node name="GiantGoblin3" parent="Enemies" instance=ExtResource("3_goblin")]
+position = Vector2(960, 330)
+detection_radius = 800.0

@@ -1,0 +1,177 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/obstacle.tscn" id="2_obstacle"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="3_goblin"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster.tscn" id="3_blood_monster"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_1.png" id="4_grave_shadow1_1"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_4.png" id="5_grave_shadow1_4"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_6.png" id="6_grave_shadow1_6"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_8.png" id="7_grave_shadow1_8"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_12.png" id="8_grave_shadow1_12"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_14.png" id="9_grave_shadow1_14"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_17.png" id="10_grave_shadow1_17"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_2.png" id="11_grave_shadow1_2"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_9.png" id="12_grave_shadow1_9"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Pile_sculls_shadow1.png" id="13_pile_sculls_shadow1"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Bones_shadow1_1.png" id="14_bones_shadow1_1"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Bones_shadow1_3.png" id="15_bones_shadow1_3"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Scull_door_shadow1.png" id="16_scull_door_shadow1"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Dead_tree_shadow1_3.png" id="17_dead_tree_shadow1_3"]
+[ext_resource type="Resource" path="res://scenes/rooms/themes/crypt_theme.tres" id="18_crypt_theme"]
+
+[node name="CryptRoom" instance=ExtResource("1_base")]
+
+[node name="Visuals" parent="." index="0"]
+theme = ExtResource("18_crypt_theme")
+variation_seed = 7
+
+[node name="Grave1" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(190, 230)
+texture = ExtResource("4_grave_shadow1_1")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave2" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(190, 400)
+texture = ExtResource("5_grave_shadow1_4")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave3" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(290, 230)
+texture = ExtResource("6_grave_shadow1_6")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave4" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(290, 400)
+texture = ExtResource("7_grave_shadow1_8")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave5" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(390, 230)
+texture = ExtResource("8_grave_shadow1_12")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave6" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(390, 400)
+texture = ExtResource("9_grave_shadow1_14")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave7" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(762, 230)
+texture = ExtResource("10_grave_shadow1_17")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave8" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(762, 400)
+texture = ExtResource("11_grave_shadow1_2")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave9" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(862, 230)
+texture = ExtResource("12_grave_shadow1_9")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave10" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(862, 400)
+texture = ExtResource("4_grave_shadow1_1")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave11" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(962, 230)
+texture = ExtResource("5_grave_shadow1_4")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="Grave12" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(962, 400)
+texture = ExtResource("6_grave_shadow1_6")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="DeadTreeLeft" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(90, 560)
+texture = ExtResource("17_dead_tree_shadow1_3")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(30, 14)
+
+[node name="DeadTreeRight" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(1066, 560)
+texture = ExtResource("17_dead_tree_shadow1_3")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(30, 14)
+
+[node name="SkullPile" type="Sprite2D" parent="Decor"]
+position = Vector2(1060, 130)
+scale = Vector2(0.75, 0.75)
+texture = ExtResource("13_pile_sculls_shadow1")
+offset = Vector2(0, -64)
+
+[node name="SkullGateLeft" type="Sprite2D" parent="Decor"]
+position = Vector2(470, 80)
+scale = Vector2(1, 1)
+texture = ExtResource("16_scull_door_shadow1")
+offset = Vector2(0, -32)
+
+[node name="SkullGateRight" type="Sprite2D" parent="Decor"]
+position = Vector2(682, 80)
+scale = Vector2(1, 1)
+texture = ExtResource("16_scull_door_shadow1")
+offset = Vector2(0, -32)
+
+[node name="Bones1" type="Sprite2D" parent="Decor"]
+position = Vector2(500, 300)
+scale = Vector2(2, 2)
+texture = ExtResource("14_bones_shadow1_1")
+offset = Vector2(0, -16)
+
+[node name="Bones2" type="Sprite2D" parent="Decor"]
+position = Vector2(690, 470)
+scale = Vector2(2, 2)
+texture = ExtResource("15_bones_shadow1_3")
+offset = Vector2(0, -16)
+
+[node name="Bones3" type="Sprite2D" parent="Decor"]
+position = Vector2(120, 330)
+scale = Vector2(2, 2)
+texture = ExtResource("14_bones_shadow1_1")
+offset = Vector2(0, -16)
+
+[node name="GiantGoblin1" parent="Enemies" instance=ExtResource("3_goblin")]
+position = Vector2(240, 140)
+detection_radius = 800.0
+
+[node name="GiantGoblin2" parent="Enemies" instance=ExtResource("3_goblin")]
+position = Vector2(576, 150)
+detection_radius = 800.0
+
+[node name="GiantGoblin3" parent="Enemies" instance=ExtResource("3_goblin")]
+position = Vector2(912, 140)
+detection_radius = 800.0
+
+[node name="BloodMonster" parent="Enemies" instance=ExtResource("3_blood_monster")]
+position = Vector2(576, 330)
+detection_radius = 800.0
