@@ -30,6 +30,16 @@ func _ready() -> void:
 		_spell.speed = projectile_speed
 
 
+## Projectile damage scales with damage, projectile speed with pace.
+func _scale_attacks(damage_mult: float, pace_mult: float) -> void:
+	super._scale_attacks(damage_mult, pace_mult)
+	projectile_damage *= damage_mult
+	projectile_speed *= pace_mult
+	if _spell:
+		_spell.damage = projectile_damage
+		_spell.speed = projectile_speed
+
+
 func _physics_process(delta: float) -> void:
 	_attack_cooldown_left = maxf(_attack_cooldown_left - delta, 0.0)
 	target = _find_target()

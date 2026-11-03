@@ -101,6 +101,20 @@ func _ready() -> void:
 		_spell.speed = volley_speed
 
 
+## Volley/ring and slam damage scale with damage; attack cooldowns and bolt
+## speed with pace. Telegraph wind-ups are kept so attacks stay readable.
+func _scale_attacks(damage_mult: float, pace_mult: float) -> void:
+	super._scale_attacks(damage_mult, pace_mult)
+	volley_damage *= damage_mult
+	slam_damage *= damage_mult
+	volley_speed *= pace_mult
+	volley_cooldown /= maxf(pace_mult, 0.01)
+	slam_cooldown /= maxf(pace_mult, 0.01)
+	if _spell:
+		_spell.damage = volley_damage
+		_spell.speed = volley_speed
+
+
 ## Health phase (1-3) for a current/max HP ratio.
 func phase_for_ratio(ratio: float) -> int:
 	var result := 1

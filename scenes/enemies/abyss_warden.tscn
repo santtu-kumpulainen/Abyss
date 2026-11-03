@@ -27,6 +27,7 @@ contact_damage = 15.0
 attack_cooldown = 1.2
 xp_reward = 0
 currency_reward = 150
+elite = true
 sprite_frames = ExtResource("3_frames")
 sprite_scale = 5.0
 side_view = true

@@ -26,6 +26,9 @@ extends Room
 ## Offset between enemies sharing a spawn point (a wave larger than the
 ## usable points), so they don't stack.
 @export var spawn_spread: float = 40.0
+## Difficulty pressure: extra enemies added to every wave (repeating that
+## wave's own enemy types). Set by the Dungeon before the room is ready.
+var extra_per_wave := 0
 
 ## Seconds since the trial started.
 var elapsed := 0.0
@@ -131,14 +134,18 @@ func _is_complete() -> bool:
 
 
 func _spawn_wave(wave: int) -> void:
-	var count: int = wave_sizes[wave] if wave < wave_sizes.size() else 0
+	var base_count: int = wave_sizes[wave] if wave < wave_sizes.size() else 0
+	var count := base_count + (extra_per_wave if base_count > 0 else 0)
+	var wave_start := _spawned_enemies
 	var points := _spawn_points()
 	for i in count:
-		if _spawned_enemies >= wave_enemies.size():
+		var scene_index := _spawned_enemies if i < base_count else wave_start + (i - base_count) % base_count
+		if scene_index >= wave_enemies.size():
 			push_error("%s: wave %d needs more wave_enemies" % [name, wave + 1])
 			return
-		var enemy := wave_enemies[_spawned_enemies].instantiate() as Enemy
-		_spawned_enemies += 1
+		var enemy := wave_enemies[scene_index].instantiate() as Enemy
+		if i < base_count:
+			_spawned_enemies += 1
 		# Rotate through the points so consecutive waves come from different sides.
 		var point: Node2D = points[(i + wave) % points.size()]
 		# Extra enemies on a reused point are pushed outwards along a ring.
