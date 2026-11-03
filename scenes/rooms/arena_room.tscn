@@ -1,0 +1,161 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/rooms/room.gd" id="1_room"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/door.tscn" id="2_door"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="3_goblin"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal_segment"]
+size = Vector2(528, 32)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical_segment"]
+size = Vector2(32, 276)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical_full"]
+size = Vector2(32, 648)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_trigger"]
+size = Vector2(1024, 440)
+
+[node name="ArenaRoom" type="Node2D"]
+script = ExtResource("1_room")
+
+[node name="Floor" type="ColorRect" parent="."]
+offset_right = 1152.0
+offset_bottom = 648.0
+mouse_filter = 2
+color = Color(0.12, 0.12, 0.16, 1)
+
+[node name="Walls" type="Node2D" parent="."]
+
+[node name="WallTopLeft" type="StaticBody2D" parent="Walls"]
+position = Vector2(264, 16)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallTopLeft"]
+shape = SubResource("RectangleShape2D_horizontal_segment")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallTopLeft"]
+offset_left = -264.0
+offset_top = -16.0
+offset_right = 264.0
+offset_bottom = 16.0
+mouse_filter = 2
+color = Color(0.45, 0.45, 0.55, 1)
+
+[node name="WallTopRight" type="StaticBody2D" parent="Walls"]
+position = Vector2(888, 16)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallTopRight"]
+shape = SubResource("RectangleShape2D_horizontal_segment")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallTopRight"]
+offset_left = -264.0
+offset_top = -16.0
+offset_right = 264.0
+offset_bottom = 16.0
+mouse_filter = 2
+color = Color(0.45, 0.45, 0.55, 1)
+
+[node name="WallBottomLeft" type="StaticBody2D" parent="Walls"]
+position = Vector2(264, 632)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallBottomLeft"]
+shape = SubResource("RectangleShape2D_horizontal_segment")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallBottomLeft"]
+offset_left = -264.0
+offset_top = -16.0
+offset_right = 264.0
+offset_bottom = 16.0
+mouse_filter = 2
+color = Color(0.45, 0.45, 0.55, 1)
+
+[node name="WallBottomRight" type="StaticBody2D" parent="Walls"]
+position = Vector2(888, 632)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallBottomRight"]
+shape = SubResource("RectangleShape2D_horizontal_segment")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallBottomRight"]
+offset_left = -264.0
+offset_top = -16.0
+offset_right = 264.0
+offset_bottom = 16.0
+mouse_filter = 2
+color = Color(0.45, 0.45, 0.55, 1)
+
+[node name="WallLeft" type="StaticBody2D" parent="Walls"]
+position = Vector2(16, 324)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallLeft"]
+shape = SubResource("RectangleShape2D_vertical_full")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallLeft"]
+offset_left = -16.0
+offset_top = -324.0
+offset_right = 16.0
+offset_bottom = 324.0
+mouse_filter = 2
+color = Color(0.45, 0.45, 0.55, 1)
+
+[node name="WallRightTop" type="StaticBody2D" parent="Walls"]
+position = Vector2(1136, 138)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRightTop"]
+shape = SubResource("RectangleShape2D_vertical_segment")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallRightTop"]
+offset_left = -16.0
+offset_top = -138.0
+offset_right = 16.0
+offset_bottom = 138.0
+mouse_filter = 2
+color = Color(0.45, 0.45, 0.55, 1)
+
+[node name="WallRightBottom" type="StaticBody2D" parent="Walls"]
+position = Vector2(1136, 510)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRightBottom"]
+shape = SubResource("RectangleShape2D_vertical_segment")
+
+[node name="ColorRect" type="ColorRect" parent="Walls/WallRightBottom"]
+offset_left = -16.0
+offset_top = -138.0
+offset_right = 16.0
+offset_bottom = 138.0
+mouse_filter = 2
+color = Color(0.45, 0.45, 0.55, 1)
+
+[node name="Doors" type="Node2D" parent="."]
+
+[node name="DoorTop" parent="Doors" instance=ExtResource("2_door")]
+position = Vector2(576, 16)
+
+[node name="DoorBottom" parent="Doors" instance=ExtResource("2_door")]
+position = Vector2(576, 632)
+
+[node name="DoorRight" parent="Doors" instance=ExtResource("2_door")]
+position = Vector2(1136, 324)
+rotation = 1.5707964
+
+[node name="EncounterTrigger" type="Area2D" parent="."]
+position = Vector2(576, 300)
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EncounterTrigger"]
+shape = SubResource("RectangleShape2D_trigger")
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="GiantGoblin1" parent="Enemies" instance=ExtResource("3_goblin")]
+position = Vector2(300, 180)
+detection_radius = 800.0
+
+[node name="GiantGoblin2" parent="Enemies" instance=ExtResource("3_goblin")]
+position = Vector2(576, 140)
+detection_radius = 800.0
+
+[node name="GiantGoblin3" parent="Enemies" instance=ExtResource("3_goblin")]
+position = Vector2(850, 180)
+detection_radius = 800.0
