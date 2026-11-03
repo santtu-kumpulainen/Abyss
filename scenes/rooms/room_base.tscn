@@ -11,9 +11,6 @@ size = Vector2(528, 32)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical_segment"]
 size = Vector2(32, 276)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical_full"]
-size = Vector2(32, 648)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_trigger"]
 size = Vector2(1024, 440)
 
@@ -54,11 +51,17 @@ position = Vector2(888, 632)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallBottomRight"]
 shape = SubResource("RectangleShape2D_horizontal_segment")
 
-[node name="WallLeft" type="StaticBody2D" parent="Walls"]
-position = Vector2(16, 324)
+[node name="WallLeftTop" type="StaticBody2D" parent="Walls"]
+position = Vector2(16, 138)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallLeft"]
-shape = SubResource("RectangleShape2D_vertical_full")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallLeftTop"]
+shape = SubResource("RectangleShape2D_vertical_segment")
+
+[node name="WallLeftBottom" type="StaticBody2D" parent="Walls"]
+position = Vector2(16, 510)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallLeftBottom"]
+shape = SubResource("RectangleShape2D_vertical_segment")
 
 [node name="WallRightTop" type="StaticBody2D" parent="Walls"]
 position = Vector2(1136, 138)
@@ -82,6 +85,10 @@ position = Vector2(576, 632)
 
 [node name="DoorRight" parent="Doors" instance=ExtResource("2_door")]
 position = Vector2(1136, 324)
+rotation = 1.5707964
+
+[node name="DoorLeft" parent="Doors" instance=ExtResource("2_door")]
+position = Vector2(16, 324)
 rotation = 1.5707964
 
 [node name="EncounterTrigger" type="Area2D" parent="."]

@@ -11,11 +11,24 @@ extends CanvasLayer
 
 func _ready() -> void:
 	if room == null:
-		push_warning("RoomHud has no Room assigned: %s" % get_path())
-		hide()
+		# A Dungeon assigns rooms at runtime with set_room().
+		_label.hide()
 		return
-	room.state_changed.connect(_refresh.unbind(1))
-	room.enemies_remaining_changed.connect(_refresh.unbind(1))
+	set_room(room)
+
+
+## Shows `new_room` instead of the current room (e.g. after a room transition).
+func set_room(new_room: Room) -> void:
+	if room and room.state_changed.is_connected(_on_room_changed):
+		room.state_changed.disconnect(_on_room_changed)
+		room.enemies_remaining_changed.disconnect(_on_room_changed)
+	room = new_room
+	room.state_changed.connect(_on_room_changed)
+	room.enemies_remaining_changed.connect(_on_room_changed)
+	_refresh()
+
+
+func _on_room_changed(_value: Variant) -> void:
 	_refresh()
 
 
