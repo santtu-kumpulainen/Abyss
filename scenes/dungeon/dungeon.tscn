@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" path="res://scenes/mage/mage.tscn" id="5_mage"]
 [ext_resource type="PackedScene" path="res://scenes/ui/room_hud.tscn" id="6_room_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="7_game_over"]
+[ext_resource type="Script" path="res://scripts/dungeon/run_state.gd" id="8_run_state"]
+[ext_resource type="PackedScene" path="res://scenes/ui/run_hud.tscn" id="9_run_hud"]
 
 [node name="Dungeon" type="Node2D"]
 y_sort_enabled = true
@@ -18,6 +20,11 @@ links = PackedStringArray("0:DoorRight - 1:DoorLeft", "1:DoorTop - 2:DoorBottom"
 position = Vector2(576, 580)
 
 [node name="RoomHud" parent="." instance=ExtResource("6_room_hud")]
+
+[node name="RunState" type="Node" parent="."]
+script = ExtResource("8_run_state")
+
+[node name="RunHud" parent="." instance=ExtResource("9_run_hud")]
 
 [node name="GameOverOverlay" parent="." node_paths=PackedStringArray("player") instance=ExtResource("7_game_over")]
 player = NodePath("../Mage")

@@ -3,11 +3,13 @@ extends Node2D
 ## Fixed dungeon run: shows one Room at a time and moves the persistent Mage
 ## between rooms through linked doors.
 ##
-## Expected children: "Mage" (Mage) and "RoomHud" (RoomHud). Rooms are
+## Expected children: "Mage" (Mage), "RoomHud" (RoomHud), "RunState" (RunState)
+## and "RunHud" (RunHud). Defeated enemies grant their rewards to RunState;
+## level-ups raise the Mage's max HP. Rooms are
 ## instanced from `rooms` on first visit and cached afterwards, so a cleared
 ## room stays cleared when revisited. Doors without a link are sealed.
 ## The Mage node is kept across rooms, so its HP carries over. Restart
-## (reloading the scene) starts a fresh run in `start_room`.
+## (reloading the scene) starts a fresh run in `start_room` with a fresh RunState.
 
 signal room_changed(room: Room, index: int)
 
@@ -31,6 +33,8 @@ var _transitioning := false
 
 @onready var mage: Mage = $Mage
 @onready var _hud: RoomHud = $RoomHud
+@onready var run_state: RunState = $RunState
+@onready var _run_hud: RunHud = $RunHud
 
 
 func _ready() -> void:
@@ -41,6 +45,8 @@ func _ready() -> void:
 			continue
 		_link_map[ends[0].strip_edges()] = _parse_end(ends[1])
 		_link_map[ends[1].strip_edges()] = _parse_end(ends[0])
+	run_state.leveled_up.connect(_on_leveled_up)
+	_run_hud.set_run_state(run_state)
 	enter_room(start_room)
 
 
@@ -100,6 +106,8 @@ func _get_room(index: int) -> Room:
 		# get_doors() needs the room to be ready; read the Doors node directly.
 		for door: Door in room.get_node(^"Doors").get_children():
 			door.sealed = not _link_map.has(_key(index, door.name))
+		# Connected once per room instance (rooms are cached), so rewards cannot repeat.
+		room.enemy_defeated.connect(_on_enemy_defeated)
 		_room_cache[index] = room
 	return _room_cache[index]
 
@@ -111,6 +119,14 @@ func _outward(door: Door) -> Vector2:
 	var v := door.global_position - center
 	return Vector2(signf(v.x), 0.0) if absf(v.x) / visuals.floor_rect.size.x > absf(v.y) / visuals.floor_rect.size.y \
 		else Vector2(0.0, signf(v.y))
+
+
+func _on_enemy_defeated(enemy: Enemy) -> void:
+	run_state.add_rewards(enemy.xp_reward, enemy.currency_reward)
+
+
+func _on_leveled_up(_level: int) -> void:
+	mage.health.increase_max_health(run_state.max_health_per_level, run_state.heal_per_level)
 
 
 func _clear_projectiles() -> void:

@@ -7,6 +7,8 @@
 speed = 60.0
 contact_damage = 15.0
 attack_cooldown = 1.2
+xp_reward = 25
+currency_reward = 12
 sprite_frames = ExtResource("2_frames")
 sprite_scale = 3.0
 side_view = true
