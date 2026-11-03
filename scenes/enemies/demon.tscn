@@ -1,0 +1,22 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="1_enemy"]
+[ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/demon.tres" id="2_frames"]
+
+[node name="Demon" instance=ExtResource("1_enemy")]
+speed = 105.0
+contact_damage = 8.0
+attack_cooldown = 0.8
+sprite_frames = ExtResource("2_frames")
+sprite_scale = 2.5
+side_view = true
+
+[node name="AnimatedSprite2D" parent="." index="0"]
+texture_filter = 1
+scale = Vector2(2.5, 2.5)
+sprite_frames = ExtResource("2_frames")
+animation = &"idle"
+offset = Vector2(0, -10)
+
+[node name="Health" parent="." index="3"]
+max_health = 30.0

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="RoomTheme" format=3]
+
+[ext_resource type="Script" path="res://scripts/rooms/room_theme.gd" id="1_theme"]
+[ext_resource type="Texture2D" path="res://assets/environment/dungeon_objects/PNG/walls_floor.png" id="2_walls_floor"]
+
+[resource]
+script = ExtResource("1_theme")
+floor_texture = ExtResource("2_walls_floor")
+floor_regions = Array[Rect2]([Rect2(0, 336, 32, 32)])
+floor_variation_chance = 0.0
+floor_tint = Color(0.85, 0.85, 0.9, 1)
+wall_texture = ExtResource("2_walls_floor")
+wall_regions = Array[Rect2]([Rect2(16, 256, 16, 16)])
