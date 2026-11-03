@@ -1,0 +1,80 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/rooms/upgrade_station.gd" id="1_station"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/obstacle.tscn" id="2_obstacle"]
+[ext_resource type="Texture2D" path="res://assets/environment/dungeon_objects/PNG/Objects.png" id="3_objects"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interact"]
+radius = 56.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_menu"]
+content_margin_left = 16.0
+content_margin_top = 12.0
+content_margin_right = 16.0
+content_margin_bottom = 12.0
+bg_color = Color(0.08, 0.06, 0.1, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.9, 0.55, 1)
+
+[node name="UpgradeStation" type="Node2D"]
+script = ExtResource("1_station")
+
+[node name="Anvil" parent="." instance=ExtResource("2_obstacle")]
+modulate = Color(0.62, 0.66, 0.75, 1)
+texture = ExtResource("3_objects")
+region = Rect2(135, 4, 19, 18)
+sprite_scale = 2.0
+bottom_padding = 2.0
+footprint = Vector2(34, 18)
+
+[node name="InteractArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractArea"]
+shape = SubResource("CircleShape2D_interact")
+
+[node name="Prompt" type="Label" parent="."]
+visible = false
+offset_left = -120.0
+offset_top = -72.0
+offset_right = 120.0
+offset_bottom = -48.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.9, 0.55, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "[E] Anvil"
+horizontal_alignment = 1
+
+[node name="Menu" type="CanvasLayer" parent="."]
+layer = 6
+visible = false
+
+[node name="Panel" type="PanelContainer" parent="Menu"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -270.0
+offset_top = -210.0
+offset_right = 270.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_menu")
+
+[node name="MenuLabel" type="Label" parent="Menu/Panel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16

@@ -1,6 +1,7 @@
 class_name RunHud
 extends CanvasLayer
-## Shows the run's level, XP progress and currency, e.g. "Lv 2   XP 30/100   Gold 15".
+## Shows the run's level, XP progress and currency, e.g. "Lv 2   XP 30/100   Gold 15",
+## or "Lv 3 (MAX)   Gold 15" at the level cap.
 
 @onready var _label: Label = %RunLabel
 
@@ -17,5 +18,8 @@ func set_run_state(run_state: RunState) -> void:
 
 
 func _refresh() -> void:
+	if _run_state.is_max_level():
+		_label.text = "Lv %d (MAX)   Gold %d" % [_run_state.level, _run_state.currency]
+		return
 	_label.text = "Lv %d   XP %d/%d   Gold %d" % [
 		_run_state.level, _run_state.xp, _run_state.xp_to_next_level(), _run_state.currency]
