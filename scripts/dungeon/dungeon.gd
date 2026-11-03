@@ -16,7 +16,11 @@ extends Node2D
 ## child is given this Dungeon to draw the explored rooms.
 ## Rooms whose RoomSpec has an `item` get an ItemPickup (`item_pickup_scene`);
 ## collected items raise max HP / speed / damage through RunState. Defeating a
-## Boss marks RunState.boss_defeated and announces the victory.
+## Boss marks RunState.boss_defeated and announces the victory; its phase
+## changes are announced too. Once every non-boss room is cleared, one extra
+## UpgradeStation (`upgrade_station_scene`) is added to the room at
+## `final_anvil_cell` (the room outside the boss gate), so the Mage can spend
+## gold before the boss without walking back to the start.
 ## The Mage node is kept across rooms, so its HP carries over. Restart
 ## (reloading the scene) starts a fresh run in `start_room` with a fresh RunState.
 
@@ -41,9 +45,17 @@ const DOOR_BY_DIRECTION := {
 @export var exit_distance: float = 8.0
 ## Scene instanced for RoomSpec.item pickups (root must be an ItemPickup).
 @export var item_pickup_scene: PackedScene
+## Anvil added once all non-boss rooms are cleared (root must be an UpgradeStation).
+@export var upgrade_station_scene: PackedScene
+## Cell of the (non-boss) room that receives that anvil.
+@export var final_anvil_cell := Vector2i(2, 1)
+## Its position in room coordinates (clear of doors and spawn points).
+@export var final_anvil_position := Vector2(760, 150)
 
 var current_room: Room
 var current_index: int = -1
+## The anvil added after the full clear (null until then).
+var final_anvil: UpgradeStation
 
 ## "<room>:<door>" -> [room index, door name]
 var _link_map := {}
@@ -109,6 +121,14 @@ func is_cleared(index: int) -> bool:
 	return is_visited(index) and (_room_cache[index] as Room).state == Room.State.CLEARED
 
 
+## True when every non-boss room has been cleared this run.
+func all_rooms_cleared() -> bool:
+	for i in rooms.size():
+		if not rooms[i].is_boss and not is_cleared(i):
+			return false
+	return true
+
+
 ## True if the Mage's level allows entering room `index`.
 func can_enter(index: int) -> bool:
 	return run_state.level >= rooms[index].required_level
@@ -167,12 +187,16 @@ func _get_room(index: int) -> Room:
 			door.sealed = not _link_map.has(_key(index, door.name))
 		# Connected once per room instance (rooms are cached), so rewards cannot repeat.
 		room.enemy_defeated.connect(_on_enemy_defeated)
-		room.cleared.connect(map_changed.emit)
+		room.cleared.connect(_on_room_cleared)
 		for node in room.find_children("*", "", true, false):
 			if node is UpgradeStation:
 				(node as UpgradeStation).run_state = run_state
 			elif node is ItemPickup:
 				(node as ItemPickup).run_state = run_state
+			elif node is Boss:
+				var boss := node as Boss
+				boss.phase_changed.connect(func(p: int) -> void:
+					_run_hud.show_message("%s grows stronger! Phase %d" % [boss.display_name, p]))
 		_room_cache[index] = room
 	return _room_cache[index]
 
@@ -184,6 +208,27 @@ func _outward(door: Door) -> Vector2:
 	var v := door.global_position - center
 	return Vector2(signf(v.x), 0.0) if absf(v.x) / visuals.floor_rect.size.x > absf(v.y) / visuals.floor_rect.size.y \
 		else Vector2(0.0, signf(v.y))
+
+
+func _on_room_cleared() -> void:
+	map_changed.emit()
+	_spawn_final_anvil()
+
+
+## Adds the pre-boss anvil once, after the last non-boss room is cleared.
+func _spawn_final_anvil() -> void:
+	if final_anvil or upgrade_station_scene == null or not all_rooms_cleared():
+		return
+	var index := index_at(final_anvil_cell)
+	if index < 0 or rooms[index].is_boss:
+		push_error("Dungeon: final_anvil_cell %s is not a non-boss room" % final_anvil_cell)
+		return
+	final_anvil = upgrade_station_scene.instantiate() as UpgradeStation
+	final_anvil.name = &"UpgradeStation"
+	final_anvil.position = final_anvil_position
+	final_anvil.run_state = run_state
+	_get_room(index).get_node(^"Decor").add_child(final_anvil, true)
+	_run_hud.show_message("Dungeon cleared! An anvil awaits before the boss gate.")
 
 
 func _on_enemy_defeated(enemy: Enemy) -> void:
