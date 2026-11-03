@@ -22,7 +22,7 @@ signal died
 ## Group searched for targets.
 @export var target_group: StringName = &"player"
 ## XP granted to the run when this enemy is defeated.
-@export var xp_reward: int = 10
+@export var xp_reward: int = 1
 ## Currency granted to the run when this enemy is defeated.
 @export var currency_reward: int = 5
 

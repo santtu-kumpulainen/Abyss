@@ -191,8 +191,8 @@ func _test_dungeon_integration() -> void:
 	caster.take_damage(9999.0)
 	caster.died.emit()  # duplicate death signal before the enemy is freed
 	await _frames(2)
-	_check(dungeon.run_state.level == level and dungeon.run_state.xp == xp + 20 and dungeon.run_state.currency == currency + 10,
-			"caster defeat grants 20 XP and 10 currency once")
+	_check(dungeon.run_state.level == level and dungeon.run_state.xp == xp + 2 and dungeon.run_state.currency == currency + 10,
+			"caster defeat grants 2 XP and 10 currency once")
 	for enemy in cave.get_node(^"Enemies").get_children():
 		(enemy as Enemy).take_damage(9999.0)
 	await _frames(2)

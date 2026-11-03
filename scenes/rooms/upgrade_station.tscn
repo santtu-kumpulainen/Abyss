@@ -4,6 +4,21 @@
 [ext_resource type="PackedScene" path="res://scenes/rooms/obstacle.tscn" id="2_obstacle"]
 [ext_resource type="Texture2D" path="res://assets/environment/dungeon_objects/PNG/Objects.png" id="3_objects"]
 
+[sub_resource type="Gradient" id="Gradient_glow"]
+offsets = PackedFloat32Array(0, 0.45, 1)
+colors = PackedColorArray(1, 0.82, 0.4, 0.42, 1, 0.7, 0.25, 0.18, 1, 0.6, 0.2, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_glow"]
+gradient = SubResource("Gradient_glow")
+width = 128
+height = 128
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(1, 0.5)
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_glow"]
+blend_mode = 1
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_interact"]
 radius = 56.0
 
@@ -21,6 +36,12 @@ border_color = Color(1, 0.9, 0.55, 1)
 
 [node name="UpgradeStation" type="Node2D"]
 script = ExtResource("1_station")
+
+[node name="Glow" type="Sprite2D" parent="."]
+z_index = -5
+material = SubResource("CanvasItemMaterial_glow")
+scale = Vector2(1.1, 0.55)
+texture = SubResource("GradientTexture2D_glow")
 
 [node name="Anvil" parent="." instance=ExtResource("2_obstacle")]
 modulate = Color(0.62, 0.66, 0.75, 1)

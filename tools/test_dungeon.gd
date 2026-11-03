@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless check of room transitions and the fixed dungeon run
-## (scenes/dungeon/dungeon.tscn: Hall -right- Crypt -top- Cave).
+## (scenes/dungeon/dungeon.tscn: Hall -right- Crypt -top- Cave, the start of the 5x5 grid).
 ##
 ## Usage (after importing):
 ##   godot --headless --path . --script res://tools/test_dungeon.gd
@@ -31,7 +31,7 @@ func _run() -> void:
 	_check(_dungeon.current_index == HALL, "run starts in the Hall")
 	_check(_mage.global_position.is_equal_approx(_spawn(hall)), "Mage starts at the Hall PlayerSpawn")
 	_check(hall.state == Room.State.IDLE and _active_enemies(hall) == 0, "Hall starts IDLE, enemies inactive")
-	_check(_sealed_names(hall) == ["DoorBottom", "DoorLeft", "DoorTop"], "unlinked Hall doors are sealed")
+	_check(_sealed_names(hall) == ["DoorBottom", "DoorTop"], "unlinked Hall doors are sealed")
 	var full_hp := _mage.health.max_health
 
 	# --- Hall encounter: doors locked, sealed doors stay shut after victory ---

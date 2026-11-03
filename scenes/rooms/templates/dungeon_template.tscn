@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/obstacle.tscn" id="2_obstacle"]
+[ext_resource type="Texture2D" path="res://assets/environment/dungeon_objects/PNG/Objects.png" id="3_objects"]
+
+[node name="DungeonTemplate" instance=ExtResource("1_base")]
+
+[node name="CratesTopLeft" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(84, 104)
+texture = ExtResource("3_objects")
+region = Rect2(258, 10, 25, 30)
+sprite_scale = 2.0
+bottom_padding = 4.0
+footprint = Vector2(44, 24)
+
+[node name="BarrelsTopRight" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(1064, 108)
+texture = ExtResource("3_objects")
+region = Rect2(292, 48, 27, 30)
+sprite_scale = 2.0
+bottom_padding = 4.0
+footprint = Vector2(48, 22)
+
+[node name="BarrelsBottomLeft" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(84, 588)
+texture = ExtResource("3_objects")
+region = Rect2(325, 64, 22, 29)
+sprite_scale = 2.0
+bottom_padding = 4.0
+footprint = Vector2(40, 22)
+
+[node name="CratesBottomRight" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(1060, 588)
+texture = ExtResource("3_objects")
+region = Rect2(290, 5, 28, 36)
+sprite_scale = 2.0
+bottom_padding = 4.0
+footprint = Vector2(50, 24)
+
+[node name="SpawnPoints" type="Node2D" parent="."]
+
+[node name="Spawn1" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(320, 180)
+
+[node name="Spawn2" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(832, 470)
+
+[node name="Spawn3" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(832, 180)
+
+[node name="Spawn4" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(320, 470)
+
+[node name="Spawn5" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(576, 210)
+
+[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(576, 440)
+
+[node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(460, 324)
+
+[node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(692, 324)
