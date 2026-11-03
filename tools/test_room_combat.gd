@@ -34,8 +34,9 @@ func _run() -> void:
 
 
 func _test_scene(path: String) -> void:
+	var scene_id := current_scene.get_instance_id() if current_scene else 0
 	change_scene_to_file(path)
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 
 	# --- Layout ---
 	var room := current_scene.get_node(^"Room") as Room
@@ -106,8 +107,9 @@ func _test_scene(path: String) -> void:
 	var overlay := current_scene.get_node(^"GameOverOverlay") as GameOverOverlay
 	_check(mage.is_dead() and overlay.visible, "Game Over shown on Mage death")
 	var old_scene := current_scene
+	scene_id = current_scene.get_instance_id() if current_scene else 0
 	overlay.restart()
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	_check(current_scene != old_scene, "Restart reloaded the scene")
 	room = current_scene.get_node(^"Room") as Room
 	mage = current_scene.get_node(^"Mage") as Mage
@@ -230,3 +232,12 @@ func _active_enemies(room: Room) -> int:
 	return room.get_node(^"Enemies").get_children().filter(
 		func(e: Node) -> bool: return e.can_process()
 	).size()
+
+
+## Scene changes are deferred: waits until a new, ready scene (not `old_id`) is current.
+func _wait_for_scene(old_id: int) -> void:
+	for i in 600:
+		if current_scene != null and current_scene.get_instance_id() != old_id and current_scene.is_node_ready():
+			break
+		await process_frame
+	await _frames(2)

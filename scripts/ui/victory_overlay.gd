@@ -83,6 +83,7 @@ func main_menu() -> void:
 static func summary_text(summary: Dictionary) -> String:
 	var items: Array = summary["items"].map(func(id: StringName) -> String: return RunState.ITEMS[id]["name"])
 	var upgrades: Array = summary["upgrades"].map(func(id: StringName) -> String: return RunState.UPGRADES[id]["name"])
+	var treasures: Array = summary.get("treasures", []).map(func(id: StringName) -> String: return RunState.TREASURES[id]["name"])
 	var relic: StringName = summary["relic"]
 	return "\n".join([
 		"Mage level: %d" % summary["level"],
@@ -90,5 +91,6 @@ static func summary_text(summary: Dictionary) -> String:
 		"Enemies defeated: %d" % summary["enemies_defeated"],
 		"Items: %s" % (", ".join(items) if not items.is_empty() else "none"),
 		"Anvil upgrades: %s" % (", ".join(upgrades) if not upgrades.is_empty() else "none"),
+		"Treasures: %s" % (", ".join(treasures) if not treasures.is_empty() else "none"),
 		"Relic: %s" % (RunState.RELICS[relic]["name"] if not relic.is_empty() else "none"),
 	])
