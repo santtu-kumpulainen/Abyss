@@ -36,10 +36,12 @@ func _run_tests() -> void:
 	var goblin := load("res://scenes/enemies/giant_goblin.tscn").instantiate() as Enemy
 	var demon := load("res://scenes/enemies/demon.tscn").instantiate() as Enemy
 	var blood := load("res://scenes/enemies/blood_monster.tscn").instantiate() as Enemy
+	var caster := load("res://scenes/enemies/demon_caster.tscn").instantiate() as Enemy
 	_check(goblin.xp_reward == 10 and goblin.currency_reward == 5, "Giant Goblin uses default rewards (10 XP, 5)")
 	_check(demon.xp_reward == 15 and demon.currency_reward == 8, "Demon overrides rewards (15 XP, 8)")
 	_check(blood.xp_reward == 25 and blood.currency_reward == 12, "Blood Monster overrides rewards (25 XP, 12)")
-	for e in [goblin, demon, blood]:
+	_check(caster.xp_reward == 20 and caster.currency_reward == 10, "Demon Caster overrides rewards (20 XP, 10)")
+	for e in [goblin, demon, blood, caster]:
 		e.free()
 
 	# --- Hall: rewards granted exactly once per death ---
@@ -95,8 +97,8 @@ func _run_tests() -> void:
 	_dungeon.enter_room(CAVE, &"DoorBottom")
 	await _frames(2)
 	await _kill_all(_dungeon.current_room)
-	_check(_run.level == 2 and _run.xp == 70 and _run.currency == 60, "Cave cleared: Lv 2, 70 XP, 60 currency")
-	_check(_hud_text() == "Lv 2   XP 70/100   Gold 60", "HUD after full run (%s)" % _hud_text())
+	_check(_run.level == 2 and _run.xp == 90 and _run.currency == 70, "Cave cleared (incl. Demon Caster): Lv 2, 90 XP, 70 currency")
+	_check(_hud_text() == "Lv 2   XP 90/100   Gold 70", "HUD after full run (%s)" % _hud_text())
 
 	# --- Restart resets the run ---
 	_mage.take_damage(9999.0)

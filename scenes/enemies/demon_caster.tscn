@@ -1,0 +1,32 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="1_enemy"]
+[ext_resource type="Script" path="res://scripts/enemies/ranged_enemy.gd" id="2_ranged"]
+[ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/demon.tres" id="3_frames"]
+[ext_resource type="Resource" path="res://scenes/spells/enemy_bolt/enemy_bolt.tres" id="4_bolt"]
+
+[node name="DemonCaster" instance=ExtResource("1_enemy")]
+script = ExtResource("2_ranged")
+projectile = ExtResource("4_bolt")
+projectile_damage = 8.0
+projectile_speed = 200.0
+retreat_distance = 140.0
+speed = 70.0
+attack_range = 260.0
+attack_cooldown = 1.6
+xp_reward = 20
+currency_reward = 10
+sprite_frames = ExtResource("3_frames")
+sprite_scale = 2.2
+side_view = true
+
+[node name="AnimatedSprite2D" parent="." index="0"]
+self_modulate = Color(0.7, 0.55, 1, 1)
+texture_filter = 1
+scale = Vector2(2.2, 2.2)
+sprite_frames = ExtResource("3_frames")
+animation = &"idle"
+offset = Vector2(0, -10)
+
+[node name="Health" parent="." index="3"]
+max_health = 25.0
