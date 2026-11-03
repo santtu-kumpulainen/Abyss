@@ -1,0 +1,86 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="1_enemy"]
+[ext_resource type="Script" path="res://scripts/enemies/boss.gd" id="2_boss"]
+[ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/blood_monster.tres" id="3_frames"]
+[ext_resource type="Resource" path="res://scenes/spells/enemy_bolt/enemy_bolt.tres" id="4_bolt"]
+[ext_resource type="PackedScene" path="res://scenes/ui/health_bar.tscn" id="5_health_bar"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_boss_feet"]
+radius = 22.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_boss_body"]
+radius = 30.0
+height = 96.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_boss_fill"]
+bg_color = Color(0.65, 0.2, 0.85, 1)
+
+[node name="AbyssWarden" instance=ExtResource("1_enemy")]
+script = ExtResource("2_boss")
+display_name = "Abyss Warden"
+projectile = ExtResource("4_bolt")
+speed = 55.0
+detection_radius = 900.0
+attack_range = 48.0
+contact_damage = 15.0
+attack_cooldown = 1.2
+xp_reward = 0
+currency_reward = 150
+sprite_frames = ExtResource("3_frames")
+sprite_scale = 5.0
+side_view = true
+
+[node name="AnimatedSprite2D" parent="." index="0"]
+self_modulate = Color(0.75, 0.55, 1, 1)
+texture_filter = 1
+scale = Vector2(5, 5)
+sprite_frames = ExtResource("3_frames")
+animation = &"idle"
+offset = Vector2(0, -10)
+
+[node name="CollisionShape2D" parent="." index="1"]
+shape = SubResource("CircleShape2D_boss_feet")
+
+[node name="CollisionShape2D" parent="Hurtbox" index="0"]
+position = Vector2(0, -48)
+shape = SubResource("CapsuleShape2D_boss_body")
+
+[node name="Health" parent="." index="3"]
+max_health = 700.0
+
+[node name="HealthBar" parent="." index="4"]
+visible = false
+
+[node name="BossBar" type="CanvasLayer" parent="." index="5"]
+layer = 5
+
+[node name="NameLabel" type="Label" parent="BossBar"]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 44.0
+offset_right = 200.0
+offset_bottom = 68.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.9, 0.75, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+text = "Abyss Warden"
+horizontal_alignment = 1
+
+[node name="Bar" parent="BossBar" node_paths=PackedStringArray("health") instance=ExtResource("5_health_bar")]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -200.0
+offset_top = 70.0
+offset_right = 200.0
+offset_bottom = 84.0
+grow_horizontal = 2
+theme_override_styles/fill = SubResource("StyleBoxFlat_boss_fill")
+health = NodePath("../../Health")
+show_numbers = true

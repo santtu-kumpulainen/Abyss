@@ -1,14 +1,16 @@
 class_name RunHud
 extends CanvasLayer
 ## Shows the run's level, XP progress and currency, e.g. "Lv 2   XP 30/100   Gold 15",
-## or "Lv 3 (MAX)   Gold 15" at the level cap. show_message() briefly shows a
-## centred announcement (e.g. level-up unlocks).
+## or "Lv 3 (MAX)   Gold 15" at the level cap, and the collected run items
+## with their effects below it. show_message() briefly shows a centred
+## announcement (e.g. level-up unlocks).
 
 ## Seconds a message stays fully visible before fading out.
 @export var message_duration: float = 3.0
 
 @onready var _label: Label = %RunLabel
 @onready var _message: Label = %MessageLabel
+@onready var _items: Label = %ItemsLabel
 
 var _run_state: RunState
 var _message_tween: Tween
@@ -24,6 +26,12 @@ func set_run_state(run_state: RunState) -> void:
 
 
 func _refresh() -> void:
+	var item_lines: Array[String] = []
+	for id: StringName in _run_state.collected:
+		item_lines.append("%s (%s)" % [RunState.ITEMS[id]["name"], RunState.ITEMS[id]["effect"]])
+	_items.text = "
+".join(item_lines)
+	_items.visible = not item_lines.is_empty()
 	if _run_state.is_max_level():
 		_label.text = "Lv %d (MAX)   Gold %d" % [_run_state.level, _run_state.currency]
 		return

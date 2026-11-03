@@ -2,7 +2,8 @@ class_name RoomSpec
 extends Resource
 ## One room of a Dungeon: which scene to use, where it sits on the dungeon
 ## grid (used for door links and the minimap), the Mage level needed to enter
-## and optional extra encounter enemies spawned at the room's SpawnPoints.
+## optional extra encounter enemies spawned at the room's SpawnPoints and an
+## optional collectible item (a RunState.ITEMS id).
 
 ## Room scene (a Room). Template scenes have an empty "Enemies" node.
 @export var scene: PackedScene
@@ -14,3 +15,8 @@ extends Resource
 @export var is_boss: bool = false
 ## Enemies added to the room's "Enemies" on first visit, one per SpawnPoints marker.
 @export var enemies: Array[PackedScene] = []
+## RunState.ITEMS id of a pickup placed in this room (empty = none). It appears
+## once the room is cleared and can be collected once per run.
+@export var item: StringName = &""
+## Pickup position in room coordinates.
+@export var item_position := Vector2(576, 324)
