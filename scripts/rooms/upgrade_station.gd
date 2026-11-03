@@ -124,9 +124,9 @@ func _refresh() -> void:
 			status = "  [OWNED]"
 		elif run_state.level < required:
 			status = "  [requires Lv %d]" % required
-		elif run_state.currency < data["cost"]:
+		elif run_state.currency < run_state.upgrade_cost(ids[i]):
 			status = "  [not enough gold]"
-		lines.append("[%d] %s - %d gold, Lv %d: %s%s" % [i + 1, data["name"], data["cost"], required, data["effect"], status])
+		lines.append("[%d] %s - %d gold, Lv %d: %s%s" % [i + 1, data["name"], run_state.upgrade_cost(ids[i]), required, data["effect"], status])
 	lines.append("")
 	lines.append(_message if not _message.is_empty() else "[1-3] Buy   [E] Close")
 	_menu_label.text = "\n".join(lines)

@@ -32,6 +32,15 @@ extends Node2D
 ## Exits work whenever the current Room's can_exit() allows it.
 ## The Mage node is kept across rooms, so its HP carries over. Restart
 ## (reloading the scene) starts a fresh run in `start_room` with a fresh RunState.
+## Run setup: on _ready the RunState is configured from the Progression
+## autoload's selected difficulty and Pact (so Restart reuses them) and the
+## Pact's max HP multiplier is applied once to the fresh Mage. Every encounter
+## enemy is scaled once through Enemy.apply_scaling() with RunState's enemy
+## multipliers when its Room reports it (Room.enemy_registered, which also
+## covers survival waves); combat rooms get the difficulty's extra enemies at
+## free safe spawn points. All Mage healing goes through heal_mage() and all
+## max HP gains through raise_max_health(). Victory records the difficulty
+## with Progression.record_victory() (death never does).
 
 signal room_changed(room: Room, index: int)
 ## Something the map shows changed (room entered or cleared, level gates).
@@ -71,6 +80,8 @@ var current_index: int = -1
 var final_anvil: UpgradeStation
 ## True once the run is won (set once, on the boss's death).
 var victory := false
+## Difficulty tier this run's victory unlocked (-1 = none).
+var unlocked_tier: int = -1
 
 ## "<room>:<door>" -> [room index, door name]
 var _link_map := {}
@@ -89,6 +100,11 @@ var _transitioning := false
 
 func _ready() -> void:
 	_build_links()
+	var progression := ProgressionStore.instance(get_tree())
+	run_state.configure(progression.selected_difficulty, progression.selected_pact)
+	mage.health.scale_max_health(run_state.max_health_multiplier())
+	mage.caster.momentum_window = Pacts.MOMENTUM_WINDOW
+	run_state.synergy_activated.connect(_on_synergy_activated)
 	run_state.leveled_up.connect(_on_leveled_up)
 	run_state.upgrade_purchased.connect(_on_upgrade_purchased)
 	run_state.item_collected.connect(_on_item_collected)
@@ -174,7 +190,31 @@ func run_summary() -> Dictionary:
 		"treasures": run_state.treasures.keys(),
 		"enemies_defeated": run_state.enemies_defeated,
 		"relic": run_state.relic,
+		"difficulty": run_state.difficulty,
+		"pact": run_state.pact,
+		"synergies": run_state.active_synergies(),
+		"gold_earned": run_state.gold_earned,
+		"difficulty_bonus_gold": run_state.difficulty_bonus_gold,
+		"modifier_bonus_gold": run_state.modifier_bonus_gold,
+		"unlocked_tier": unlocked_tier,
 	}
+
+
+## Heals the Mage through the run's healing modifier (Blood Pact: -50%);
+## `kill_heal` sources (Blood Pact's own heal) are not reduced. Returns the HP restored.
+func heal_mage(amount: float, kill_heal: bool = false) -> float:
+	if amount <= 0.0 or mage.is_dead():
+		return 0.0
+	var before := mage.health.current
+	mage.health.increase_max_health(0.0, amount * (1.0 if kill_heal else run_state.healing_multiplier()))
+	return mage.health.current - before
+
+
+## Raises the Mage's max HP by `amount` x the run's max HP multiplier, then
+## heals `heal` through heal_mage().
+func raise_max_health(amount: float, heal: float = 0.0) -> void:
+	mage.health.increase_max_health(amount * run_state.max_health_multiplier(), 0.0)
+	heal_mage(heal)
 
 
 ## True if the Mage's level allows entering room `index`.
@@ -224,8 +264,16 @@ func _get_room(index: int) -> Room:
 	if not _room_cache.has(index):
 		var spec := rooms[index]
 		var room := spec.scene.instantiate() as Room
+		# Connected before the room is ready, so scene-placed enemies are scaled too.
+		room.enemy_registered.connect(_scale_enemy.bind(spec.is_treasure()))
 		if not spec.enemies.is_empty():
 			room.add_encounter_enemies(spec.enemies)
+			if not spec.is_boss and not spec.is_treasure():
+				room.add_extra_enemies(spec.enemies, run_state.extra_room_enemies(spec.required_level), spec.enemies.size())
+		if room is SurvivalRoom:
+			var trial := room as SurvivalRoom
+			trial.extra_per_wave = run_state.extra_wave_enemies()
+			trial.duration += run_state.survival_time_bonus()
 		if not spec.item.is_empty() and item_pickup_scene:
 			var pickup := item_pickup_scene.instantiate() as ItemPickup
 			pickup.item_id = spec.item
@@ -282,12 +330,21 @@ func _spawn_final_anvil() -> void:
 	_run_hud.show_message("Dungeon cleared! An anvil awaits before the boss gate.")
 
 
+## Applies the run's enemy modifiers once to `enemy` (Enemy.apply_scaling() ignores repeats).
+func _scale_enemy(enemy: Enemy, treasure_room: bool) -> void:
+	var elite := enemy.elite or enemy is Boss
+	enemy.apply_scaling(run_state.enemy_health_multiplier(treasure_room),
+			run_state.enemy_damage_multiplier(elite, treasure_room),
+			run_state.enemy_pace_multiplier(), run_state.enemy_vulnerability_multiplier(elite))
+
+
 func _on_enemy_defeated(enemy: Enemy) -> void:
 	run_state.enemies_defeated += 1
-	run_state.add_rewards(enemy.xp_reward, enemy.currency_reward)
+	var gold := run_state.grant_enemy_rewards(enemy.xp_reward, enemy.currency_reward)
+	heal_mage(run_state.kill_heal(), true)
 	if enemy is Boss and not run_state.boss_defeated:
 		run_state.boss_defeated = true
-		_run_hud.show_message("%s defeated! +%d gold. Victory!" % [(enemy as Boss).display_name, enemy.currency_reward])
+		_run_hud.show_message("%s defeated! +%d gold. Victory!" % [(enemy as Boss).display_name, gold])
 		_start_victory()
 
 
@@ -297,6 +354,7 @@ func _start_victory() -> void:
 	if victory or mage.is_dead():
 		return
 	victory = true
+	unlocked_tier = ProgressionStore.instance(get_tree()).record_victory(run_state.difficulty)
 	mage.end_run()
 	_clear_projectiles()
 	victory_started.emit()
@@ -321,11 +379,11 @@ func _open_victory_overlay() -> void:
 func _on_relic_chosen(id: StringName) -> void:
 	var bonus: float = RunState.RELICS[id].get("max_health", 0.0)
 	if bonus > 0.0:
-		mage.health.increase_max_health(bonus, bonus)
+		raise_max_health(bonus, bonus)
 
 
 func _on_leveled_up(new_level: int) -> void:
-	mage.health.increase_max_health(run_state.max_health_per_level, run_state.heal_per_level)
+	raise_max_health(run_state.max_health_per_level, run_state.heal_per_level)
 	if current_index >= 0:
 		_update_level_gates(current_index)
 	map_changed.emit()
@@ -353,7 +411,7 @@ func _update_level_gates(index: int) -> void:
 func _on_upgrade_purchased(id: StringName) -> void:
 	var bonus: float = RunState.UPGRADES[id].get("max_health", 0.0)
 	if bonus > 0.0:
-		mage.health.increase_max_health(bonus, bonus)
+		raise_max_health(bonus, bonus)
 
 
 ## RunState only emits this once per treasure per run.
@@ -361,7 +419,7 @@ func _on_treasure_claimed(id: StringName) -> void:
 	var data: Dictionary = RunState.TREASURES[id]
 	var heal: float = data.get("heal", 0.0)
 	if heal > 0.0:
-		mage.health.increase_max_health(0.0, heal)
+		heal_mage(heal * run_state.treasure_reward_multiplier())
 	_run_hud.show_message("%s: %s" % [data["name"], data["effect"]])
 
 
@@ -370,7 +428,7 @@ func _on_item_collected(id: StringName) -> void:
 	var data: Dictionary = RunState.ITEMS[id]
 	var bonus: float = data.get("max_health", 0.0)
 	if bonus > 0.0:
-		mage.health.increase_max_health(bonus, bonus)
+		raise_max_health(bonus, bonus)
 	_run_hud.show_message("%s: %s" % [data["name"], data["effect"]])
 
 
@@ -378,6 +436,13 @@ func _on_item_collected(id: StringName) -> void:
 func _apply_spell_modifiers() -> void:
 	mage.caster.set_modifiers(run_state.spell_damage_multiplier(), run_state.spell_cooldown_multiplier())
 	mage.speed_multiplier = run_state.move_speed_multiplier()
+	mage.damage_taken_multiplier = run_state.damage_taken_multiplier()
+	mage.caster.momentum = run_state.cast_momentum()
+
+
+func _on_synergy_activated(id: StringName) -> void:
+	# Deferred so it is not replaced by the pickup/treasure message emitted right after.
+	_run_hud.show_message.call_deferred("Synergy! %s" % Pacts.synergy_text(id))
 
 
 func _clear_projectiles() -> void:

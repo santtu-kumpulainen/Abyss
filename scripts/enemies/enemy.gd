@@ -25,6 +25,9 @@ signal died
 @export var xp_reward: int = 1
 ## Currency granted to the run when this enemy is defeated.
 @export var currency_reward: int = 5
+## Elite enemies (e.g. Blood Monster, boss) are affected by elite modifiers
+## such as Hunter's Mark.
+@export var elite := false
 
 @export var sprite_frames: SpriteFrames:
 	set(value):
@@ -47,6 +50,10 @@ signal died
 ## Facing direction: "down", "left", "right" or "up".
 var facing: StringName = &"down"
 var target: Node2D
+## True once apply_scaling() has run (it only works once per instance).
+var scaled := false
+## Multiplier on damage taken (set by apply_scaling()).
+var damage_taken_multiplier := 1.0
 
 var _attack_cooldown_left := 0.0
 
@@ -80,8 +87,29 @@ func _physics_process(delta: float) -> void:
 	_play(&"walk" if velocity != Vector2.ZERO else &"idle")
 
 
+## Applies run scaling once (call after _ready, before the enemy is damaged):
+## max/current HP x `health_mult`, every damage source x `damage_mult`, move
+## speed and attack rate x `pace_mult`, damage taken x `vulnerability`.
+## Returns false (and changes nothing) if this enemy was already scaled.
+func apply_scaling(health_mult: float, damage_mult: float, pace_mult: float = 1.0, vulnerability: float = 1.0) -> bool:
+	if scaled:
+		return false
+	scaled = true
+	health.scale_max_health(health_mult)
+	damage_taken_multiplier = vulnerability
+	speed *= pace_mult
+	attack_cooldown /= maxf(pace_mult, 0.01)
+	_scale_attacks(damage_mult, pace_mult)
+	return true
+
+
+## Scales this enemy's damage (subclasses add their own attacks).
+func _scale_attacks(damage_mult: float, _pace_mult: float) -> void:
+	contact_damage *= damage_mult
+
+
 func take_damage(amount: float) -> void:
-	health.take_damage(amount)
+	health.take_damage(amount * damage_taken_multiplier)
 	if not health.is_dead():
 		_flash()
 

@@ -23,6 +23,7 @@ grow_vertical = 2
 color = Color(0.06, 0.05, 0.09, 1)
 
 [node name="Center" type="CenterContainer" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -58,3 +59,87 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 24
 text = "Quit"
+
+[node name="RunSetup" type="CenterContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="RunSetup"]
+custom_minimum_size = Vector2(720, 0)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="DifficultyHeading" type="Label" parent="RunSetup/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.55, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 32
+text = "Choose Difficulty"
+horizontal_alignment = 1
+
+[node name="DifficultyButtons" type="HBoxContainer" parent="RunSetup/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 12
+
+[node name="DifficultyInfo" type="Label" parent="RunSetup/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(720, 96)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.92, 0.95, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="PactHeading" type="Label" parent="RunSetup/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.55, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 26
+text = "Choose a Pact (optional)"
+horizontal_alignment = 1
+
+[node name="PactButtons" type="GridContainer" parent="RunSetup/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 8
+columns = 4
+
+[node name="PactInfo" type="Label" parent="RunSetup/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(720, 72)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.92, 0.95, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="SetupActions" type="HBoxContainer" parent="RunSetup/VBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="BeginButton" type="Button" parent="RunSetup/VBox/SetupActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Begin Run"
+
+[node name="BackButton" type="Button" parent="RunSetup/VBox/SetupActions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Back"

@@ -9,6 +9,9 @@ extends Area2D
 ## - true (enemy_projectile.tscn): enemy attack; layer "enemy_projectiles",
 ##   mask "world" + "player"; never hits enemies.
 
+## Emitted once when the projectile damages a body (calls its take_damage()).
+signal hit(body: Node)
+
 ## Which side this projectile damages (see above).
 @export var hostile_to_player := false
 
@@ -62,6 +65,7 @@ func _on_body_entered(body: Node) -> void:
 	_spent = true
 	if body.has_method(&"take_damage"):
 		body.take_damage(spell.damage)
+		hit.emit(body)
 	set_deferred(&"monitoring", false)
 	queue_free()
 

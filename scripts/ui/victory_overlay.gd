@@ -4,6 +4,9 @@ extends CanvasLayer
 ## game (this layer keeps processing), offers one relic from RunState.RELICS,
 ## then shows the run summary with New Run (reloads the dungeon scene) and
 ## Main Menu (`main_menu_scene`) buttons. Both unpause the game first.
+## Relic buttons name the synergies they would complete; the summary shows the
+## difficulty, Pact, gold (with the difficulty bonus), active synergies and the
+## difficulty this victory unlocked.
 
 ## Opened, waiting for a relic choice.
 signal relic_choice_shown
@@ -45,6 +48,10 @@ func open(p_dungeon: Dungeon) -> void:
 		var button := Button.new()
 		button.name = String(id)
 		button.text = "%s  -  %s" % [data["name"], data["effect"]]
+		var completes: Array = dungeon.run_state.synergies_completed_by(id).map(
+				func(s: StringName) -> String: return Pacts.SYNERGIES[s]["name"])
+		if not completes.is_empty():
+			button.text += "  [completes synergy: %s]" % ", ".join(completes)
 		button.custom_minimum_size = Vector2(360, 40)
 		button.add_theme_font_size_override(&"font_size", 20)
 		button.pressed.connect(choose_relic.bind(id))
@@ -85,7 +92,10 @@ static func summary_text(summary: Dictionary) -> String:
 	var upgrades: Array = summary["upgrades"].map(func(id: StringName) -> String: return RunState.UPGRADES[id]["name"])
 	var treasures: Array = summary.get("treasures", []).map(func(id: StringName) -> String: return RunState.TREASURES[id]["name"])
 	var relic: StringName = summary["relic"]
-	return "\n".join([
+	var lines: Array[String] = []
+	if summary.has("difficulty"):
+		lines.append("Difficulty: %s   Pact: %s" % [Difficulty.display_name(summary["difficulty"]), Pacts.pact_name(summary["pact"])])
+	lines.append_array([
 		"Mage level: %d" % summary["level"],
 		"Rooms cleared: %d / %d" % [summary["rooms_cleared"], summary["rooms_total"]],
 		"Enemies defeated: %d" % summary["enemies_defeated"],
@@ -94,3 +104,11 @@ static func summary_text(summary: Dictionary) -> String:
 		"Treasures: %s" % (", ".join(treasures) if not treasures.is_empty() else "none"),
 		"Relic: %s" % (RunState.RELICS[relic]["name"] if not relic.is_empty() else "none"),
 	])
+	if summary.has("gold_earned"):
+		lines.append("Gold earned: %d (difficulty bonus +%d, other bonuses +%d)" % [
+			summary["gold_earned"], summary["difficulty_bonus_gold"], summary["modifier_bonus_gold"]])
+		var synergies: Array = summary["synergies"].map(func(id: StringName) -> String: return Pacts.synergy_text(id))
+		lines.append("Synergies: %s" % ("; ".join(synergies) if not synergies.is_empty() else "none"))
+		if summary["unlocked_tier"] >= 0:
+			lines.append("NEW: %s difficulty unlocked!" % Difficulty.display_name(summary["unlocked_tier"]))
+	return "\n".join(lines)
