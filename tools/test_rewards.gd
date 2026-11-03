@@ -37,10 +37,10 @@ func _run_tests() -> void:
 	var demon := load("res://scenes/enemies/demon.tscn").instantiate() as Enemy
 	var blood := load("res://scenes/enemies/blood_monster.tscn").instantiate() as Enemy
 	var caster := load("res://scenes/enemies/demon_caster.tscn").instantiate() as Enemy
-	_check(goblin.xp_reward == 10 and goblin.currency_reward == 5, "Giant Goblin uses default rewards (10 XP, 5)")
-	_check(demon.xp_reward == 15 and demon.currency_reward == 8, "Demon overrides rewards (15 XP, 8)")
-	_check(blood.xp_reward == 25 and blood.currency_reward == 12, "Blood Monster overrides rewards (25 XP, 12)")
-	_check(caster.xp_reward == 20 and caster.currency_reward == 10, "Demon Caster overrides rewards (20 XP, 10)")
+	_check(goblin.xp_reward == 1 and goblin.currency_reward == 5, "Giant Goblin uses default rewards (1 XP, 5)")
+	_check(demon.xp_reward == 2 and demon.currency_reward == 8, "Demon overrides rewards (2 XP, 8)")
+	_check(blood.xp_reward == 4 and blood.currency_reward == 12, "Blood Monster overrides rewards (4 XP, 12)")
+	_check(caster.xp_reward == 2 and caster.currency_reward == 10, "Demon Caster overrides rewards (2 XP, 10)")
 	for e in [goblin, demon, blood, caster]:
 		e.free()
 
@@ -56,24 +56,25 @@ func _run_tests() -> void:
 	first.take_damage(9999.0)
 	first.died.emit()  # duplicate death signal before the enemy is freed
 	await _frames(2)
-	_check(_run.xp == 10 and _run.currency == 5, "one kill grants rewards once (XP %d, currency %d)" % [_run.xp, _run.currency])
+	_check(_run.xp == 1 and _run.currency == 5, "one kill grants rewards once (XP %d, currency %d)" % [_run.xp, _run.currency])
 	await _kill_all(hall)
-	_check(_run.xp == 30 and _run.currency == 15 and _run.level == 1, "Hall cleared: 30 XP, 15 currency, Lv 1")
-	_check(_hud_text() == "Lv 1   XP 30/50   Gold 15", "HUD updates after kills (%s)" % _hud_text())
+	_check(_run.xp == 3 and _run.currency == 15 and _run.level == 1, "Hall cleared: 3 XP, 15 currency, Lv 1")
+	_check(_hud_text() == "Lv 1   XP 3/50   Gold 15", "HUD updates after kills (%s)" % _hud_text())
 
 	# --- Crypt: persists across transition; level-up at 50 XP ---
+	_run.add_rewards(45, 0)  # stands in for the other Level 1 rooms (48 XP total)
 	var run_before := _run
 	_mage.take_damage(30.0)
 	_dungeon.enter_room(CRYPT, &"DoorLeft")
 	await _frames(2)
 	var crypt := _dungeon.current_room
-	_check(_dungeon.run_state == run_before and _run.xp == 30 and _run.currency == 15,
+	_check(_dungeon.run_state == run_before and _run.xp == 48 and _run.currency == 15,
 			"XP and currency persist into the Crypt")
 	var hp_before := _mage.health.current
 	var goblins := crypt.get_node(^"Enemies").get_children().filter(func(e: Node) -> bool: return e.name.begins_with("GiantGoblin"))
 	(goblins[0] as Enemy).take_damage(9999.0)
 	await _frames(2)
-	_check(_run.level == 1 and _run.xp == 40, "Lv 1 at 40 XP (below threshold)")
+	_check(_run.level == 1 and _run.xp == 49, "Lv 1 at 49 XP (below threshold)")
 	(goblins[1] as Enemy).take_damage(9999.0)
 	await _frames(2)
 	_check(_run.level == 2 and _run.xp == 0 and _run.xp_to_next_level() == 100,
@@ -84,21 +85,21 @@ func _run_tests() -> void:
 	_check(is_equal_approx(bar.max_value, _mage.health.max_health) and is_equal_approx(bar.value, _mage.health.current),
 			"Mage health bar reflects the level-up")
 	await _kill_all(crypt)
-	_check(_run.level == 2 and _run.xp == 35 and _run.currency == 42, "Crypt cleared: Lv 2, 35 XP, 42 currency")
+	_check(_run.level == 2 and _run.xp == 5 and _run.currency == 42, "Crypt cleared: Lv 2, 5 XP, 42 currency")
 
 	# --- Revisiting a cleared room grants nothing ---
 	_dungeon.enter_room(HALL, &"DoorRight")
 	await _frames(3)
 	_dungeon.enter_room(CRYPT, &"DoorLeft")
 	await _frames(3)
-	_check(_run.xp == 35 and _run.currency == 42, "revisiting cleared rooms grants no extra rewards")
+	_check(_run.xp == 5 and _run.currency == 42, "revisiting cleared rooms grants no extra rewards")
 
 	# --- Cave ---
 	_dungeon.enter_room(CAVE, &"DoorBottom")
 	await _frames(2)
 	await _kill_all(_dungeon.current_room)
-	_check(_run.level == 2 and _run.xp == 90 and _run.currency == 70, "Cave cleared (incl. Demon Caster): Lv 2, 90 XP, 70 currency")
-	_check(_hud_text() == "Lv 2   XP 90/100   Gold 70", "HUD after full run (%s)" % _hud_text())
+	_check(_run.level == 2 and _run.xp == 11 and _run.currency == 70, "Cave cleared (incl. Demon Caster): Lv 2, 11 XP, 70 currency")
+	_check(_hud_text() == "Lv 2   XP 11/100   Gold 70", "HUD after full run (%s)" % _hud_text())
 
 	# --- Restart resets the run ---
 	_mage.take_damage(9999.0)

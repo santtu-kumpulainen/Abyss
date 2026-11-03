@@ -20,6 +20,10 @@ enum State { IDLE, COMBAT, CLEARED }
 
 ## Start the encounter immediately instead of waiting for the trigger.
 @export var start_on_ready: bool = false
+## HUD text once the room is cleared (e.g. for a placeholder room).
+@export var cleared_text: String = "Room cleared"
+## Detection radius given to enemies added with add_encounter_enemies().
+@export var spawn_detection_radius: float = 800.0
 
 var state: State = State.IDLE
 var enemies_remaining: int = 0
@@ -59,6 +63,19 @@ func start_encounter() -> void:
 		_set_enemy_active(enemy, true)
 	_set_state(State.COMBAT)
 	enemies_remaining_changed.emit(enemies_remaining)
+
+
+## Adds one enemy per scene at the "SpawnPoints" markers, in marker order.
+## Call before the room enters the tree so _ready() includes them in the encounter.
+func add_encounter_enemies(scenes: Array[PackedScene]) -> void:
+	var points := get_node(^"SpawnPoints").get_children()
+	if scenes.size() > points.size():
+		push_error("%s: %d enemies but only %d spawn points" % [name, scenes.size(), points.size()])
+	for i in mini(scenes.size(), points.size()):
+		var enemy := scenes[i].instantiate() as Enemy
+		enemy.position = (points[i] as Node2D).position
+		enemy.detection_radius = spawn_detection_radius
+		get_node(^"Enemies").add_child(enemy, true)
 
 
 func get_doors() -> Array[Door]:
