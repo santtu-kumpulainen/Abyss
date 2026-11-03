@@ -1,7 +1,8 @@
 class_name RoomHud
 extends CanvasLayer
 ## Shows the room's encounter state: nothing while idle,
-## "Enemies remaining: N" during combat and "Room cleared" after victory.
+## "Enemies remaining: N" during combat and "Room cleared" after victory
+## (Room.status_text(), which special rooms override).
 
 ## The Room to display.
 @export var room: Room
@@ -22,9 +23,11 @@ func set_room(new_room: Room) -> void:
 	if room and room.state_changed.is_connected(_on_room_changed):
 		room.state_changed.disconnect(_on_room_changed)
 		room.enemies_remaining_changed.disconnect(_on_room_changed)
+		room.status_changed.disconnect(_refresh)
 	room = new_room
 	room.state_changed.connect(_on_room_changed)
 	room.enemies_remaining_changed.connect(_on_room_changed)
+	room.status_changed.connect(_refresh)
 	_refresh()
 
 
@@ -33,11 +36,5 @@ func _on_room_changed(_value: Variant) -> void:
 
 
 func _refresh() -> void:
-	match room.state:
-		Room.State.COMBAT:
-			_label.text = "Enemies remaining: %d" % room.enemies_remaining
-		Room.State.CLEARED:
-			_label.text = room.cleared_text
-		_:
-			_label.text = ""
+	_label.text = room.status_text()
 	_label.visible = not _label.text.is_empty()

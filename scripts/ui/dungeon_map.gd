@@ -3,7 +3,9 @@ extends Control
 ## Small minimap in the bottom-left corner. Shows visited rooms (current room
 ## highlighted, cleared rooms dimmed), and from each visited room its door
 ## links: rooms behind unexplored doors appear as outlines; gold outlines and
-## links need a higher Mage level (red for the boss room).
+## links need a higher Mage level (red for the boss room). Known treasure
+## rooms carry a diamond marker: orange for the survival trial, violet for
+## the rune puzzle (dimmed once completed).
 
 @export var cell_size: float = 16.0
 @export var gap: float = 6.0
@@ -16,6 +18,8 @@ extends Control
 @export var unexplored_color := Color(0.85, 0.85, 0.9, 0.9)
 @export var locked_color := Color(0.85, 0.65, 0.2, 1.0)
 @export var boss_color := Color(0.9, 0.2, 0.25, 1.0)
+@export var survival_color := Color(1.0, 0.55, 0.15, 1.0)
+@export var puzzle_color := Color(0.72, 0.45, 1.0, 1.0)
 
 var _dungeon: Dungeon
 var _origin_cell := Vector2i.ZERO
@@ -74,6 +78,24 @@ func _draw() -> void:
 			draw_rect(rect, color, false, 2.0)
 		if _dungeon.rooms[i].is_boss:
 			draw_rect(rect.grow(-cell_size * 0.3), boss_color)
+		var marker := marker_color(i)
+		if marker.a > 0.0:
+			var c := rect.get_center()
+			var r := cell_size * 0.32
+			var diamond := PackedVector2Array([c + Vector2(0, -r), c + Vector2(r, 0), c + Vector2(0, r), c + Vector2(-r, 0)])
+			draw_colored_polygon(diamond, marker)
+			draw_polyline(diamond + PackedVector2Array([diamond[0]]), Color.BLACK, 1.0)
+
+
+## Treasure-room marker colour for room `index` (transparent for other rooms).
+func marker_color(index: int) -> Color:
+	var color := Color.TRANSPARENT
+	match _dungeon.rooms[index].treasure:
+		RoomSpec.Treasure.SURVIVAL:
+			color = survival_color
+		RoomSpec.Treasure.PUZZLE:
+			color = puzzle_color
+	return color.darkened(0.45) if color.a > 0.0 and _dungeon.is_cleared(index) else color
 
 
 func _gate_color(index: int) -> Color:

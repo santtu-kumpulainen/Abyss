@@ -1,27 +1,29 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://dh2mu1pwg7pfn"]
 
-[ext_resource type="Script" path="res://scripts/dungeon/dungeon.gd" id="1_dungeon"]
+[ext_resource type="Script" uid="uid://bxylxjkgykyv7" path="res://scripts/dungeon/dungeon.gd" id="1_dungeon"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/arena_room.tscn" id="2_hall"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/crypt_room.tscn" id="3_crypt"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/cave_room.tscn" id="4_cave"]
 [ext_resource type="PackedScene" path="res://scenes/mage/mage.tscn" id="5_mage"]
 [ext_resource type="PackedScene" path="res://scenes/ui/room_hud.tscn" id="6_room_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="7_game_over"]
-[ext_resource type="Script" path="res://scripts/dungeon/run_state.gd" id="8_run_state"]
+[ext_resource type="Script" uid="uid://bvfjt2t2yq5x7" path="res://scripts/dungeon/run_state.gd" id="8_run_state"]
 [ext_resource type="PackedScene" path="res://scenes/ui/run_hud.tscn" id="9_run_hud"]
-[ext_resource type="Script" path="res://scripts/dungeon/room_spec.gd" id="10_room_spec"]
+[ext_resource type="Script" uid="uid://ggxxf2yodh7t" path="res://scripts/dungeon/room_spec.gd" id="10_room_spec"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dungeon_map.tscn" id="11_map"]
-[ext_resource type="PackedScene" path="res://scenes/rooms/templates/dungeon_template.tscn" id="t_dungeon"]
-[ext_resource type="PackedScene" path="res://scenes/rooms/templates/crypt_template.tscn" id="t_crypt"]
-[ext_resource type="PackedScene" path="res://scenes/rooms/templates/cave_template.tscn" id="t_cave"]
-[ext_resource type="PackedScene" path="res://scenes/rooms/templates/boss_gate_room.tscn" id="t_boss"]
-[ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="e_goblin"]
-[ext_resource type="PackedScene" path="res://scenes/enemies/demon.tscn" id="e_demon"]
-[ext_resource type="PackedScene" path="res://scenes/enemies/demon_caster.tscn" id="e_caster"]
-[ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster.tscn" id="e_blood"]
 [ext_resource type="PackedScene" path="res://scenes/items/item_pickup.tscn" id="12_item_pickup"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/upgrade_station.tscn" id="13_upgrade_station"]
 [ext_resource type="PackedScene" path="res://scenes/ui/victory_overlay.tscn" id="14_victory"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/survival_room.tscn" id="15_survival"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/rune_puzzle_room.tscn" id="16_rune"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster.tscn" id="e_blood"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/demon_caster.tscn" id="e_caster"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/demon.tscn" id="e_demon"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="e_goblin"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/templates/boss_gate_room.tscn" id="t_boss"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/templates/cave_template.tscn" id="t_cave"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/templates/crypt_template.tscn" id="t_crypt"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/templates/dungeon_template.tscn" id="t_dungeon"]
 
 [sub_resource type="Resource" id="Room_2_4"]
 script = ExtResource("10_room_spec")
@@ -154,7 +156,6 @@ enemies = Array[PackedScene]([ExtResource("e_demon"), ExtResource("e_demon"), Ex
 [sub_resource type="Resource" id="Room_0_0"]
 script = ExtResource("10_room_spec")
 scene = ExtResource("t_dungeon")
-cell = Vector2i(0, 0)
 required_level = 2
 enemies = Array[PackedScene]([ExtResource("e_blood"), ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_goblin")])
 item = &"heart_crystal"
@@ -188,27 +189,40 @@ cell = Vector2i(2, 0)
 required_level = 3
 is_boss = true
 
-[node name="Dungeon" type="Node2D"]
+[sub_resource type="Resource" id="Room_5_2"]
+script = ExtResource("10_room_spec")
+scene = ExtResource("15_survival")
+cell = Vector2i(5, 2)
+required_level = 2
+treasure = 1
+
+[sub_resource type="Resource" id="Room_m1_3"]
+script = ExtResource("10_room_spec")
+scene = ExtResource("16_rune")
+cell = Vector2i(-1, 3)
+treasure = 2
+
+[node name="Dungeon" type="Node2D" unique_id=338248088]
 y_sort_enabled = true
 script = ExtResource("1_dungeon")
-rooms = Array[ExtResource("10_room_spec")]([SubResource("Room_2_4"), SubResource("Room_3_4"), SubResource("Room_3_3"), SubResource("Room_0_4"), SubResource("Room_1_4"), SubResource("Room_4_4"), SubResource("Room_0_3"), SubResource("Room_1_3"), SubResource("Room_2_3"), SubResource("Room_4_3"), SubResource("Room_0_2"), SubResource("Room_1_2"), SubResource("Room_2_2"), SubResource("Room_3_2"), SubResource("Room_4_2"), SubResource("Room_0_1"), SubResource("Room_1_1"), SubResource("Room_2_1"), SubResource("Room_3_1"), SubResource("Room_4_1"), SubResource("Room_0_0"), SubResource("Room_1_0"), SubResource("Room_3_0"), SubResource("Room_4_0"), SubResource("Room_2_0")])
+rooms = Array[ExtResource("10_room_spec")]([SubResource("Room_2_4"), SubResource("Room_3_4"), SubResource("Room_3_3"), SubResource("Room_0_4"), SubResource("Room_1_4"), SubResource("Room_4_4"), SubResource("Room_0_3"), SubResource("Room_1_3"), SubResource("Room_2_3"), SubResource("Room_4_3"), SubResource("Room_0_2"), SubResource("Room_1_2"), SubResource("Room_2_2"), SubResource("Room_3_2"), SubResource("Room_4_2"), SubResource("Room_0_1"), SubResource("Room_1_1"), SubResource("Room_2_1"), SubResource("Room_3_1"), SubResource("Room_4_1"), SubResource("Room_0_0"), SubResource("Room_1_0"), SubResource("Room_3_0"), SubResource("Room_4_0"), SubResource("Room_2_0"), SubResource("Room_5_2"), SubResource("Room_m1_3")])
 item_pickup_scene = ExtResource("12_item_pickup")
 upgrade_station_scene = ExtResource("13_upgrade_station")
-links = PackedStringArray("0,4 - 1,4", "1,4 - 2,4", "2,4 - 3,4", "3,4 - 4,4", "0,4 - 0,3", "0,3 - 1,3", "1,3 - 2,3", "1,4 - 1,3", "3,4 - 3,3", "3,3 - 4,3", "4,4 - 4,3", "2,3 - 3,3", "0,3 - 0,2", "4,3 - 4,2", "0,2 - 1,2", "1,2 - 2,2", "2,2 - 3,2", "3,2 - 4,2", "0,2 - 0,1", "4,2 - 4,1", "0,1 - 0,0", "0,0 - 1,0", "1,0 - 1,1", "1,1 - 2,1", "4,1 - 4,0", "4,0 - 3,0", "3,0 - 3,1", "3,1 - 2,1", "2,2 - 2,1", "2,1 - 2,0")
+links = PackedStringArray("0,4 - 1,4", "1,4 - 2,4", "2,4 - 3,4", "3,4 - 4,4", "0,4 - 0,3", "0,3 - 1,3", "1,3 - 2,3", "1,4 - 1,3", "3,4 - 3,3", "3,3 - 4,3", "4,4 - 4,3", "2,3 - 3,3", "0,3 - 0,2", "4,3 - 4,2", "0,2 - 1,2", "1,2 - 2,2", "2,2 - 3,2", "3,2 - 4,2", "0,2 - 0,1", "4,2 - 4,1", "0,1 - 0,0", "0,0 - 1,0", "1,0 - 1,1", "1,1 - 2,1", "4,1 - 4,0", "4,0 - 3,0", "3,0 - 3,1", "3,1 - 2,1", "2,2 - 2,1", "2,1 - 2,0", "4,2 - 5,2", "0,3 - -1,3")
 
-[node name="Mage" parent="." instance=ExtResource("5_mage")]
+[node name="Mage" parent="." unique_id=534239917 instance=ExtResource("5_mage")]
 position = Vector2(576, 580)
 
-[node name="RoomHud" parent="." instance=ExtResource("6_room_hud")]
+[node name="RoomHud" parent="." unique_id=386247051 instance=ExtResource("6_room_hud")]
 
-[node name="RunState" type="Node" parent="."]
+[node name="RunState" type="Node" parent="." unique_id=1053602312]
 script = ExtResource("8_run_state")
 
-[node name="RunHud" parent="." instance=ExtResource("9_run_hud")]
+[node name="RunHud" parent="." unique_id=809262209 instance=ExtResource("9_run_hud")]
 
-[node name="DungeonMap" parent="." instance=ExtResource("11_map")]
+[node name="DungeonMap" parent="." unique_id=1788453517 instance=ExtResource("11_map")]
 
-[node name="GameOverOverlay" parent="." node_paths=PackedStringArray("player") instance=ExtResource("7_game_over")]
+[node name="GameOverOverlay" parent="." unique_id=1815817430 node_paths=PackedStringArray("player") instance=ExtResource("7_game_over")]
 player = NodePath("../Mage")
 
-[node name="VictoryOverlay" parent="." instance=ExtResource("14_victory")]
+[node name="VictoryOverlay" parent="." unique_id=1336298155 instance=ExtResource("14_victory")]

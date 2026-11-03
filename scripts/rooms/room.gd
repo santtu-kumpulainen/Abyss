@@ -9,12 +9,16 @@ extends Node2D
 ## Flow: IDLE (enemies inactive, doors open) -> COMBAT (doors locked, enemies
 ## active) -> CLEARED (all encounter enemies dead, doors open).
 ## Different rooms reuse this by placing different enemies under "Enemies".
+## Special rooms (e.g. treasure rooms) can override start_encounter(),
+## can_exit(), status_text() and _is_complete().
 
 signal state_changed(state: State)
 signal enemies_remaining_changed(count: int)
 signal cleared
 ## Emitted once for each encounter enemy that dies (used for run rewards).
 signal enemy_defeated(enemy: Enemy)
+## Emitted when status_text() changes for reasons other than the signals above.
+signal status_changed
 
 enum State { IDLE, COMBAT, CLEARED }
 
@@ -37,13 +41,8 @@ var _enemies: Array[Enemy] = []
 
 func _ready() -> void:
 	for child in _enemy_container.get_children():
-		var enemy := child as Enemy
-		if enemy == null:
-			continue
-		_enemies.append(enemy)
-		enemy.died.connect(_on_enemy_died.bind(enemy))
-		_set_enemy_active(enemy, false)
-	enemies_remaining = _enemies.size()
+		if child is Enemy:
+			_register_enemy(child as Enemy, false)
 	_set_doors_locked(false)
 	if _trigger:
 		_trigger.body_entered.connect(_on_trigger_body_entered)
@@ -78,6 +77,21 @@ func add_encounter_enemies(scenes: Array[PackedScene]) -> void:
 		get_node(^"Enemies").add_child(enemy, true)
 
 
+## True when the Mage may leave through an open door (the Dungeon checks this).
+func can_exit() -> bool:
+	return state == State.CLEARED
+
+
+## Text for the RoomHud ("" hides it).
+func status_text() -> String:
+	match state:
+		State.COMBAT:
+			return "Enemies remaining: %d" % enemies_remaining
+		State.CLEARED:
+			return cleared_text
+	return ""
+
+
 func get_doors() -> Array[Door]:
 	var doors: Array[Door] = []
 	for child in _door_container.get_children():
@@ -102,6 +116,19 @@ func _set_doors_locked(value: bool) -> void:
 		door.locked = value
 
 
+## Adds `enemy` (already a child of "Enemies") to the encounter.
+func _register_enemy(enemy: Enemy, active: bool) -> void:
+	_enemies.append(enemy)
+	enemy.died.connect(_on_enemy_died.bind(enemy))
+	_set_enemy_active(enemy, active)
+	enemies_remaining = _enemies.size()
+
+
+## True when the running encounter is won (checked after each kill).
+func _is_complete() -> bool:
+	return enemies_remaining == 0
+
+
 func _set_enemy_active(enemy: Enemy, active: bool) -> void:
 	enemy.process_mode = Node.PROCESS_MODE_INHERIT if active else Node.PROCESS_MODE_DISABLED
 
@@ -118,5 +145,5 @@ func _on_enemy_died(enemy: Enemy) -> void:
 	enemy_defeated.emit(enemy)
 	enemies_remaining = _enemies.size()
 	enemies_remaining_changed.emit(enemies_remaining)
-	if state == State.COMBAT and enemies_remaining == 0:
+	if state == State.COMBAT and _is_complete():
 		_clear()
