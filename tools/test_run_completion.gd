@@ -155,7 +155,9 @@ func _test_wind_relic_and_menu() -> void:
 	await _frames(1)
 	_check(current_scene is MainMenu and not paused, "Main Menu loads the menu scene, unpaused")
 	old_id = current_scene.get_instance_id()
+	# Start Run opens the run setup panel; Begin Run starts the run.
 	(current_scene.get_node(^"%StartButton") as Button).pressed.emit()
+	(current_scene.get_node(^"%BeginButton") as Button).pressed.emit()
 	await _wait_for_scene(old_id)
 	_check(current_scene is Dungeon, "Start Run loads the dungeon")
 	_check_fresh_run("Main Menu -> Start Run")

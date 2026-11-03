@@ -35,5 +35,16 @@ func increase_max_health(amount: float, heal_amount: float = 0.0) -> void:
 	changed.emit(current)
 
 
+## Multiplies max_health by `multiplier`, keeping the current/max ratio
+## (run modifiers applied at spawn/run start). Does nothing once dead.
+func scale_max_health(multiplier: float) -> void:
+	if is_dead() or multiplier <= 0.0:
+		return
+	var ratio := current / max_health if max_health > 0.0 else 1.0
+	max_health *= multiplier
+	current = max_health * ratio
+	changed.emit(current)
+
+
 func is_dead() -> bool:
 	return current <= 0.0
