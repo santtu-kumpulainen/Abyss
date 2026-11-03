@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/rooms/obstacle.tscn" id="2_obstacle"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="3_goblin"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/demon.tscn" id="3_demon"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/demon_caster.tscn" id="3_caster"]
 [ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/Blue-green_crystal_dark_shadow1.png" id="4_blue_green_crystal_dark_shadow1"]
 [ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/Blue-green_crystal_light_shadow2.png" id="5_blue_green_crystal_light_shadow2"]
 [ext_resource type="Texture2D" path="res://assets/environment/cave_objects/PNG/Objects_separately/64/Beige_rpck_dark_shadow2.png" id="6_beige_rpck_dark_shadow2"]
@@ -111,4 +112,8 @@ detection_radius = 800.0
 
 [node name="GiantGoblin3" parent="Enemies" instance=ExtResource("3_goblin")]
 position = Vector2(960, 330)
+detection_radius = 800.0
+
+[node name="DemonCaster" parent="Enemies" instance=ExtResource("3_caster")]
+position = Vector2(760, 130)
 detection_radius = 800.0

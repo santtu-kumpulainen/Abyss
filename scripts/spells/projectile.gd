@@ -3,8 +3,14 @@ extends Area2D
 ## Straight-flying spell projectile configured by a Spell resource.
 ## Hits the first world body, damageable target or hurtbox it touches (calling
 ## take_damage() once if the body has it), then frees itself. Never hits its
-## source or player characters. Collision: layer "player_projectiles",
-## mask "world" + "enemies".
+## source or its own side. Ownership is set per scene with `hostile_to_player`:
+## - false (projectile.tscn): player spell; layer "player_projectiles",
+##   mask "world" + "enemies"; never hits player characters.
+## - true (enemy_projectile.tscn): enemy attack; layer "enemy_projectiles",
+##   mask "world" + "player"; never hits enemies.
+
+## Which side this projectile damages (see above).
+@export var hostile_to_player := false
 
 var spell: Spell
 var direction := Vector2.RIGHT
@@ -51,7 +57,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if _spent or body == source or _is_player_character(body):
+	if _spent or body == source or _is_friendly(body):
 		return
 	_spent = true
 	if body.has_method(&"take_damage"):
@@ -63,6 +69,12 @@ func _on_body_entered(body: Node) -> void:
 ## Hurtbox areas (e.g. an enemy's body-sized Area2D) count as hits on their parent.
 func _on_area_entered(area: Area2D) -> void:
 	_on_body_entered(area.get_parent())
+
+
+func _is_friendly(body: Node) -> bool:
+	if hostile_to_player:
+		return body is Enemy or body.is_in_group(&"enemies")
+	return _is_player_character(body)
 
 
 ## Safety net on top of the collision mask: the Swordsman still uses the
