@@ -1,0 +1,75 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/obstacle.tscn" id="2_obstacle"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_1.png" id="3_grave1"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Grave_shadow1_6.png" id="4_grave6"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Dead_tree_shadow1_3.png" id="5_tree"]
+[ext_resource type="Texture2D" path="res://assets/environment/undead_tileset/PNG/Objects_separately/Bones_shadow1_1.png" id="6_bones"]
+[ext_resource type="Resource" path="res://scenes/rooms/themes/crypt_theme.tres" id="7_theme"]
+
+[node name="CryptTemplate" instance=ExtResource("1_base")]
+
+[node name="Visuals" parent="." index="0"]
+theme = ExtResource("7_theme")
+variation_seed = 11
+
+[node name="GraveTopLeft" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(110, 130)
+texture = ExtResource("3_grave1")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="GraveTopRight" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(1042, 130)
+texture = ExtResource("4_grave6")
+sprite_scale = 2
+bottom_padding = -4
+footprint = Vector2(28, 14)
+
+[node name="DeadTreeLeft" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(90, 560)
+texture = ExtResource("5_tree")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(30, 14)
+
+[node name="DeadTreeRight" parent="Decor" instance=ExtResource("2_obstacle")]
+position = Vector2(1066, 560)
+texture = ExtResource("5_tree")
+sprite_scale = 1
+bottom_padding = -6
+footprint = Vector2(30, 14)
+
+[node name="Bones" type="Sprite2D" parent="Decor"]
+position = Vector2(200, 330)
+scale = Vector2(2, 2)
+texture = ExtResource("6_bones")
+offset = Vector2(0, -16)
+
+[node name="SpawnPoints" type="Node2D" parent="."]
+
+[node name="Spawn1" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(320, 180)
+
+[node name="Spawn2" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(832, 470)
+
+[node name="Spawn3" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(832, 180)
+
+[node name="Spawn4" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(320, 470)
+
+[node name="Spawn5" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(576, 210)
+
+[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(576, 440)
+
+[node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(460, 324)
+
+[node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(692, 324)

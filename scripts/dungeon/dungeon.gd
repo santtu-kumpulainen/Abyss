@@ -8,16 +8,28 @@ extends Node2D
 ## level-ups and the Vitality upgrade raise the Mage's max HP, and the Mage's
 ## spell modifiers follow RunState (level + upgrades). UpgradeStations inside
 ## rooms are given the RunState. Rooms are
-## instanced from `rooms` on first visit and cached afterwards, so a cleared
-## room stays cleared when revisited. Doors without a link are sealed.
+## instanced from `rooms` (RoomSpecs on a grid) on first visit and cached
+## afterwards, so a cleared room stays cleared (and grants no more rewards)
+## when revisited. Doors without a link are sealed. Doors leading to a room
+## whose `required_level` is above the Mage's level are level-locked and
+## labelled; they open when the level is reached. An optional "DungeonMap/Map"
+## child is given this Dungeon to draw the explored rooms.
 ## The Mage node is kept across rooms, so its HP carries over. Restart
 ## (reloading the scene) starts a fresh run in `start_room` with a fresh RunState.
 
 signal room_changed(room: Room, index: int)
+## Something the map shows changed (room entered or cleared, level gates).
+signal map_changed
 
-## Room scenes; links refer to them by index.
-@export var rooms: Array[PackedScene] = []
-## Two-way door links as "<room>:<door> - <room>:<door>", e.g. "0:DoorRight - 1:DoorLeft".
+const DOOR_BY_DIRECTION := {
+	Vector2i.RIGHT: &"DoorRight", Vector2i.LEFT: &"DoorLeft",
+	Vector2i.UP: &"DoorTop", Vector2i.DOWN: &"DoorBottom",
+}
+
+## Rooms of the dungeon; indexes are used by enter_room()/start_room.
+@export var rooms: Array[RoomSpec] = []
+## Two-way door links between neighbouring cells as "x,y - x,y", e.g. "2,4 - 3,4"
+## (the door names follow from the direction).
 @export var links: PackedStringArray = []
 @export var start_room: int = 0
 ## How far inside the destination door the Mage arrives (pixels).
@@ -30,6 +42,8 @@ var current_index: int = -1
 
 ## "<room>:<door>" -> [room index, door name]
 var _link_map := {}
+## Room index -> linked room indexes.
+var _neighbours := {}
 var _room_cache := {}
 var _transitioning := false
 
@@ -37,21 +51,18 @@ var _transitioning := false
 @onready var _hud: RoomHud = $RoomHud
 @onready var run_state: RunState = $RunState
 @onready var _run_hud: RunHud = $RunHud
+@onready var _map: DungeonMap = get_node_or_null(^"DungeonMap/Map")
 
 
 func _ready() -> void:
-	for link in links:
-		var ends := link.split(" - ")
-		if ends.size() != 2:
-			push_error("Bad dungeon link: %s" % link)
-			continue
-		_link_map[ends[0].strip_edges()] = _parse_end(ends[1])
-		_link_map[ends[1].strip_edges()] = _parse_end(ends[0])
+	_build_links()
 	run_state.leveled_up.connect(_on_leveled_up)
 	run_state.upgrade_purchased.connect(_on_upgrade_purchased)
 	run_state.changed.connect(_apply_spell_modifiers)
 	_apply_spell_modifiers()
 	_run_hud.set_run_state(run_state)
+	if _map:
+		_map.set_dungeon(self)
 	enter_room(start_room)
 
 
@@ -64,6 +75,7 @@ func enter_room(index: int, from_door: StringName = &"") -> void:
 	_clear_projectiles()
 	current_index = index
 	current_room = _get_room(index)
+	_update_level_gates(index)
 	add_child(current_room)
 	move_child(current_room, 0)
 
@@ -79,6 +91,34 @@ func enter_room(index: int, from_door: StringName = &"") -> void:
 	mage.velocity = Vector2.ZERO
 	_hud.set_room(current_room)
 	room_changed.emit(current_room, index)
+	map_changed.emit()
+
+
+## True if room `index` has been entered this run.
+func is_visited(index: int) -> bool:
+	return _room_cache.has(index)
+
+
+func is_cleared(index: int) -> bool:
+	return is_visited(index) and (_room_cache[index] as Room).state == Room.State.CLEARED
+
+
+## True if the Mage's level allows entering room `index`.
+func can_enter(index: int) -> bool:
+	return run_state.level >= rooms[index].required_level
+
+
+## Indexes of the rooms linked to room `index`.
+func get_neighbours(index: int) -> Array:
+	return _neighbours.get(index, [])
+
+
+## Room index at grid `cell`, or -1.
+func index_at(cell: Vector2i) -> int:
+	for i in rooms.size():
+		if rooms[i].cell == cell:
+			return i
+	return -1
 
 
 func _physics_process(_delta: float) -> void:
@@ -107,12 +147,16 @@ func _transition(index: int, door_name: StringName) -> void:
 
 func _get_room(index: int) -> Room:
 	if not _room_cache.has(index):
-		var room := rooms[index].instantiate() as Room
+		var spec := rooms[index]
+		var room := spec.scene.instantiate() as Room
+		if not spec.enemies.is_empty():
+			room.add_encounter_enemies(spec.enemies)
 		# get_doors() needs the room to be ready; read the Doors node directly.
 		for door: Door in room.get_node(^"Doors").get_children():
 			door.sealed = not _link_map.has(_key(index, door.name))
 		# Connected once per room instance (rooms are cached), so rewards cannot repeat.
 		room.enemy_defeated.connect(_on_enemy_defeated)
+		room.cleared.connect(map_changed.emit)
 		for node in room.find_children("*", "", true, false):
 			if node is UpgradeStation:
 				(node as UpgradeStation).run_state = run_state
@@ -133,8 +177,30 @@ func _on_enemy_defeated(enemy: Enemy) -> void:
 	run_state.add_rewards(enemy.xp_reward, enemy.currency_reward)
 
 
-func _on_leveled_up(_level: int) -> void:
+func _on_leveled_up(new_level: int) -> void:
 	mage.health.increase_max_health(run_state.max_health_per_level, run_state.heal_per_level)
+	if current_index >= 0:
+		_update_level_gates(current_index)
+	map_changed.emit()
+	var unlocked := rooms.filter(func(r: RoomSpec) -> bool: return r.required_level == new_level)
+	if unlocked.any(func(r: RoomSpec) -> bool: return r.is_boss):
+		_run_hud.show_message("Level %d! The boss gate is open." % new_level)
+	elif not unlocked.is_empty():
+		_run_hud.show_message("Level %d! Deeper rooms unlocked." % new_level)
+	else:
+		_run_hud.show_message("Level %d!" % new_level)
+
+
+## Level-locks the doors of room `index` that lead to rooms above the Mage's level.
+func _update_level_gates(index: int) -> void:
+	var room := _get_room(index)
+	for door: Door in room.get_node(^"Doors").get_children():
+		var key := _key(index, door.name)
+		if not _link_map.has(key):
+			continue
+		var target: RoomSpec = rooms[_link_map[key][0]]
+		door.level_locked = run_state.level < target.required_level
+		door.lock_label = ("BOSS Lv %d" if target.is_boss else "Lv %d") % target.required_level
 
 
 func _on_upgrade_purchased(id: StringName) -> void:
@@ -158,9 +224,26 @@ func _key(index: int, door_name: StringName) -> String:
 	return "%d:%s" % [index, door_name]
 
 
-func _parse_end(end: String) -> Array:
-	var parts := end.strip_edges().split(":")
-	return [int(parts[0]), StringName(parts[1])]
+## Fills _link_map/_neighbours from `links`; door names follow from the cell offsets.
+func _build_links() -> void:
+	for link in links:
+		var ends := link.split(" - ")
+		var a := index_at(_parse_cell(ends[0])) if ends.size() == 2 else -1
+		var b := index_at(_parse_cell(ends[1])) if ends.size() == 2 else -1
+		if a < 0 or b < 0 or not DOOR_BY_DIRECTION.has(rooms[b].cell - rooms[a].cell):
+			push_error("Bad dungeon link (needs two neighbouring room cells): %s" % link)
+			continue
+		var door_a: StringName = DOOR_BY_DIRECTION[rooms[b].cell - rooms[a].cell]
+		var door_b: StringName = DOOR_BY_DIRECTION[rooms[a].cell - rooms[b].cell]
+		_link_map[_key(a, door_a)] = [b, door_b]
+		_link_map[_key(b, door_b)] = [a, door_a]
+		_neighbours[a] = _neighbours.get(a, []) + [b]
+		_neighbours[b] = _neighbours.get(b, []) + [a]
+
+
+func _parse_cell(text: String) -> Vector2i:
+	var parts := text.strip_edges().split(",")
+	return Vector2i(int(parts[0]), int(parts[1])) if parts.size() == 2 else Vector2i(-99, -99)
 
 
 func _exit_tree() -> void:
