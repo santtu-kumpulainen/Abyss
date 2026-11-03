@@ -1,7 +1,7 @@
 class_name HealthBar
 extends ProgressBar
 ## Shows a Health node's current/max health. Updates immediately on the
-## Health's damaged/died signals.
+## Health's damaged/changed/died signals.
 
 ## The Health component to display.
 @export var health: Health
@@ -22,6 +22,7 @@ func _ready() -> void:
 		return
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
+	health.changed.connect(_on_changed)
 	_refresh()
 	if health.is_node_ready() and health.is_dead():
 		_on_died()
@@ -35,6 +36,10 @@ func _refresh() -> void:
 
 
 func _on_damaged(_amount: float, _current: float) -> void:
+	_refresh()
+
+
+func _on_changed(_current: float) -> void:
 	_refresh()
 
 
