@@ -5,7 +5,9 @@ extends Node2D
 ##
 ## Expected children: "Mage" (Mage), "RoomHud" (RoomHud), "RunState" (RunState)
 ## and "RunHud" (RunHud). Defeated enemies grant their rewards to RunState;
-## level-ups raise the Mage's max HP. Rooms are
+## level-ups and the Vitality upgrade raise the Mage's max HP, and the Mage's
+## spell modifiers follow RunState (level + upgrades). UpgradeStations inside
+## rooms are given the RunState. Rooms are
 ## instanced from `rooms` on first visit and cached afterwards, so a cleared
 ## room stays cleared when revisited. Doors without a link are sealed.
 ## The Mage node is kept across rooms, so its HP carries over. Restart
@@ -46,6 +48,9 @@ func _ready() -> void:
 		_link_map[ends[0].strip_edges()] = _parse_end(ends[1])
 		_link_map[ends[1].strip_edges()] = _parse_end(ends[0])
 	run_state.leveled_up.connect(_on_leveled_up)
+	run_state.upgrade_purchased.connect(_on_upgrade_purchased)
+	run_state.changed.connect(_apply_spell_modifiers)
+	_apply_spell_modifiers()
 	_run_hud.set_run_state(run_state)
 	enter_room(start_room)
 
@@ -108,6 +113,9 @@ func _get_room(index: int) -> Room:
 			door.sealed = not _link_map.has(_key(index, door.name))
 		# Connected once per room instance (rooms are cached), so rewards cannot repeat.
 		room.enemy_defeated.connect(_on_enemy_defeated)
+		for node in room.find_children("*", "", true, false):
+			if node is UpgradeStation:
+				(node as UpgradeStation).run_state = run_state
 		_room_cache[index] = room
 	return _room_cache[index]
 
@@ -127,6 +135,17 @@ func _on_enemy_defeated(enemy: Enemy) -> void:
 
 func _on_leveled_up(_level: int) -> void:
 	mage.health.increase_max_health(run_state.max_health_per_level, run_state.heal_per_level)
+
+
+func _on_upgrade_purchased(id: StringName) -> void:
+	var bonus: float = RunState.UPGRADES[id].get("max_health", 0.0)
+	if bonus > 0.0:
+		mage.health.increase_max_health(bonus, bonus)
+
+
+## Idempotent: recomputed from RunState, so bonuses never stack twice.
+func _apply_spell_modifiers() -> void:
+	mage.caster.set_modifiers(run_state.spell_damage_multiplier(), run_state.spell_cooldown_multiplier())
 
 
 func _clear_projectiles() -> void:

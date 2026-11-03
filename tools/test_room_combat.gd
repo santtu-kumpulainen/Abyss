@@ -149,7 +149,9 @@ func _check_layout(room: Room, mage: Mage) -> void:
 
 	var obstacles := 0
 	var blocking_decor := 0
-	for prop in room.get_node(^"Decor").get_children():
+	for decor in room.get_node(^"Decor").get_children():
+		# An UpgradeStation's solid part is its Anvil obstacle (its InteractArea is a non-blocking sensor).
+		var prop: Node = decor.get_node(^"Anvil") if decor is UpgradeStation else decor
 		if prop is Obstacle:
 			obstacles += 1
 			var footprint := _shape_rect(prop.get_node(^"CollisionShape2D"))
