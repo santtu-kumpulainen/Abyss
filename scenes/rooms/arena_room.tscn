@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/rooms/obstacle.tscn" id="2_obstacle"]
 [ext_resource type="Texture2D" path="res://assets/environment/dungeon_objects/PNG/Objects.png" id="3_objects"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="4_goblin"]
+[ext_resource type="PackedScene" path="res://scenes/rooms/upgrade_station.tscn" id="5_upgrade_station"]
 
 [node name="ArenaRoom" instance=ExtResource("1_base")]
 
@@ -94,6 +95,9 @@ texture = ExtResource("3_objects")
 offset = Vector2(0, -7.5)
 region_enabled = true
 region_rect = Rect2(368, 64, 15, 15)
+
+[node name="UpgradeStation" parent="Decor" instance=ExtResource("5_upgrade_station")]
+position = Vector2(420, 585)
 
 [node name="GiantGoblin1" parent="Enemies" instance=ExtResource("4_goblin")]
 position = Vector2(300, 180)
