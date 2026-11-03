@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Spell" format=3]
+
+[ext_resource type="Script" path="res://scripts/spells/spell.gd" id="1_spell"]
+[ext_resource type="PackedScene" path="res://scenes/spells/enemy_projectile.tscn" id="2_projectile"]
+[ext_resource type="SpriteFrames" path="res://scenes/spells/fire_ball/fire_ball_frames.tres" id="3_frames"]
+
+[resource]
+script = ExtResource("1_spell")
+id = &"enemy_bolt"
+display_name = "Enemy Bolt"
+projectile_scene = ExtResource("2_projectile")
+frames = ExtResource("3_frames")
+visual_scale = 0.035
+collision_radius = 7.0
+damage = 8.0
+speed = 200.0
+cooldown = 1.6
+lifetime = 2.5
