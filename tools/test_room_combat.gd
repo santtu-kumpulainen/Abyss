@@ -54,8 +54,8 @@ func _test_scene(path: String) -> void:
 	# --- Encounter start: the Mage walks up from the spawn into the trigger ---
 	await _hold(&"move_up", 60, func() -> bool: return room.state != Room.State.IDLE)
 	_check(room.state == Room.State.COMBAT, "walking from spawn into trigger starts COMBAT")
-	_check(_doors_locked(room) == 3, "all doors locked in combat")
-	_check(_door_shapes_enabled(room) == 3, "locked door colliders enabled")
+	_check(_doors_locked(room) == room.get_doors().size(), "all doors locked in combat")
+	_check(_door_shapes_enabled(room) == room.get_doors().size(), "locked door colliders enabled")
 	_check(_active_enemies(room) == enemy_count, "all enemies active in combat")
 	await _frames(10)
 	await _check_enemy_animations(room, mage)
@@ -76,7 +76,7 @@ func _test_scene(path: String) -> void:
 		var left := enemies.size() - i - 1
 		_check(room.enemies_remaining == left, "remaining count = %d" % left)
 		if left > 0:
-			_check(room.state == Room.State.COMBAT and _doors_locked(room) == 3,
+			_check(room.state == Room.State.COMBAT and _doors_locked(room) == room.get_doors().size(),
 					"still COMBAT, doors locked with %d left" % left)
 			_check(hud_label.text == "Enemies remaining: %d" % left, "HUD shows %d remaining" % left)
 	_check(room.state == Room.State.CLEARED, "room CLEARED after last kill")
