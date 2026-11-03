@@ -2,8 +2,9 @@ class_name UpgradeStation
 extends Node2D
 ## Anvil upgrade station. When the Mage (any "player" body) stands in
 ## "InteractArea", a prompt appears; "interact" (E) opens/closes the menu and
-## "upgrade_1".."upgrade_3" (1-3) buy RunState.UPGRADES in order. Unavailable
-## while its room is in combat. Inert until the Dungeon assigns `run_state`.
+## "upgrade_1".."upgrade_3" (1-3) buy RunState.UPGRADES in order. Each line
+## shows the cost, required level and effect; RunState blocks purchases that
+## are unaffordable or level-locked. Unavailable while its room is in combat. Inert until the Dungeon assigns `run_state`.
 
 const BUY_ACTIONS: Array[StringName] = [&"upgrade_1", &"upgrade_2", &"upgrade_3"]
 
@@ -82,6 +83,8 @@ func purchase(id: StringName) -> bool:
 		_message = "Bought %s!" % upgrade_name
 	elif run_state.is_purchased(id):
 		_message = "%s already owned." % upgrade_name
+	elif run_state.level < run_state.upgrade_level(id):
+		_message = "%s requires Lv %d." % [upgrade_name, run_state.upgrade_level(id)]
 	else:
 		_message = "Not enough gold for %s." % upgrade_name
 	_refresh()
@@ -111,16 +114,19 @@ func _refresh() -> void:
 	_menu.visible = is_open
 	if not is_open:
 		return
-	var lines: Array[String] = ["ANVIL      Gold %d" % run_state.currency, ""]
+	var lines: Array[String] = ["ANVIL      Lv %d   Gold %d" % [run_state.level, run_state.currency], ""]
 	var ids := RunState.UPGRADES.keys()
 	for i in ids.size():
 		var data: Dictionary = RunState.UPGRADES[ids[i]]
 		var status := ""
+		var required := run_state.upgrade_level(ids[i])
 		if run_state.is_purchased(ids[i]):
 			status = "  [OWNED]"
+		elif run_state.level < required:
+			status = "  [requires Lv %d]" % required
 		elif run_state.currency < data["cost"]:
 			status = "  [not enough gold]"
-		lines.append("[%d] %s - %d gold: %s%s" % [i + 1, data["name"], data["cost"], data["effect"], status])
+		lines.append("[%d] %s - %d gold, Lv %d: %s%s" % [i + 1, data["name"], data["cost"], required, data["effect"], status])
 	lines.append("")
 	lines.append(_message if not _message.is_empty() else "[1-3] Buy   [E] Close")
 	_menu_label.text = "\n".join(lines)

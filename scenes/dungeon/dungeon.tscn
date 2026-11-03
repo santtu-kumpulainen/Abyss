@@ -19,6 +19,7 @@
 [ext_resource type="PackedScene" path="res://scenes/enemies/demon.tscn" id="e_demon"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/demon_caster.tscn" id="e_caster"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster.tscn" id="e_blood"]
+[ext_resource type="PackedScene" path="res://scenes/items/item_pickup.tscn" id="12_item_pickup"]
 
 [sub_resource type="Resource" id="Room_2_4"]
 script = ExtResource("10_room_spec")
@@ -40,6 +41,7 @@ script = ExtResource("10_room_spec")
 scene = ExtResource("t_dungeon")
 cell = Vector2i(0, 4)
 enemies = Array[PackedScene]([ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_demon")])
+item = &"swift_boots"
 
 [sub_resource type="Resource" id="Room_1_4"]
 script = ExtResource("10_room_spec")
@@ -153,6 +155,7 @@ scene = ExtResource("t_dungeon")
 cell = Vector2i(0, 0)
 required_level = 2
 enemies = Array[PackedScene]([ExtResource("e_blood"), ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_goblin")])
+item = &"heart_crystal"
 
 [sub_resource type="Resource" id="Room_1_0"]
 script = ExtResource("10_room_spec")
@@ -174,6 +177,7 @@ scene = ExtResource("t_crypt")
 cell = Vector2i(4, 0)
 required_level = 2
 enemies = Array[PackedScene]([ExtResource("e_blood"), ExtResource("e_demon"), ExtResource("e_goblin"), ExtResource("e_goblin")])
+item = &"ember_shard"
 
 [sub_resource type="Resource" id="Room_2_0"]
 script = ExtResource("10_room_spec")
@@ -186,6 +190,7 @@ is_boss = true
 y_sort_enabled = true
 script = ExtResource("1_dungeon")
 rooms = Array[ExtResource("10_room_spec")]([SubResource("Room_2_4"), SubResource("Room_3_4"), SubResource("Room_3_3"), SubResource("Room_0_4"), SubResource("Room_1_4"), SubResource("Room_4_4"), SubResource("Room_0_3"), SubResource("Room_1_3"), SubResource("Room_2_3"), SubResource("Room_4_3"), SubResource("Room_0_2"), SubResource("Room_1_2"), SubResource("Room_2_2"), SubResource("Room_3_2"), SubResource("Room_4_2"), SubResource("Room_0_1"), SubResource("Room_1_1"), SubResource("Room_2_1"), SubResource("Room_3_1"), SubResource("Room_4_1"), SubResource("Room_0_0"), SubResource("Room_1_0"), SubResource("Room_3_0"), SubResource("Room_4_0"), SubResource("Room_2_0")])
+item_pickup_scene = ExtResource("12_item_pickup")
 links = PackedStringArray("0,4 - 1,4", "1,4 - 2,4", "2,4 - 3,4", "3,4 - 4,4", "0,4 - 0,3", "0,3 - 1,3", "1,3 - 2,3", "1,4 - 1,3", "3,4 - 3,3", "3,3 - 4,3", "4,4 - 4,3", "2,3 - 3,3", "0,3 - 0,2", "4,3 - 4,2", "0,2 - 1,2", "1,2 - 2,2", "2,2 - 3,2", "3,2 - 4,2", "0,2 - 0,1", "4,2 - 4,1", "0,1 - 0,0", "0,0 - 1,0", "1,0 - 1,1", "1,1 - 2,1", "4,1 - 4,0", "4,0 - 3,0", "3,0 - 3,1", "3,1 - 2,1", "2,2 - 2,1", "2,1 - 2,0")
 
 [node name="Mage" parent="." instance=ExtResource("5_mage")]

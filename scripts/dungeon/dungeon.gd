@@ -14,6 +14,9 @@ extends Node2D
 ## whose `required_level` is above the Mage's level are level-locked and
 ## labelled; they open when the level is reached. An optional "DungeonMap/Map"
 ## child is given this Dungeon to draw the explored rooms.
+## Rooms whose RoomSpec has an `item` get an ItemPickup (`item_pickup_scene`);
+## collected items raise max HP / speed / damage through RunState. Defeating a
+## Boss marks RunState.boss_defeated and announces the victory.
 ## The Mage node is kept across rooms, so its HP carries over. Restart
 ## (reloading the scene) starts a fresh run in `start_room` with a fresh RunState.
 
@@ -36,6 +39,8 @@ const DOOR_BY_DIRECTION := {
 @export var arrival_distance: float = 72.0
 ## How far past a door's centre (outwards) the Mage must walk to leave the room.
 @export var exit_distance: float = 8.0
+## Scene instanced for RoomSpec.item pickups (root must be an ItemPickup).
+@export var item_pickup_scene: PackedScene
 
 var current_room: Room
 var current_index: int = -1
@@ -58,6 +63,7 @@ func _ready() -> void:
 	_build_links()
 	run_state.leveled_up.connect(_on_leveled_up)
 	run_state.upgrade_purchased.connect(_on_upgrade_purchased)
+	run_state.item_collected.connect(_on_item_collected)
 	run_state.changed.connect(_apply_spell_modifiers)
 	_apply_spell_modifiers()
 	_run_hud.set_run_state(run_state)
@@ -151,6 +157,11 @@ func _get_room(index: int) -> Room:
 		var room := spec.scene.instantiate() as Room
 		if not spec.enemies.is_empty():
 			room.add_encounter_enemies(spec.enemies)
+		if not spec.item.is_empty() and item_pickup_scene:
+			var pickup := item_pickup_scene.instantiate() as ItemPickup
+			pickup.item_id = spec.item
+			pickup.position = spec.item_position
+			room.get_node(^"Decor").add_child(pickup, true)
 		# get_doors() needs the room to be ready; read the Doors node directly.
 		for door: Door in room.get_node(^"Doors").get_children():
 			door.sealed = not _link_map.has(_key(index, door.name))
@@ -160,6 +171,8 @@ func _get_room(index: int) -> Room:
 		for node in room.find_children("*", "", true, false):
 			if node is UpgradeStation:
 				(node as UpgradeStation).run_state = run_state
+			elif node is ItemPickup:
+				(node as ItemPickup).run_state = run_state
 		_room_cache[index] = room
 	return _room_cache[index]
 
@@ -175,6 +188,9 @@ func _outward(door: Door) -> Vector2:
 
 func _on_enemy_defeated(enemy: Enemy) -> void:
 	run_state.add_rewards(enemy.xp_reward, enemy.currency_reward)
+	if enemy is Boss and not run_state.boss_defeated:
+		run_state.boss_defeated = true
+		_run_hud.show_message("%s defeated! +%d gold. Victory!" % [(enemy as Boss).display_name, enemy.currency_reward])
 
 
 func _on_leveled_up(new_level: int) -> void:
@@ -209,9 +225,19 @@ func _on_upgrade_purchased(id: StringName) -> void:
 		mage.health.increase_max_health(bonus, bonus)
 
 
+## RunState only emits this once per item per run.
+func _on_item_collected(id: StringName) -> void:
+	var data: Dictionary = RunState.ITEMS[id]
+	var bonus: float = data.get("max_health", 0.0)
+	if bonus > 0.0:
+		mage.health.increase_max_health(bonus, bonus)
+	_run_hud.show_message("%s: %s" % [data["name"], data["effect"]])
+
+
 ## Idempotent: recomputed from RunState, so bonuses never stack twice.
 func _apply_spell_modifiers() -> void:
 	mage.caster.set_modifiers(run_state.spell_damage_multiplier(), run_state.spell_cooldown_multiplier())
+	mage.speed_multiplier = run_state.move_speed_multiplier()
 
 
 func _clear_projectiles() -> void:

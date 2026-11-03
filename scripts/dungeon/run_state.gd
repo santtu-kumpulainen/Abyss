@@ -12,20 +12,37 @@ extends Node
 ## (the Dungeon uses max_health_per_level/heal_per_level). Spell bonuses are
 ## read through spell_damage_multiplier()/spell_cooldown_multiplier().
 ##
-## Upgrades (UPGRADES) are one-time purchases for the current run.
+## Upgrades (UPGRADES) are one-time purchases for the current run, gated by
+## gold and a required level. Items (ITEMS) are collected once per run from
+## room pickups. Stat bonuses from both are summed on demand, so re-applying
+## them never stacks.
+##
+## Economy (current dungeon, full clear): tier-1 rooms (Lv 1) give ~56 XP and
+## ~246 gold, tier-2 rooms (Lv 2) ~114 XP and ~488 gold, so a Mage reaches the
+## boss with roughly 650-730 gold. All three upgrades cost 800 together: the
+## player can afford two of them, not everything.
 
 signal changed
 signal leveled_up(level: int)
 signal upgrade_purchased(id: StringName)
+signal item_collected(id: StringName)
 
 const MAX_LEVEL := 3
 
-## One-time anvil upgrades, in display order. Effect keys:
-## max_health (flat), damage (multiplier bonus), cooldown (multiplier reduction).
+## One-time anvil upgrades, in display order. "level" is the Mage level needed.
+## Effect keys: max_health (flat), damage (multiplier bonus), cooldown
+## (multiplier reduction), speed (multiplier bonus).
 const UPGRADES := {
-	&"vitality": {"name": "Vitality", "cost": 25, "effect": "+20 max HP", "max_health": 20.0},
-	&"ember_core": {"name": "Ember Core", "cost": 35, "effect": "+25% spell damage", "damage": 0.25},
-	&"quick_cast": {"name": "Quick Cast", "cost": 30, "effect": "-20% spell cooldown", "cooldown": 0.2},
+	&"vitality": {"name": "Vitality", "cost": 100, "level": 1, "effect": "+20 max HP", "max_health": 20.0},
+	&"quick_cast": {"name": "Quick Cast", "cost": 250, "level": 2, "effect": "-20% spell cooldown", "cooldown": 0.2},
+	&"ember_core": {"name": "Ember Core", "cost": 450, "level": 3, "effect": "+40% spell damage", "damage": 0.4},
+}
+
+## Collectible run items (same effect keys as UPGRADES), placed in rooms by RoomSpec.item.
+const ITEMS := {
+	&"swift_boots": {"name": "Swift Boots", "effect": "+15% move speed", "speed": 0.15, "color": Color(0.45, 0.9, 1.0)},
+	&"ember_shard": {"name": "Ember Shard", "effect": "+15% Fire Ball damage", "damage": 0.15, "color": Color(1.0, 0.5, 0.2)},
+	&"heart_crystal": {"name": "Heart Crystal", "effect": "+25 max HP", "max_health": 25.0, "color": Color(1.0, 0.3, 0.45)},
 }
 
 ## XP needed for level 1 -> 2; level N -> N+1 needs N times this.
@@ -43,6 +60,10 @@ var xp: int = 0
 var currency: int = 0
 ## Purchased upgrade ids (id -> true).
 var purchased := {}
+## Collected item ids (id -> true), in pickup order.
+var collected := {}
+## Set once when the boss dies (its reward is granted through add_rewards()).
+var boss_defeated := false
 
 
 func xp_to_next_level() -> int:
@@ -76,13 +97,17 @@ func upgrade_cost(id: StringName) -> int:
 	return UPGRADES[id]["cost"] if UPGRADES.has(id) else 0
 
 
-## True if `id` exists, is not owned yet and is affordable.
+func upgrade_level(id: StringName) -> int:
+	return UPGRADES[id].get("level", 1) if UPGRADES.has(id) else 1
+
+
+## True if `id` exists, is not owned yet, is affordable and the level is high enough.
 func can_purchase(id: StringName) -> bool:
-	return UPGRADES.has(id) and not is_purchased(id) and currency >= upgrade_cost(id)
+	return UPGRADES.has(id) and not is_purchased(id) and currency >= upgrade_cost(id) 		and level >= upgrade_level(id)
 
 
 ## Buys upgrade `id` once, deducting its cost. Returns false (and changes
-## nothing) if it is unknown, already owned or unaffordable.
+## nothing) if it is unknown, already owned, unaffordable or level-locked.
 func purchase(id: StringName) -> bool:
 	if not can_purchase(id):
 		return false
@@ -93,14 +118,34 @@ func purchase(id: StringName) -> bool:
 	return true
 
 
-## Spell damage multiplier from level and upgrades (1.0 = base).
+func is_collected(id: StringName) -> bool:
+	return collected.has(id)
+
+
+## Collects item `id` once. Returns false (and changes nothing) if it is
+## unknown or already collected this run.
+func collect_item(id: StringName) -> bool:
+	if not ITEMS.has(id) or is_collected(id):
+		return false
+	collected[id] = true
+	changed.emit()
+	item_collected.emit(id)
+	return true
+
+
+## Spell damage multiplier from level, upgrades and items (1.0 = base).
 func spell_damage_multiplier() -> float:
-	return 1.0 + damage_bonus_per_level * (level - 1) + _upgrade_sum(&"damage")
+	return 1.0 + damage_bonus_per_level * (level - 1) + _bonus_sum(&"damage")
 
 
-## Spell cooldown multiplier from upgrades (1.0 = base, lower = faster).
+## Spell cooldown multiplier from upgrades/items (1.0 = base, lower = faster).
 func spell_cooldown_multiplier() -> float:
-	return maxf(1.0 - _upgrade_sum(&"cooldown"), 0.1)
+	return maxf(1.0 - _bonus_sum(&"cooldown"), 0.1)
+
+
+## Mage movement speed multiplier from upgrades/items (1.0 = base).
+func move_speed_multiplier() -> float:
+	return 1.0 + _bonus_sum(&"speed")
 
 
 func reset() -> void:
@@ -108,11 +153,16 @@ func reset() -> void:
 	xp = 0
 	currency = 0
 	purchased.clear()
+	collected.clear()
+	boss_defeated = false
 	changed.emit()
 
 
-func _upgrade_sum(key: String) -> float:
+## Sum of effect `key` over purchased upgrades and collected items.
+func _bonus_sum(key: String) -> float:
 	var total := 0.0
 	for id: StringName in purchased:
 		total += UPGRADES[id].get(key, 0.0)
+	for id: StringName in collected:
+		total += ITEMS[id].get(key, 0.0)
 	return total
