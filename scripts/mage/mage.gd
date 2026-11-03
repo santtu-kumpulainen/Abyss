@@ -31,6 +31,8 @@ const DIRECTIONS: Array[StringName] = [
 			_apply_scale()
 
 var facing: StringName = &"south"
+## Run modifier applied on top of `speed` (set by the Dungeon from RunState).
+var speed_multiplier := 1.0
 
 @onready var caster: SpellCaster = $SpellCaster
 @onready var health: Health = $Health
@@ -46,7 +48,7 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	# get_vector() clamps length to 1, so diagonals are not faster.
 	var input := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
-	velocity = input * speed
+	velocity = input * speed * speed_multiplier
 	move_and_slide()
 
 	if input != Vector2.ZERO:
