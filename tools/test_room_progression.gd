@@ -1,7 +1,9 @@
 extends SceneTree
 ## Headless check of the 5x5 dungeon layout and its progression-gated tiers
 ## (scenes/dungeon/dungeon.tscn): room links, Level 2 / boss (Level 3) gates,
-## tier XP totals, no duplicate rewards, minimap state and Restart.
+## tier XP totals, no duplicate rewards, minimap state and Restart. Optional
+## treasure rooms (RoomSpec.treasure) sit outside the 5x5 grid and are checked
+## separately in tools/test_treasure_rooms.gd.
 ##
 ## Usage (after importing):
 ##   godot --headless --path . --script res://tools/test_room_progression.gd
@@ -25,8 +27,9 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	var scene_id := current_scene.get_instance_id() if current_scene else 0
 	change_scene_to_file(SCENE)
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	_bind()
 	_test_layout()
 	_test_xp_budget()
@@ -40,37 +43,42 @@ func _test_layout() -> void:
 	var cells := {}
 	for spec in _dungeon.rooms:
 		cells[spec.cell] = spec
-	_check(_dungeon.rooms.size() == 25 and cells.size() == 25, "25 rooms on distinct cells")
+	_check(cells.size() == _dungeon.rooms.size(), "all rooms on distinct cells")
+	cells = {}
+	for spec in _core():
+		cells[spec.cell] = spec
+	_check(_core().size() == 25 and cells.size() == 25, "25 main rooms on distinct cells")
 	_check(cells.keys().all(func(c: Vector2i) -> bool: return c.x >= 0 and c.x < 5 and c.y >= 0 and c.y < 5),
 			"all rooms inside the 5x5 grid")
 	_check(_dungeon._link_map.size() == _dungeon.links.size() * 2, "every link joins two neighbouring rooms")
 	var bad_degree := []
 	for i in _dungeon.rooms.size():
 		var degree := _dungeon.get_neighbours(i).size()
-		var ok := degree == 1 if _dungeon.rooms[i].is_boss else degree >= 2 and degree <= 4
+		var ok := degree == 1 if _dungeon.rooms[i].is_boss or _dungeon.rooms[i].is_treasure() else degree >= 2 and degree <= 4
 		if not ok:
 			bad_degree.append(_dungeon.rooms[i].cell)
-	_check(bad_degree.is_empty(), "every room has 2-4 doors, boss room 1 (bad: %s)" % [bad_degree])
+	_check(bad_degree.is_empty(), "every room has 2-4 doors, boss and treasure rooms 1 (bad: %s)" % [bad_degree])
 	var tiers_ok := true
-	for spec in _dungeon.rooms:
+	for spec in _core():
 		var expected := 3 if spec.is_boss else (1 if spec.cell.y >= 3 else 2)
 		tiers_ok = tiers_ok and spec.required_level == expected
-	_check(tiers_ok and _dungeon.rooms.filter(func(r: RoomSpec) -> bool: return r.is_boss).size() == 1,
+	_check(tiers_ok and _core().filter(func(r: RoomSpec) -> bool: return r.is_boss).size() == 1,
 			"tiers: rows 3-4 Lv 1, rows 0-2 Lv 2, one boss room at Lv 3")
 	# Reachability within each tier (only through rooms of that tier or lower).
-	_check(_reachable(1).size() == 10, "all 10 Level 1 rooms reachable at Lv 1 (%d)" % _reachable(1).size())
-	_check(_reachable(2).size() == 24, "all Level 1+2 rooms reachable at Lv 2 (%d)" % _reachable(2).size())
-	_check(_reachable(3).size() == 25, "boss room reachable at Lv 3")
+	_check(_reachable(1, false).size() == 10, "all 10 Level 1 rooms reachable at Lv 1 (%d)" % _reachable(1, false).size())
+	_check(_reachable(2, false).size() == 24, "all Level 1+2 rooms reachable at Lv 2 (%d)" % _reachable(2, false).size())
+	_check(_reachable(3, false).size() == 25, "boss room reachable at Lv 3 without treasure rooms")
+	_check(_reachable(3).size() == _dungeon.rooms.size(), "every room, treasure rooms included, reachable at Lv 3")
 	var gates := 0
 	for i in _dungeon.rooms.size():
-		if _dungeon.rooms[i].required_level == 1:
+		if _dungeon.rooms[i].required_level == 1 and not _dungeon.rooms[i].is_treasure():
 			gates += _dungeon.get_neighbours(i).filter(func(j: int) -> bool: return _dungeon.rooms[j].required_level == 2).size()
 	_check(gates >= 2, "more than one route into the Level 2 tier (%d gates)" % gates)
 
 
 func _test_xp_budget() -> void:
 	var xp := {1: [], 2: []}
-	for spec in _dungeon.rooms:
+	for spec in _core():
 		if not spec.is_boss:
 			xp[spec.required_level].append(_room_xp(spec))
 	var l1: Array = xp[1]
@@ -168,8 +176,9 @@ func _test_gates() -> void:
 func _test_restart() -> void:
 	_mage.take_damage(9999.0)
 	await _frames(1)
+	var scene_id := current_scene.get_instance_id() if current_scene else 0
 	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).restart()
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	_bind()
 	_check(_run.level == 1 and _run.xp == 0 and _run.currency == 0 and _run.purchased.is_empty(), "Restart resets the run")
 	var visited := range(_dungeon.rooms.size()).filter(func(i: int) -> bool: return _dungeon.is_visited(i))
@@ -182,14 +191,20 @@ func _test_restart() -> void:
 	_check(_door(gate_room, &"DoorTop").level_locked, "Restart re-locks the Level 2 gate")
 
 
-## Room indexes reachable from the start room through rooms needing at most `level`.
-func _reachable(level: int) -> Dictionary:
+## Main (non-treasure) RoomSpecs.
+func _core() -> Array:
+	return _dungeon.rooms.filter(func(r: RoomSpec) -> bool: return not r.is_treasure())
+
+
+## Room indexes reachable from the start room through rooms needing at most
+## `level` (optionally ignoring treasure rooms).
+func _reachable(level: int, with_treasure: bool = true) -> Dictionary:
 	var seen := {_dungeon.start_room: true}
 	var queue := [_dungeon.start_room]
 	while not queue.is_empty():
 		var i: int = queue.pop_front()
 		for j: int in _dungeon.get_neighbours(i):
-			if not seen.has(j) and _dungeon.rooms[j].required_level <= level:
+			if not seen.has(j) and _dungeon.rooms[j].required_level <= level and (with_treasure or not _dungeon.rooms[j].is_treasure()):
 				seen[j] = true
 				queue.append(j)
 	return seen
@@ -271,3 +286,12 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Scene changes are deferred: waits until a new, ready scene (not `old_id`) is current.
+func _wait_for_scene(old_id: int) -> void:
+	for i in 600:
+		if current_scene != null and current_scene.get_instance_id() != old_id and current_scene.is_node_ready():
+			break
+		await process_frame
+	await _frames(2)

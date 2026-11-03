@@ -27,8 +27,9 @@ func _run_tests() -> void:
 	var base_damage := fire_ball.damage
 	var base_cooldown := fire_ball.cooldown
 
+	var scene_id := current_scene.get_instance_id() if current_scene else 0
 	change_scene_to_file(SCENE)
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	_bind()
 	var base_max_hp := _mage.health.max_health
 	var station := _station()
@@ -110,8 +111,9 @@ func _run_tests() -> void:
 	# --- Restart resets everything ---
 	_mage.take_damage(9999.0)
 	await _frames(1)
+	scene_id = current_scene.get_instance_id() if current_scene else 0
 	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).restart()
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	_bind()
 	_check(_run.level == 1 and _run.xp == 0 and _run.currency == 0 and _run.purchased.is_empty(),
 			"Restart resets level, XP, gold and upgrades")
@@ -167,3 +169,12 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Scene changes are deferred: waits until a new, ready scene (not `old_id`) is current.
+func _wait_for_scene(old_id: int) -> void:
+	for i in 600:
+		if current_scene != null and current_scene.get_instance_id() != old_id and current_scene.is_node_ready():
+			break
+		await process_frame
+	await _frames(2)

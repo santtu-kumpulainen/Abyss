@@ -22,8 +22,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	var scene_id := current_scene.get_instance_id() if current_scene else 0
 	change_scene_to_file(SCENE)
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	_bind()
 
 	# --- Start: Hall, Mage at PlayerSpawn, only the linked door can open ---
@@ -82,8 +83,9 @@ func _run() -> void:
 	var overlay := current_scene.get_node(^"GameOverOverlay") as GameOverOverlay
 	_check(_mage.is_dead() and overlay.visible, "Game Over shown on Mage death")
 	var old_scene := current_scene
+	scene_id = current_scene.get_instance_id() if current_scene else 0
 	overlay.restart()
-	await _frames(3)
+	await _wait_for_scene(scene_id)
 	_bind()
 	var room := _dungeon.current_room
 	_check(current_scene != old_scene and _dungeon.current_index == HALL, "Restart starts a new run in the Hall")
@@ -190,3 +192,12 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Scene changes are deferred: waits until a new, ready scene (not `old_id`) is current.
+func _wait_for_scene(old_id: int) -> void:
+	for i in 600:
+		if current_scene != null and current_scene.get_instance_id() != old_id and current_scene.is_node_ready():
+			break
+		await process_frame
+	await _frames(2)

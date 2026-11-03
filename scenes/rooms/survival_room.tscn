@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/templates/dungeon_template.tscn" id="1_template"]
+[ext_resource type="Script" path="res://scripts/rooms/survival_room.gd" id="2_script"]
+[ext_resource type="Script" path="res://scripts/rooms/challenge_altar.gd" id="3_altar"]
+[ext_resource type="Script" path="res://scripts/rooms/treasure_chest.gd" id="4_chest"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="e_goblin"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/demon.tscn" id="e_demon"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/demon_caster.tscn" id="e_caster"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster.tscn" id="e_blood"]
+
+[node name="SurvivalRoom" instance=ExtResource("1_template")]
+script = ExtResource("2_script")
+wave_enemies = Array[PackedScene]([ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_demon"), ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_demon"), ExtResource("e_caster"), ExtResource("e_goblin"), ExtResource("e_goblin"), ExtResource("e_demon"), ExtResource("e_demon"), ExtResource("e_caster"), ExtResource("e_blood"), ExtResource("e_demon"), ExtResource("e_demon"), ExtResource("e_caster"), ExtResource("e_goblin"), ExtResource("e_goblin")])
+
+[node name="Visuals" parent="." index="0"]
+variation_seed = 21
+
+[node name="ChallengeAltar" type="Area2D" parent="Decor"]
+position = Vector2(576, 340)
+script = ExtResource("3_altar")
+
+[node name="TreasureChest" type="Area2D" parent="Decor"]
+position = Vector2(576, 120)
+script = ExtResource("4_chest")
+treasure_id = &"survivor_cache"

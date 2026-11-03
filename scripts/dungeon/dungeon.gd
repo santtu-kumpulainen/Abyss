@@ -26,6 +26,10 @@ extends Node2D
 ## `victory_delay` seconds the optional "VictoryOverlay" child opens (relic
 ## choice, then run_summary()). The chosen relic's max HP bonus is applied
 ## once through RunState.relic_chosen; its other bonuses follow RunState.
+## Treasure rooms (RoomSpec.treasure) are optional side rooms: they don't count
+## for the full clear or the summary's room count, and their TreasureChests are
+## given the RunState; a claimed treasure's "heal" is applied to the Mage once.
+## Exits work whenever the current Room's can_exit() allows it.
 ## The Mage node is kept across rooms, so its HP carries over. Restart
 ## (reloading the scene) starts a fresh run in `start_room` with a fresh RunState.
 
@@ -89,6 +93,7 @@ func _ready() -> void:
 	run_state.upgrade_purchased.connect(_on_upgrade_purchased)
 	run_state.item_collected.connect(_on_item_collected)
 	run_state.relic_chosen.connect(_on_relic_chosen)
+	run_state.treasure_claimed.connect(_on_treasure_claimed)
 	run_state.changed.connect(_apply_spell_modifiers)
 	_apply_spell_modifiers()
 	_run_hud.set_run_state(run_state)
@@ -134,32 +139,39 @@ func is_cleared(index: int) -> bool:
 	return is_visited(index) and (_room_cache[index] as Room).state == Room.State.CLEARED
 
 
-## True when every non-boss room has been cleared this run.
+## True when every non-boss, non-treasure room has been cleared this run.
 func all_rooms_cleared() -> bool:
 	for i in rooms.size():
-		if not rooms[i].is_boss and not is_cleared(i):
+		if not rooms[i].is_boss and not rooms[i].is_treasure() and not is_cleared(i):
 			return false
 	return true
 
 
-## Number of rooms (boss room included) cleared this run.
+## Number of main rooms (boss room included, treasure rooms not) cleared this run.
 func rooms_cleared_count() -> int:
 	var count := 0
 	for i in rooms.size():
-		if is_cleared(i):
+		if not rooms[i].is_treasure() and is_cleared(i):
 			count += 1
 	return count
 
 
+## Number of main (non-treasure) rooms.
+func main_room_count() -> int:
+	return rooms.filter(func(r: RoomSpec) -> bool: return not r.is_treasure()).size()
+
+
 ## Tracked run statistics for the victory screen. "items", "upgrades" are
-## id lists in collection/purchase order; "relic" is &"" if none was chosen.
+## id lists in collection/purchase order; "treasures" lists claimed treasure
+## ids; "relic" is &"" if none was chosen.
 func run_summary() -> Dictionary:
 	return {
 		"level": run_state.level,
 		"rooms_cleared": rooms_cleared_count(),
-		"rooms_total": rooms.size(),
+		"rooms_total": main_room_count(),
 		"items": run_state.collected.keys(),
 		"upgrades": run_state.purchased.keys(),
+		"treasures": run_state.treasures.keys(),
 		"enemies_defeated": run_state.enemies_defeated,
 		"relic": run_state.relic,
 	}
@@ -184,8 +196,9 @@ func index_at(cell: Vector2i) -> int:
 
 
 func _physics_process(_delta: float) -> void:
-	# Exits only work after victory (doors are also open while a room is IDLE).
-	if _transitioning or current_room == null or mage.is_dead() or current_room.state != Room.State.CLEARED:
+	# Exits only work once the room allows it (by default after victory;
+	# doors are also open while a room is IDLE).
+	if _transitioning or current_room == null or mage.is_dead() or not current_room.can_exit():
 		return
 	for door in current_room.get_doors():
 		if not door.is_open():
@@ -229,6 +242,8 @@ func _get_room(index: int) -> Room:
 				(node as UpgradeStation).run_state = run_state
 			elif node is ItemPickup:
 				(node as ItemPickup).run_state = run_state
+			elif node is TreasureChest:
+				(node as TreasureChest).run_state = run_state
 			elif node is Boss:
 				var boss := node as Boss
 				boss.phase_changed.connect(func(p: int) -> void:
@@ -339,6 +354,15 @@ func _on_upgrade_purchased(id: StringName) -> void:
 	var bonus: float = RunState.UPGRADES[id].get("max_health", 0.0)
 	if bonus > 0.0:
 		mage.health.increase_max_health(bonus, bonus)
+
+
+## RunState only emits this once per treasure per run.
+func _on_treasure_claimed(id: StringName) -> void:
+	var data: Dictionary = RunState.TREASURES[id]
+	var heal: float = data.get("heal", 0.0)
+	if heal > 0.0:
+		mage.health.increase_max_health(0.0, heal)
+	_run_hud.show_message("%s: %s" % [data["name"], data["effect"]])
 
 
 ## RunState only emits this once per item per run.
