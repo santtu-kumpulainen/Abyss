@@ -15,7 +15,8 @@ extends Node
 ## Upgrades (UPGRADES) are one-time purchases for the current run, gated by
 ## gold and a required level. Items (ITEMS) are collected once per run from
 ## room pickups. Stat bonuses from both are summed on demand, so re-applying
-## them never stacks.
+## them never stacks. After the boss dies, one relic (RELICS) can be chosen
+## once; it adds to the same bonus sums.
 ##
 ## Economy (current dungeon, full clear): tier-1 rooms (Lv 1) give ~56 XP and
 ## ~246 gold, tier-2 rooms (Lv 2) ~114 XP and ~488 gold, so a Mage reaches the
@@ -26,6 +27,7 @@ signal changed
 signal leveled_up(level: int)
 signal upgrade_purchased(id: StringName)
 signal item_collected(id: StringName)
+signal relic_chosen(id: StringName)
 
 const MAX_LEVEL := 3
 
@@ -43,6 +45,13 @@ const ITEMS := {
 	&"swift_boots": {"name": "Swift Boots", "effect": "+15% move speed", "speed": 0.15, "color": Color(0.45, 0.9, 1.0)},
 	&"ember_shard": {"name": "Ember Shard", "effect": "+15% Fire Ball damage", "damage": 0.15, "color": Color(1.0, 0.5, 0.2)},
 	&"heart_crystal": {"name": "Heart Crystal", "effect": "+25 max HP", "max_health": 25.0, "color": Color(1.0, 0.3, 0.45)},
+}
+
+## Post-boss relics (same effect keys); exactly one can be chosen per run.
+const RELICS := {
+	&"wind_relic": {"name": "Wind Relic", "effect": "+10% move speed", "speed": 0.1},
+	&"ember_relic": {"name": "Ember Relic", "effect": "+20% Fire Ball damage", "damage": 0.2},
+	&"vital_relic": {"name": "Vital Relic", "effect": "+30 max HP, heal 30", "max_health": 30.0},
 }
 
 ## XP needed for level 1 -> 2; level N -> N+1 needs N times this.
@@ -64,6 +73,10 @@ var purchased := {}
 var collected := {}
 ## Set once when the boss dies (its reward is granted through add_rewards()).
 var boss_defeated := false
+## Chosen post-boss relic id (&"" until chosen).
+var relic: StringName = &""
+## Encounter enemies defeated this run (including the boss).
+var enemies_defeated: int = 0
 
 
 func xp_to_next_level() -> int:
@@ -133,6 +146,17 @@ func collect_item(id: StringName) -> bool:
 	return true
 
 
+## Chooses relic `id` once, after the boss is defeated. Returns false (and
+## changes nothing) if it is unknown, a relic was already chosen or the boss lives.
+func choose_relic(id: StringName) -> bool:
+	if not RELICS.has(id) or not relic.is_empty() or not boss_defeated:
+		return false
+	relic = id
+	changed.emit()
+	relic_chosen.emit(id)
+	return true
+
+
 ## Spell damage multiplier from level, upgrades and items (1.0 = base).
 func spell_damage_multiplier() -> float:
 	return 1.0 + damage_bonus_per_level * (level - 1) + _bonus_sum(&"damage")
@@ -155,14 +179,18 @@ func reset() -> void:
 	purchased.clear()
 	collected.clear()
 	boss_defeated = false
+	relic = &""
+	enemies_defeated = 0
 	changed.emit()
 
 
-## Sum of effect `key` over purchased upgrades and collected items.
+## Sum of effect `key` over purchased upgrades, collected items and the relic.
 func _bonus_sum(key: String) -> float:
 	var total := 0.0
 	for id: StringName in purchased:
 		total += UPGRADES[id].get(key, 0.0)
 	for id: StringName in collected:
 		total += ITEMS[id].get(key, 0.0)
+	if not relic.is_empty():
+		total += RELICS[relic].get(key, 0.0)
 	return total

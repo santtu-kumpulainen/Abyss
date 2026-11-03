@@ -21,12 +21,19 @@ extends Node2D
 ## UpgradeStation (`upgrade_station_scene`) is added to the room at
 ## `final_anvil_cell` (the room outside the boss gate), so the Mage can spend
 ## gold before the boss without walking back to the start.
+## Victory: the first Boss death (while the Mage lives) ends the run once:
+## the Mage stops and ignores damage, projectiles are removed, and after
+## `victory_delay` seconds the optional "VictoryOverlay" child opens (relic
+## choice, then run_summary()). The chosen relic's max HP bonus is applied
+## once through RunState.relic_chosen; its other bonuses follow RunState.
 ## The Mage node is kept across rooms, so its HP carries over. Restart
 ## (reloading the scene) starts a fresh run in `start_room` with a fresh RunState.
 
 signal room_changed(room: Room, index: int)
 ## Something the map shows changed (room entered or cleared, level gates).
 signal map_changed
+## Emitted once when the boss is defeated and the run is won.
+signal victory_started
 
 const DOOR_BY_DIRECTION := {
 	Vector2i.RIGHT: &"DoorRight", Vector2i.LEFT: &"DoorLeft",
@@ -51,11 +58,15 @@ const DOOR_BY_DIRECTION := {
 @export var final_anvil_cell := Vector2i(2, 1)
 ## Its position in room coordinates (clear of doors and spawn points).
 @export var final_anvil_position := Vector2(760, 150)
+## Seconds between the boss's death and the victory screen.
+@export var victory_delay: float = 1.2
 
 var current_room: Room
 var current_index: int = -1
 ## The anvil added after the full clear (null until then).
 var final_anvil: UpgradeStation
+## True once the run is won (set once, on the boss's death).
+var victory := false
 
 ## "<room>:<door>" -> [room index, door name]
 var _link_map := {}
@@ -69,6 +80,7 @@ var _transitioning := false
 @onready var run_state: RunState = $RunState
 @onready var _run_hud: RunHud = $RunHud
 @onready var _map: DungeonMap = get_node_or_null(^"DungeonMap/Map")
+@onready var _victory_overlay: VictoryOverlay = get_node_or_null(^"VictoryOverlay")
 
 
 func _ready() -> void:
@@ -76,6 +88,7 @@ func _ready() -> void:
 	run_state.leveled_up.connect(_on_leveled_up)
 	run_state.upgrade_purchased.connect(_on_upgrade_purchased)
 	run_state.item_collected.connect(_on_item_collected)
+	run_state.relic_chosen.connect(_on_relic_chosen)
 	run_state.changed.connect(_apply_spell_modifiers)
 	_apply_spell_modifiers()
 	_run_hud.set_run_state(run_state)
@@ -127,6 +140,29 @@ func all_rooms_cleared() -> bool:
 		if not rooms[i].is_boss and not is_cleared(i):
 			return false
 	return true
+
+
+## Number of rooms (boss room included) cleared this run.
+func rooms_cleared_count() -> int:
+	var count := 0
+	for i in rooms.size():
+		if is_cleared(i):
+			count += 1
+	return count
+
+
+## Tracked run statistics for the victory screen. "items", "upgrades" are
+## id lists in collection/purchase order; "relic" is &"" if none was chosen.
+func run_summary() -> Dictionary:
+	return {
+		"level": run_state.level,
+		"rooms_cleared": rooms_cleared_count(),
+		"rooms_total": rooms.size(),
+		"items": run_state.collected.keys(),
+		"upgrades": run_state.purchased.keys(),
+		"enemies_defeated": run_state.enemies_defeated,
+		"relic": run_state.relic,
+	}
 
 
 ## True if the Mage's level allows entering room `index`.
@@ -232,10 +268,45 @@ func _spawn_final_anvil() -> void:
 
 
 func _on_enemy_defeated(enemy: Enemy) -> void:
+	run_state.enemies_defeated += 1
 	run_state.add_rewards(enemy.xp_reward, enemy.currency_reward)
 	if enemy is Boss and not run_state.boss_defeated:
 		run_state.boss_defeated = true
 		_run_hud.show_message("%s defeated! +%d gold. Victory!" % [(enemy as Boss).display_name, enemy.currency_reward])
+		_start_victory()
+
+
+## Ends the run once: freezes the Mage, removes projectiles, then opens the
+## victory screen. Skipped if the Mage already died (Game Over wins).
+func _start_victory() -> void:
+	if victory or mage.is_dead():
+		return
+	victory = true
+	mage.end_run()
+	_clear_projectiles()
+	victory_started.emit()
+	if victory_delay <= 0.0:
+		_open_victory_overlay()
+		return
+	# A child Timer is freed with the scene if the run is restarted first.
+	var timer := Timer.new()
+	timer.one_shot = true
+	timer.wait_time = victory_delay
+	timer.timeout.connect(_open_victory_overlay)
+	add_child(timer)
+	timer.start()
+
+
+func _open_victory_overlay() -> void:
+	if _victory_overlay:
+		_victory_overlay.open(self)
+
+
+## RunState only emits this once per run.
+func _on_relic_chosen(id: StringName) -> void:
+	var bonus: float = RunState.RELICS[id].get("max_health", 0.0)
+	if bonus > 0.0:
+		mage.health.increase_max_health(bonus, bonus)
 
 
 func _on_leveled_up(new_level: int) -> void:
