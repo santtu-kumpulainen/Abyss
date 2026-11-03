@@ -1,7 +1,9 @@
+@tool
 class_name Door
 extends StaticBody2D
-## Room exit. Locked: solid wall (world layer) shown in `locked_color`.
-## Unlocked: collision disabled so characters can pass, shown in `open_color`.
+## Room exit. Locked: solid wall (world layer) drawn as an iron portcullis.
+## Unlocked: collision disabled so characters can pass; only a faint
+## threshold is drawn so the floor shows through.
 
 @export var locked: bool = false:
 	set(value):
@@ -9,11 +11,17 @@ extends StaticBody2D
 		if is_node_ready():
 			_apply()
 
-@export var locked_color := Color(0.75, 0.2, 0.2, 1.0)
-@export var open_color := Color(0.2, 0.6, 0.3, 0.35)
+## Size of the doorway in local pixels (matches the collision shape).
+@export var size := Vector2(96, 32):
+	set(value):
+		size = value
+		queue_redraw()
+@export var bar_color := Color(0.42, 0.44, 0.52, 1.0)
+@export var bar_highlight := Color(0.72, 0.74, 0.82, 1.0)
+@export var backdrop_color := Color(0.05, 0.04, 0.07, 0.9)
+@export var open_color := Color(0.0, 0.0, 0.0, 0.25)
 
 @onready var _shape: CollisionShape2D = $CollisionShape2D
-@onready var _visual: ColorRect = $ColorRect
 
 
 func _ready() -> void:
@@ -23,4 +31,24 @@ func _ready() -> void:
 func _apply() -> void:
 	# Deferred: lock/unlock can happen during physics callbacks.
 	_shape.set_deferred(&"disabled", not locked)
-	_visual.color = locked_color if locked else open_color
+	queue_redraw()
+
+
+func _draw() -> void:
+	var rect := Rect2(-size / 2.0, size)
+	if not locked:
+		draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 3.0), open_color)
+		draw_rect(Rect2(rect.position.x, rect.end.y - 3.0, rect.size.x, 3.0), open_color)
+		return
+	draw_rect(rect, backdrop_color)
+	# Vertical bars with a highlight, plus two cross bars.
+	var bar_width := 4.0
+	var x := rect.position.x + 4.0
+	while x + bar_width <= rect.end.x - 2.0:
+		draw_rect(Rect2(x, rect.position.y, bar_width, rect.size.y), bar_color)
+		draw_rect(Rect2(x, rect.position.y, 1.0, rect.size.y), bar_highlight)
+		x += 12.0
+	for t in [0.3, 0.7]:
+		var y: float = rect.position.y + rect.size.y * t - 1.5
+		draw_rect(Rect2(rect.position.x, y, rect.size.x, 3.0), bar_color)
+		draw_rect(Rect2(rect.position.x, y, rect.size.x, 1.0), bar_highlight)

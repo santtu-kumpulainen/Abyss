@@ -4,7 +4,8 @@ extends CharacterBody2D
 ## `detection_radius`, stops at `attack_range` and deals contact damage once per
 ## `attack_cooldown`. Takes damage via take_damage() and is freed at 0 health.
 ## Visuals come from a SpriteFrames resource with "<action>_<direction>"
-## animations (idle/walk x down/left/right/up).
+## animations (idle/walk x down/left/right/up), or plain "<action>" animations
+## when `side_view` is set.
 
 signal died
 
@@ -33,6 +34,11 @@ signal died
 		sprite_scale = value
 		if is_node_ready():
 			_sprite.scale = Vector2.ONE * value
+
+## Side-view art (one set of animations drawn facing right, e.g. the Tiny RPG
+## packs): animations are named "<action>" and the sprite is mirrored when the
+## enemy faces left. Up/down keep the last horizontal facing.
+@export var side_view := false
 
 ## Facing direction: "down", "left", "right" or "up".
 var facing: StringName = &"down"
@@ -103,6 +109,10 @@ func _find_target() -> Node2D:
 
 func _play(action: StringName) -> void:
 	var anim := StringName("%s_%s" % [action, facing])
+	if side_view:
+		anim = action
+		if facing == &"left" or facing == &"right":
+			_sprite.flip_h = facing == &"left"
 	if _sprite.sprite_frames and _sprite.sprite_frames.has_animation(anim):
 		_sprite.play(anim)
 	else:

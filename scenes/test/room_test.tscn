@@ -6,14 +6,15 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="4_game_over"]
 
 [node name="RoomTest" type="Node2D"]
+y_sort_enabled = true
 
-[node name="ArenaRoom" parent="." instance=ExtResource("1_arena_room")]
+[node name="Room" parent="." instance=ExtResource("1_arena_room")]
 
 [node name="Mage" parent="." instance=ExtResource("2_mage")]
 position = Vector2(576, 580)
 
 [node name="RoomHud" parent="." node_paths=PackedStringArray("room") instance=ExtResource("3_room_hud")]
-room = NodePath("../ArenaRoom")
+room = NodePath("../Room")
 
 [node name="GameOverOverlay" parent="." node_paths=PackedStringArray("player") instance=ExtResource("4_game_over")]
 player = NodePath("../Mage")
