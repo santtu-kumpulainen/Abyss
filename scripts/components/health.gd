@@ -4,6 +4,8 @@ extends Node
 
 signal damaged(amount: float, current: float)
 signal died
+## Emitted when max/current health changes other than by damage (e.g. level-up).
+signal changed(current: float)
 
 @export var max_health: float = 100.0
 
@@ -21,6 +23,16 @@ func take_damage(amount: float) -> void:
 	damaged.emit(amount, current)
 	if is_dead():
 		died.emit()
+
+
+## Raises max_health by `amount` and restores `heal_amount` (capped at max).
+## Does nothing once dead.
+func increase_max_health(amount: float, heal_amount: float = 0.0) -> void:
+	if is_dead():
+		return
+	max_health += maxf(amount, 0.0)
+	current = minf(current + maxf(heal_amount, 0.0), max_health)
+	changed.emit(current)
 
 
 func is_dead() -> bool:
