@@ -153,15 +153,18 @@ func _test_gates() -> void:
 	var ante := _dungeon.current_room
 	await _kill_all(ante)
 	var boss_door := _door(ante, &"DoorTop")
-	_check(_run.level == 2 and boss_door.level_locked and not boss_door.is_open() and boss_door.lock_label == "BOSS Lv 3",
-			"boss gate locked below Lv 3, labelled BOSS Lv 3")
+	_check(_run.level == 2 and boss_door.level_locked and not boss_door.is_open() and boss_door.lock_label == "BOSS Lv 4",
+			"boss gate locked below Lv 4, labelled BOSS Lv 4")
 	_check(_door(ante, &"DoorRight").is_open() and _door(ante, &"DoorBottom").is_open(), "other antechamber doors open at Lv 2")
 	await _try_exit(ante, &"DoorTop", &"move_up")
 	_check(_dungeon.current_room == ante, "Mage cannot pass the boss gate at Lv 2")
 	_run.add_rewards(_run.xp_to_next_level() - _run.xp, 0)
 	await _frames(2)
-	_check(_run.level == 3 and boss_door.is_open(), "boss gate opens at Lv 3")
-	_check(_message() == "Level 3! The boss gate is open.", "Lv 3 announces the boss gate (%s)" % _message())
+	_check(_run.level == 3 and boss_door.level_locked, "boss gate still locked at Lv 3")
+	_run.add_rewards(_run.xp_to_next_level() - _run.xp, 0)
+	await _frames(2)
+	_check(_run.level == 4 and boss_door.is_open(), "boss gate opens at Lv 4")
+	_check(_message() == "Level 4! The boss gate is open.", "Lv 4 announces the boss gate (%s)" % _message())
 	await _try_exit(ante, &"DoorTop", &"move_up")
 	var boss_room := _dungeon.current_room
 	_check(_dungeon.current_index == _dungeon.index_at(BOSS), "boss gate leads to the boss room")
@@ -228,6 +231,7 @@ func _bind() -> void:
 	_dungeon = current_scene as Dungeon
 	_mage = _dungeon.mage
 	_run = _dungeon.run_state
+	_run.xp_multiplier_override = 1.0  # raw enemy XP (the scaled budget is tested in test_endless_progression.gd)
 
 
 func _try_exit(room: Room, door_name: StringName, action: StringName) -> void:

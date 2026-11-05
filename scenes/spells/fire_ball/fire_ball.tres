@@ -4,6 +4,9 @@
 [ext_resource type="PackedScene" path="res://scenes/spells/projectile.tscn" id="2_projectile"]
 [ext_resource type="SpriteFrames" path="res://scenes/spells/fire_ball/fire_ball_frames.tres" id="3_frames"]
 
+[ext_resource type="Resource" path="res://scenes/effects/cast_flash.tres" id="4_cast"]
+[ext_resource type="Resource" path="res://scenes/effects/hit_spark.tres" id="5_hit"]
+
 [resource]
 script = ExtResource("1_spell")
 id = &"fire_ball"
@@ -12,6 +15,8 @@ projectile_scene = ExtResource("2_projectile")
 frames = ExtResource("3_frames")
 visual_scale = 0.05
 collision_radius = 10.0
+cast_effect = ExtResource("4_cast")
+impact_effect = ExtResource("5_hit")
 damage = 10.0
 speed = 320.0
 cooldown = 0.35

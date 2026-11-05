@@ -7,13 +7,17 @@ extends Node
 ##
 ## Leveling: reaching xp_to_next_level() XP raises the level by one; leftover
 ## XP carries over. The XP needed grows by `xp_per_level` each level
-## (50, 100 by default). The level is capped at MAX_LEVEL; XP gained there is
-## discarded. Each level-up emits `leveled_up`; the owner applies the reward
+## (50, 100 by default). The level is capped at max_level() (MageLevels.cap of
+## the dungeon level); XP gained there is discarded. Enemy XP is multiplied by
+## xp_multiplier() (MageLevels), so each dungeon level takes 3 level-ups. Each level-up emits `leveled_up`; the owner applies the reward
 ## (the Dungeon uses max_health_per_level/heal_per_level). Spell bonuses are
 ## read through spell_damage_multiplier()/spell_cooldown_multiplier().
 ##
-## Upgrades (UPGRADES) are one-time purchases for the current run, gated by
-## gold and a required level. Items (ITEMS) are collected once per run from
+## Upgrades (UPGRADES) are stackable anvil purchases: each can be bought once
+## per dungeon level (the anvil restocks when a level starts), up to
+## `max_stacks`, at a price that rises with the stacks owned, gated by gold and
+## a required Mage level that moves up with the dungeon level (MageLevels).
+## Stack counts persist for the whole run and every bonus is count x effect. Items (ITEMS) are collected once per run from
 ## room pickups. Stat bonuses from both are summed on demand, so re-applying
 ## them never stacks. After the boss dies, one relic (RELICS) can be chosen
 ## once; it adds to the same bonus sums. Treasure chests (TREASURES) in the
@@ -40,15 +44,34 @@ signal treasure_claimed(id: StringName)
 ## Emitted once when a synergy's required relics become owned.
 signal synergy_activated(id: StringName)
 
-const MAX_LEVEL := 3
+## Most copies of one item / treasure that stack (counts persist across levels).
+const MAX_STACKS := 3
+## Twin Cast (permanent anvil upgrade): projectiles per cast and damage factor of each.
+const TWIN_CAST_COUNT := 2
+const TWIN_CAST_DAMAGE_FACTOR := 0.7
+## Flat multiplier on all enemy damage (regular enemies and bosses), on top of
+## the difficulty and dungeon-level scaling.
+const ENEMY_DAMAGE_FACTOR := 1.10
+## Most extra enemies added to one room or survival wave by scaling.
+const MAX_EXTRA_ENEMIES := 4
 
-## One-time anvil upgrades, in display order. "level" is the Mage level needed.
-## Effect keys: max_health (flat), damage (multiplier bonus), cooldown
-## (multiplier reduction), speed (multiplier bonus).
+## Anvil upgrades, in display order. Each stack applies its effect keys once.
+## "prices" is the cost of the 1st, 2nd, ... stack, "max_stacks" the stack cap and
+## "level" the Mage level needed on dungeon level 1 (RunState.upgrade_level()
+## adds MageLevels.offset()). "min_dungeon_level" is the first dungeon level the
+## upgrade is sold on; "permanent" upgrades are bought once EVER: the Dungeon saves the unlock in the
+## Progression save, it applies to every later run and is never restocked
+## (max_stacks 1, no effect keys: the flag is read by has_twin_cast()). Effect keys: max_health (flat), damage
+## (multiplier bonus), cooldown (multiplier reduction), speed (multiplier bonus).
 const UPGRADES := {
-	&"vitality": {"name": "Vitality", "cost": 100, "level": 1, "effect": "+20 max HP", "max_health": 20.0},
-	&"quick_cast": {"name": "Quick Cast", "cost": 250, "level": 2, "effect": "-20% spell cooldown", "cooldown": 0.2},
-	&"ember_core": {"name": "Ember Core", "cost": 450, "level": 3, "effect": "+40% spell damage", "damage": 0.4},
+	&"vitality": {"name": "Vitality", "prices": [100, 150, 200], "max_stacks": 3, "level": 1,
+			"effect": "+20 max HP per stack", "max_health": 20.0},
+	&"quick_cast": {"name": "Quick Cast", "prices": [200, 300, 400], "max_stacks": 3, "level": 2,
+			"effect": "-5% spell cooldown per stack", "cooldown": 0.05},
+	&"ember_core": {"name": "Ember Core", "prices": [300, 450, 600], "max_stacks": 3, "level": 3,
+			"effect": "+25% spell damage per stack", "damage": 0.25},
+	&"twin_cast": {"name": "Twin Cast", "prices": [4000], "max_stacks": 1, "level": 1, "min_dungeon_level": 3,
+			"permanent": true, "effect": "2 projectiles per cast, 70% damage each"},
 }
 
 ## Collectible run items (same effect keys as UPGRADES), placed in rooms by RoomSpec.item.
@@ -81,22 +104,41 @@ const STAT_KEYS: Array[String] = ["max_health", "damage", "cooldown", "speed"]
 @export var max_health_per_level: float = 20.0
 ## Mage HP restored per level-up.
 @export var heal_per_level: float = 20.0
-## Spell damage bonus per level above 1 (0.1 = +10%).
-@export var damage_bonus_per_level: float = 0.1
+## Spell damage bonus per Mage level above 1 (0.05 = +5%). Applied only in
+## spell_damage_multiplier().
+@export var damage_bonus_per_level: float = 0.05
 
 var level: int = 1
 ## XP towards the next level (always 0 at MAX_LEVEL).
 var xp: int = 0
 var currency: int = 0
-## Purchased upgrade ids (id -> true).
+## Permanent upgrades unlocked in an earlier run (id -> true; set by the Dungeon
+## from the Progression save). They count as owned (1 stack) from the start.
+var unlocked_permanent := {}
+## Owned anvil upgrade ids (id -> stack count). Counts persist across dungeon
+## levels; `_level_purchased` remembers what was bought on the current level.
 var purchased := {}
-## Collected item ids (id -> true), in pickup order.
+## Owned item ids (id -> stack count, at most MAX_STACKS), in pickup order.
+## Counts persist across dungeon levels; `_level_collected` only remembers what
+## was picked up on the current level (pickups refresh each level).
 var collected := {}
 ## Set once when the boss dies (its reward is granted through add_rewards()).
 var boss_defeated := false
-## Chosen post-boss relic id (&"" until chosen).
+## Latest chosen post-boss relic id (&"" until chosen) and every relic chosen
+## this run in order (one per boss; repeats stack).
 var relic: StringName = &""
-## Claimed treasure ids (id -> true), in claim order.
+var relics: Array[StringName] = []
+## Dungeon level (1 = first dungeon; independent of the Mage's XP `level`),
+## the level the run started at and whether it is a level-select replay run
+## (replays never save records or unlock difficulties).
+var dungeon_level: int = 1
+var start_level: int = 1
+var is_replay := false
+## Seconds played this run / this dungeon level (advanced by the Dungeon).
+var run_time: float = 0.0
+var level_time: float = 0.0
+## Owned treasure ids (id -> stack count, at most MAX_STACKS), in claim order.
+## Chests refresh each level through `_level_treasures`.
 var treasures := {}
 ## Encounter enemies defeated this run (including the boss).
 var enemies_defeated: int = 0
@@ -109,7 +151,15 @@ var gold_earned: int = 0
 var difficulty_bonus_gold: int = 0
 var modifier_bonus_gold: int = 0
 
+## If > 0, used instead of MageLevels.xp_multiplier() (see xp_multiplier()).
+var xp_multiplier_override: float = 0.0
+
 var _configured := false
+var _relic_claimed := false
+var _level_collected := {}
+var _level_purchased := {}
+var _level_treasures := {}
+var _xp_fraction := 0.0
 var _active_synergies: Array[StringName] = []
 
 
@@ -118,19 +168,71 @@ func xp_to_next_level() -> int:
 
 
 func is_max_level() -> bool:
-	return level >= MAX_LEVEL
+	return level >= max_level()
+
+
+## Mage level cap of the current dungeon level (also the boss gate).
+func max_level() -> int:
+	return MageLevels.cap(dungeon_level)
+
+
+## Mage level needed to enter a room needing `base` (RoomSpec.required_level)
+## on the current dungeon level.
+func room_gate(base: int, is_boss: bool) -> int:
+	return MageLevels.gate(base, is_boss, dungeon_level)
+
+
+## Multiplier on enemy XP for the current dungeon level. A positive
+## `xp_multiplier_override` replaces it (tuning / tests that need raw XP).
+func xp_multiplier() -> float:
+	if xp_multiplier_override > 0.0:
+		return xp_multiplier_override
+	return MageLevels.xp_multiplier(dungeon_level, xp_per_level)
 
 
 ## Sets the run's difficulty and Pact once, before the run starts. Returns
 ## false (and changes nothing) if already configured or the values are unknown.
-func configure(p_difficulty: int, p_pact: StringName = &"") -> bool:
+func configure(p_difficulty: int, p_pact: StringName = &"", p_start_level: int = 1) -> bool:
 	if _configured or not Difficulty.is_valid(p_difficulty) or (not p_pact.is_empty() and not Pacts.PACTS.has(p_pact)):
 		return false
 	_configured = true
 	difficulty = p_difficulty
 	pact = p_pact
+	start_level = maxi(p_start_level, 1)
+	dungeon_level = start_level
+	is_replay = start_level > 1
+	# A practice run starts at the Mage level a normal run would arrive with
+	# (levels only, no items or relics); the Dungeon applies the level-up HP.
+	level = MageLevels.arrival_level(start_level)
 	_notify()
 	return true
+
+
+## Moves to the next dungeon level once its boss is beaten and the relic was
+## chosen. Only level state resets (boss flag, relic choice, level timer);
+## the build (upgrades, items, relics, treasures, gold, XP) is kept.
+## Returns false if the boss is alive or no relic was chosen yet.
+func begin_next_level() -> bool:
+	if not boss_defeated or not _relic_claimed:
+		return false
+	dungeon_level += 1
+	boss_defeated = false
+	_relic_claimed = false
+	level_time = 0.0
+	# Pickups and chests refresh; owned counts are kept.
+	_level_collected.clear()
+	_level_treasures.clear()
+	_level_purchased.clear()
+	_notify()
+	return true
+
+
+## "mm:ss" (or "h:mm:ss" from one hour).
+static func format_time(seconds: float) -> String:
+	var total := maxi(int(seconds), 0)
+	if total >= 3600:
+		return "%d:%02d:%02d" % [total / 3600, (total / 60) % 60, total % 60]
+	return "%02d:%02d" % [total / 60, total % 60]
 
 
 ## Raw rewards (no multipliers); the gold counts as earned.
@@ -150,71 +252,133 @@ func add_rewards(xp_amount: int, currency_amount: int) -> void:
 		leveled_up.emit(new_level)
 
 
+## True if upgrade `id` was bought on the current dungeon level (not available again until the next).
 func is_purchased(id: StringName) -> bool:
-	return purchased.has(id)
+	return _level_purchased.has(id)
 
 
+## Stacks of upgrade `id` owned this run.
+func upgrade_stacks(id: StringName) -> int:
+	return maxi(purchased.get(id, 0), 1 if unlocked_permanent.has(id) else 0)
+
+
+func upgrade_max_stacks(id: StringName) -> int:
+	return UPGRADES[id].get("max_stacks", 1) if UPGRADES.has(id) else 0
+
+
+## Price of the next stack of `id` (the last price once the cap is reached).
 func upgrade_cost(id: StringName) -> int:
-	return roundi(UPGRADES[id]["cost"] * (1.0 + _bonus_sum(&"upgrade_cost"))) if UPGRADES.has(id) else 0
+	if not UPGRADES.has(id):
+		return 0
+	var prices: Array = UPGRADES[id]["prices"]
+	return roundi(prices[mini(upgrade_stacks(id), prices.size() - 1)] * (1.0 + _bonus_sum(&"upgrade_cost")))
 
 
+## Mage level needed to buy `id` on the current dungeon level.
 func upgrade_level(id: StringName) -> int:
-	return UPGRADES[id].get("level", 1) if UPGRADES.has(id) else 1
+	return (UPGRADES[id].get("level", 1) + MageLevels.offset(dungeon_level)) if UPGRADES.has(id) else 1
 
 
-## True if `id` exists, is not owned yet, is affordable and the level is high enough.
+## First dungeon level on which upgrade `id` is sold.
+func upgrade_min_dungeon_level(id: StringName) -> int:
+	return UPGRADES[id].get("min_dungeon_level", 1) if UPGRADES.has(id) else 1
+
+
+func is_permanent_upgrade(id: StringName) -> bool:
+	return UPGRADES.has(id) and UPGRADES[id].get("permanent", false)
+
+
+## True once the permanent Twin Cast upgrade was bought this run.
+func has_twin_cast() -> bool:
+	return upgrade_stacks(&"twin_cast") > 0
+
+
+## Projectiles per cast (2 only through Twin Cast; no other system changes this).
+func projectile_count() -> int:
+	return TWIN_CAST_COUNT if has_twin_cast() else 1
+
+
+## Damage factor of each projectile of a cast.
+func projectile_damage_factor() -> float:
+	return TWIN_CAST_DAMAGE_FACTOR if has_twin_cast() else 1.0
+
+
+## True if `id` exists, is sold on this dungeon level, was not bought this level,
+## is below its stack cap, is affordable and the Mage level is high enough.
 func can_purchase(id: StringName) -> bool:
-	return UPGRADES.has(id) and not is_purchased(id) and currency >= upgrade_cost(id) 		and level >= upgrade_level(id)
+	return UPGRADES.has(id) and dungeon_level >= upgrade_min_dungeon_level(id) and not is_purchased(id) \
+			and upgrade_stacks(id) < upgrade_max_stacks(id) and currency >= upgrade_cost(id) and level >= upgrade_level(id)
 
 
-## Buys upgrade `id` once, deducting its cost. Returns false (and changes
-## nothing) if it is unknown, already owned, unaffordable or level-locked.
+## Buys one stack of upgrade `id`, deducting its cost. Returns false (and
+## changes nothing) if it is unknown, bought this level, at its stack cap,
+## unaffordable or level-locked.
 func purchase(id: StringName) -> bool:
 	if not can_purchase(id):
 		return false
 	currency -= upgrade_cost(id)
-	purchased[id] = true
+	purchased[id] = upgrade_stacks(id) + 1
+	_level_purchased[id] = true
 	_notify()
 	upgrade_purchased.emit(id)
 	return true
 
 
+## True if item `id` was picked up on the current dungeon level.
 func is_collected(id: StringName) -> bool:
-	return collected.has(id)
+	return _level_collected.has(id)
 
 
-## Collects item `id` once. Returns false (and changes nothing) if it is
-## unknown or already collected this run.
+## True if a pickup of item `id` can still be taken: it is a known item, not
+## taken on this level and not already at MAX_STACKS.
+func can_collect(id: StringName) -> bool:
+	return ITEMS.has(id) and not is_collected(id) and stack_count(id) < MAX_STACKS
+
+
+## Owned copies of item or treasure `id`.
+func stack_count(id: StringName) -> int:
+	return collected.get(id, 0) + treasures.get(id, 0)
+
+
+## Collects item `id` (one stack, once per dungeon level). Returns false (and
+## changes nothing) if it is unknown, taken this level or at MAX_STACKS.
 func collect_item(id: StringName) -> bool:
-	if not ITEMS.has(id) or is_collected(id):
+	if not can_collect(id):
 		return false
-	collected[id] = true
+	_level_collected[id] = true
+	collected[id] = collected.get(id, 0) + 1
 	_notify()
 	item_collected.emit(id)
 	return true
 
 
-## Chooses relic `id` once, after the boss is defeated. Returns false (and
-## changes nothing) if it is unknown, a relic was already chosen or the boss lives.
+## Chooses relic `id` once per boss, after the boss is defeated. Returns false
+## (and changes nothing) if it is unknown, this boss's relic was already
+## chosen or the boss lives.
 func choose_relic(id: StringName) -> bool:
-	if not RELICS.has(id) or not relic.is_empty() or not boss_defeated:
+	if not RELICS.has(id) or _relic_claimed or not boss_defeated:
 		return false
+	_relic_claimed = true
 	relic = id
+	relics.append(id)
 	_notify()
 	relic_chosen.emit(id)
 	return true
 
 
+## True if treasure `id` was claimed on the current dungeon level.
 func is_treasure_claimed(id: StringName) -> bool:
-	return treasures.has(id)
+	return _level_treasures.has(id)
 
 
-## Claims treasure `id` once, adding its gold. Returns false (and changes
-## nothing) if it is unknown or already claimed this run.
+## Claims treasure `id` (once per dungeon level), paying its gold and adding
+## one stack of its bonus (up to MAX_STACKS; at the cap only gold / heal are
+## paid). Returns false (and changes nothing) if it is unknown or claimed this level.
 func claim_treasure(id: StringName) -> bool:
 	if not TREASURES.has(id) or is_treasure_claimed(id):
 		return false
-	treasures[id] = true
+	_level_treasures[id] = true
+	treasures[id] = mini(treasures.get(id, 0) + 1, MAX_STACKS)
 	var gold := _scaled_gold(int(TREASURES[id].get("gold", 0)), treasure_reward_multiplier())
 	currency += gold
 	gold_earned += gold
@@ -227,7 +391,11 @@ func claim_treasure(id: StringName) -> bool:
 ## Returns the gold granted.
 func grant_enemy_rewards(xp_amount: int, base_gold: int) -> int:
 	var gold := _scaled_gold(base_gold, 1.0)
-	add_rewards(xp_amount, gold)
+	# XP scales with the dungeon level; the fraction is carried so the budget is exact.
+	var scaled := xp_amount * xp_multiplier() + _xp_fraction
+	var whole := floori(scaled)
+	_xp_fraction = scaled - whole
+	add_rewards(whole, gold)
 	return gold
 
 
@@ -289,15 +457,29 @@ func treasure_reward_multiplier() -> float:
 	return 1.0 + _bonus_sum(&"treasure_reward")
 
 
+## The player's damage output: damage multiplier x projectiles per cast (Twin Cast
+## 2 x 0.7 = 1.4) / cooldown multiplier. Includes Mage level, upgrades, items,
+## relics, Pact and synergies; excludes Greed's gold-based bonus and Arcane Momentum.
+func player_output() -> float:
+	var damage := maxf(1.0 + damage_bonus_per_level * (level - 1) + _bonus_sum(&"damage"), 0.1)
+	return damage * projectile_count() * projectile_damage_factor() / spell_cooldown_multiplier()
+
+
+## Extra enemy HP multiplier for the current player output (1.0 .. 2.0). The Dungeon
+## snapshots it when a room is created, so it never changes inside a room.
+func output_hp_modifier() -> float:
+	return LevelScaling.output_hp_modifier(player_output(), dungeon_level)
+
+
 ## Enemy max HP multiplier (`treasure_room`: the enemy belongs to a treasure room).
 func enemy_health_multiplier(treasure_room: bool = false) -> float:
 	var bonus := _bonus_sum(&"enemy_health") + (_bonus_sum(&"treasure_enemy_health") if treasure_room else 0.0)
-	return Difficulty.data(difficulty)["enemy_health"] * (1.0 + bonus)
+	return Difficulty.data(difficulty)["enemy_health"] * LevelScaling.enemy_health(dungeon_level) * (1.0 + bonus)
 
 
 ## Multiplier on all damage an enemy deals.
 func enemy_damage_multiplier(elite: bool = false, treasure_room: bool = false) -> float:
-	var result: float = Difficulty.data(difficulty)["enemy_damage"]
+	var result: float = Difficulty.data(difficulty)["enemy_damage"] * LevelScaling.enemy_damage(dungeon_level) * ENEMY_DAMAGE_FACTOR
 	if treasure_room:
 		result *= 1.0 + _bonus_sum(&"treasure_enemy_damage")
 	if elite:
@@ -307,7 +489,7 @@ func enemy_damage_multiplier(elite: bool = false, treasure_room: bool = false) -
 
 ## Enemy move speed and attack rate multiplier.
 func enemy_pace_multiplier() -> float:
-	return Difficulty.data(difficulty)["enemy_pace"]
+	return Difficulty.data(difficulty)["enemy_pace"] * LevelScaling.enemy_pace(dungeon_level)
 
 
 ## Multiplier on damage an enemy takes from the Mage.
@@ -315,24 +497,24 @@ func enemy_vulnerability_multiplier(elite: bool = false) -> float:
 	return 1.0 + (_bonus_sum(&"elite_vulnerability") if elite else 0.0)
 
 
-## Extra enemies for a combat room needing `required_level`.
-func extra_room_enemies(required_level: int) -> int:
-	return Difficulty.extra_enemies(difficulty, required_level)
+## Extra enemies for a combat room needing `required_level` that has
+## `free_points` free safe spawn points: the difficulty's extras plus the
+## level's (LevelScaling.room_extra_enemies), capped at MAX_EXTRA_ENEMIES and
+## at the free points. Boss and treasure rooms never ask for extras.
+func extra_room_enemies(required_level: int, free_points: int) -> int:
+	var total := Difficulty.extra_enemies(difficulty, required_level) + LevelScaling.room_extra_enemies(
+			dungeon_level, required_level >= 2, free_points)
+	return clampi(total, 0, mini(MAX_EXTRA_ENEMIES, maxi(free_points, 0)))
 
 
-## Extra enemies per survival wave.
+## Extra enemies per survival wave (difficulty + level, capped at MAX_EXTRA_ENEMIES).
 func extra_wave_enemies() -> int:
-	return Difficulty.data(difficulty)["extra_wave"]
-
-
-## Seconds added to the survival trial.
-func survival_time_bonus() -> float:
-	return _bonus_sum(&"survival_time")
+	return mini(Difficulty.data(difficulty)["extra_wave"] + LevelScaling.wave_extra_enemies(dungeon_level), MAX_EXTRA_ENEMIES)
 
 
 ## True if `id` (Pact, item, treasure, upgrade or relic) is owned this run.
 func owns(id: StringName) -> bool:
-	return pact == id or relic == id or collected.has(id) or treasures.has(id) or purchased.has(id)
+	return pact == id or relics.has(id) or collected.has(id) or treasures.has(id) or purchased.has(id)
 
 
 func is_synergy_active(id: StringName) -> bool:
@@ -366,14 +548,23 @@ func active_synergies() -> Array[StringName]:
 
 
 func reset() -> void:
-	level = 1
+	level = MageLevels.arrival_level(start_level)
 	xp = 0
 	currency = 0
 	purchased.clear()
+	_level_purchased.clear()
 	collected.clear()
 	treasures.clear()
+	_level_collected.clear()
+	_level_treasures.clear()
+	_xp_fraction = 0.0
 	boss_defeated = false
 	relic = &""
+	relics.clear()
+	_relic_claimed = false
+	dungeon_level = start_level
+	run_time = 0.0
+	level_time = 0.0
 	enemies_defeated = 0
 	gold_earned = 0
 	difficulty_bonus_gold = 0
@@ -407,13 +598,13 @@ func _notify() -> void:
 func _bonus_sum(key: String) -> float:
 	var total := 0.0
 	for id: StringName in purchased:
-		total += UPGRADES[id].get(key, 0.0)
+		total += UPGRADES[id].get(key, 0.0) * purchased[id]
 	for id: StringName in collected:
-		total += ITEMS[id].get(key, 0.0)
+		total += ITEMS[id].get(key, 0.0) * collected[id]
 	for id: StringName in treasures:
-		total += TREASURES[id].get(key, 0.0)
-	if not relic.is_empty():
-		total += RELICS[relic].get(key, 0.0)
+		total += TREASURES[id].get(key, 0.0) * treasures[id]
+	for id: StringName in relics:
+		total += RELICS[id].get(key, 0.0)
 	if Pacts.PACTS.has(pact):
 		total += Pacts.PACTS[pact].get(key, 0.0)
 	for id: StringName in Pacts.SYNERGIES:

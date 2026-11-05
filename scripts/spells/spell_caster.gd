@@ -22,6 +22,11 @@ var cooldown_multiplier := 1.0
 ## fraction (0 = off). One charge at a time; it does not stack.
 var momentum := 0.0
 var momentum_window := 1.5
+## Projectiles per cast, the damage factor of each and the angle between
+## neighbouring projectiles. Set only through set_projectiles() (Twin Cast).
+var projectile_count := 1
+var projectile_damage_factor := 1.0
+var spread_degrees := 8.0
 
 var _cooldown_left := 0.0
 var _momentum_left := 0.0
@@ -53,6 +58,13 @@ func set_modifiers(p_damage_multiplier: float, p_cooldown_multiplier: float) -> 
 	_rebuild_cast_spell()
 
 
+## Sets how many projectiles one cast fires and each one's damage factor
+## (absolute values, so calling it again never stacks).
+func set_projectiles(count: int, damage_factor: float) -> void:
+	projectile_count = maxi(count, 1)
+	projectile_damage_factor = maxf(damage_factor, 0.0)
+
+
 ## The Spell actually cast (with modifiers applied).
 func get_cast_spell() -> Spell:
 	return _cast_spell
@@ -64,21 +76,31 @@ func try_cast(target: Vector2) -> Projectile:
 	var dir := global_position.direction_to(target)
 	if not can_cast() or dir == Vector2.ZERO:
 		return null
-	var projectile := _cast_spell.projectile_scene.instantiate() as Projectile
-	if projectile == null:
-		push_error("Spell %s: projectile_scene root is not a Projectile" % spell.id)
-		return null
-	projectile.setup(_cast_spell, dir, get_parent())
 	var container: Node = get_tree().current_scene if get_tree().current_scene else get_tree().root
-	container.add_child(projectile)
-	projectile.global_position = global_position
+	var first: Projectile = null
+	for i in projectile_count:
+		var projectile := _cast_spell.projectile_scene.instantiate() as Projectile
+		if projectile == null:
+			push_error("Spell %s: projectile_scene root is not a Projectile" % spell.id)
+			return first
+		# Projectiles fan out evenly around the aim direction.
+		var angle := deg_to_rad((i - (projectile_count - 1) / 2.0) * spread_degrees)
+		projectile.setup(_cast_spell, dir.rotated(angle), get_parent())
+		projectile.damage_factor = projectile_damage_factor
+		container.add_child(projectile)
+		projectile.global_position = global_position
+		projectile.hit.connect(_on_projectile_hit)
+		if first == null:
+			first = projectile
+	if _cast_spell.cast_effect:
+		PixelEffect.spawn(_cast_spell.cast_effect, container, global_position)
+	# One cast: one cooldown, one `cast` signal (with the first projectile).
 	_cooldown_left = _cast_spell.cooldown
 	if has_momentum():
 		_cooldown_left *= 1.0 - momentum
 		_momentum_left = 0.0
-	projectile.hit.connect(_on_projectile_hit)
-	cast.emit(projectile)
-	return projectile
+	cast.emit(first)
+	return first
 
 
 func _on_projectile_hit(body: Node) -> void:

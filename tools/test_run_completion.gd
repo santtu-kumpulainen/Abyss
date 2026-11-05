@@ -1,8 +1,9 @@
 extends SceneTree
-## Headless check of run completion (scenes/dungeon/dungeon.tscn): the boss
-## death triggers the victory state once, the victory screen offers exactly one
-## relic whose bonus applies once, the run summary is accurate, and New Run /
-## Main Menu -> Start Run both start a clean run.
+## Headless check of the boss -> relic -> next level flow (scenes/dungeon/dungeon.tscn):
+## the boss death triggers the level-complete state once, the reward screen
+## offers one relic per boss whose bonus applies once, choosing it starts the
+## next dungeon level (build kept, level state reset, no double trigger), and
+## Restart / Game Over -> Main Menu -> Start Run both start a clean run.
 ##
 ## Usage (after importing):
 ##   godot --headless --path . --script res://tools/test_run_completion.gd
@@ -55,7 +56,7 @@ func _test_victory_and_summary() -> void:
 	_check(_run.enemies_defeated == enemies and enemies > 0, "enemies defeated counted per encounter kill (%d)" % _run.enemies_defeated)
 	_run.add_rewards(0, 100)
 	_check(_run.purchase(&"vitality"), "setup: Vitality purchased")
-	while _run.level < RunState.MAX_LEVEL:
+	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
 
 	var victories := [0]
@@ -87,44 +88,56 @@ func _test_victory_and_summary() -> void:
 	await _wait_until(func() -> bool: return _overlay().is_open, 240)
 	_check(_overlay().visible and paused, "victory screen opens and pauses the game")
 	_check(_relic_buttons().size() == 3, "three relic choices offered (%d)" % _relic_buttons().size())
-	_check(not (_overlay().get_node(^"%Actions") as Control).visible, "New Run / Main Menu appear only after choosing a relic")
 	_overlay().open(_dungeon)
 	_dungeon._open_victory_overlay()
-	_check(_relic_buttons().size() == 3 and victories[0] == 1, "victory screen cannot be opened twice")
+	_check(_relic_buttons().size() == 3 and victories[0] == 1, "boss reward screen cannot be opened twice")
 
-	# --- Relic: exactly one, applied once ---
-	var max_hp := _mage.health.max_health
-	var damage_before := _mage.caster.get_cast_spell().damage
+	# --- Relic: exactly one per boss, applied once, then the next level starts ---
+	var kills := _run.enemies_defeated
+	var run_time := _run.run_time
+	var level_time := _run.level_time
 	(_relic_buttons()[1] as Button).pressed.emit()
-	_check(_run.relic == &"ember_relic", "pressing a relic button selects it (%s)" % _run.relic)
-	var expected_damage := _base_damage * (1.0 + 0.1 * 2 + 0.2)
-	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, expected_damage) and damage_before < expected_damage,
-			"Ember Relic: +20%% Fire Ball damage (%.2f -> %.2f)" % [damage_before, _mage.caster.get_cast_spell().damage])
-	_check(not _overlay().choose_relic(&"vital_relic") and not _run.choose_relic(&"ember_relic") and _run.relic == &"ember_relic"
-			and is_equal_approx(_mage.health.max_health, max_hp), "a second relic choice is rejected")
-	_run.changed.emit()
-	_run.changed.emit()
+	_check(_run.relic == &"ember_relic" and _run.relics == [&"ember_relic"], "pressing a relic button selects it (%s)" % _run.relic)
+	_check(not paused and not _overlay().is_open and not _overlay().visible, "choosing the relic closes the screen and unpauses")
+	_check(_run.dungeon_level == 2 and not _dungeon.victory and not _run.boss_defeated, "the next dungeon level started (level %d)" % _run.dungeon_level)
+	_check(not _overlay().choose_relic(&"vital_relic") and not _run.choose_relic(&"ember_relic") and _run.relics == [&"ember_relic"],
+			"a second relic choice for the same boss is rejected")
+	_check(not _dungeon.advance_level() and _run.dungeon_level == 2, "the level change cannot trigger twice")
+	_check(_dungeon.current_index == _dungeon.start_room and _dungeon.rooms_cleared_count() == 0 and _dungeon.final_anvil == null
+			and not _dungeon.is_visited(boss_index) and not _dungeon.is_visited(_dungeon.index_at(BOOTS_ROOM)),
+			"level state reset: rooms, discovery, anvil, boss")
+	_check(_run.level == 4 and _run.collected.has(&"swift_boots") and _run.purchased.has(&"vitality") and _run.enemies_defeated == kills
+			and _run.currency > 0, "build kept: XP level, items, upgrades, gold, kills")
+	var expected_damage := _base_damage * (1.0 + 0.05 * 3 + 0.2)
 	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, expected_damage) and is_equal_approx(_mage.speed_multiplier, 1.15),
-			"relic bonus does not stack on recalculation")
-
-	# --- Summary ---
+			"relic, item and level bonuses persist (damage %.2f)" % _mage.caster.get_cast_spell().damage)
+	_run.changed.emit()
+	_run.changed.emit()
+	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, expected_damage), "relic bonus does not stack on recalculation")
+	_check(not _mage.invulnerable and _mage.is_physics_processing() and is_equal_approx(_mage.health.current, _mage.health.max_health),
+			"Mage controllable and fully healed on the new level")
+	_check(is_equal_approx(_run.run_time, run_time) or _run.run_time >= run_time, "run timer keeps its total (%.2f -> %.2f)" % [run_time, _run.run_time])
+	_check(_run.level_time < level_time or is_zero_approx(level_time), "level timer restarted (%.2f -> %.2f)" % [level_time, _run.level_time])
 	var summary := _dungeon.run_summary()
-	_check(summary["level"] == 3 and summary["rooms_cleared"] == 3 and summary["rooms_total"] == 25
-			and summary["enemies_defeated"] == enemies + 1 and summary["items"] == [&"swift_boots"]
-			and summary["upgrades"] == [&"vitality"] and summary["relic"] == &"ember_relic", "run summary values are accurate (%s)" % summary)
-	var text := (_overlay().get_node(^"%SummaryLabel") as Label).text
-	_check((_overlay().get_node(^"%SummaryLabel") as Label).visible and text.contains("Mage level: 3") and text.contains("Rooms cleared: 3 / 25")
-			and text.contains("Enemies defeated: %d" % (enemies + 1)) and text.contains("Items: Swift Boots")
-			and text.contains("Anvil upgrades: Vitality") and text.contains("Relic: Ember Relic"), "summary screen shows the values:\n%s" % text)
-	_check((_overlay().get_node(^"%Actions") as Control).visible, "New Run / Main Menu shown with the summary")
+	_check(summary["dungeon_level"] == 2 and summary["rooms_cleared"] == 0 and summary["rooms_total"] == 25
+			and summary["items"] == [&"swift_boots"] and summary["upgrades"] == [&"vitality"] and summary["relic"] == &"ember_relic",
+			"run summary values are accurate (%s)" % summary)
+
+	# --- Second boss: its own relic choice, relics stack ---
+	await _win_fast()
+	var max_hp2 := _mage.health.max_health
+	_check(_overlay().choose_relic(&"vital_relic") and _run.relics == [&"ember_relic", &"vital_relic"] and _run.dungeon_level == 3,
+			"the second boss grants a second relic and level 3 starts")
+	_check(is_equal_approx(_mage.health.max_health, max_hp2 + 30.0) and is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * (1.0 + 0.05 * (_run.level - 1) + 0.2)),
+			"relics stack across levels")
 
 
-## New Run from the victory screen starts a clean run.
+## Restart after dying gives a clean level-1 run.
 func _test_new_run_resets() -> void:
 	var old_id := current_scene.get_instance_id()
-	(_overlay().get_node(^"%NewRunButton") as Button).pressed.emit()
+	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).restart()
 	await _wait_for_scene(old_id)
-	_check_fresh_run("New Run")
+	_check_fresh_run("Restart")
 
 
 ## Run B: Vital Relic raises max HP by 30 and heals 30, capped at the new max.
@@ -135,22 +148,20 @@ func _test_vital_relic() -> void:
 	_mage.invulnerable = true
 	var max_hp := _mage.health.max_health
 	_check(_overlay().choose_relic(&"vital_relic"), "Vital Relic chosen")
-	_check(is_equal_approx(_mage.health.max_health, max_hp + 30.0) and is_equal_approx(_mage.health.current, max_hp + 20.0),
-			"Vital Relic: +30 max HP, heal 30 capped at the new max (%.0f/%.0f)" % [_mage.health.current, _mage.health.max_health])
+	_check(is_equal_approx(_mage.health.max_health, max_hp + 30.0) and _mage.health.current >= max_hp + 20.0,
+			"Vital Relic: +30 max HP (%.0f/%.0f)" % [_mage.health.current, _mage.health.max_health])
 	_check(not _overlay().choose_relic(&"vital_relic") and is_equal_approx(_mage.health.max_health, max_hp + 30.0), "Vital Relic applies only once")
-	_check(is_equal_approx(_mage.speed_multiplier, 1.0) and is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * 1.2),
+	_check(is_equal_approx(_mage.speed_multiplier, 1.0) and is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * 1.15),
 			"Vital Relic changes no other stats")
-	_check(_dungeon.run_summary()["items"].is_empty() and _dungeon.run_summary()["upgrades"].is_empty()
-			and (_overlay().get_node(^"%SummaryLabel") as Label).text.contains("Items: none"), "summary lists no items/upgrades when none were taken")
 	await _restart_via_game_over_path()
 
 
-## Run C: Wind Relic speed, then Main Menu -> Start Run gives a clean run.
+## Run C: Wind Relic speed, then Game Over -> Main Menu -> Start Run gives a clean run.
 func _test_wind_relic_and_menu() -> void:
 	await _win_fast()
 	_check(_overlay().choose_relic(&"wind_relic") and is_equal_approx(_mage.speed_multiplier, 1.1), "Wind Relic: +10%% move speed (%.2f)" % _mage.speed_multiplier)
 	var old_id := current_scene.get_instance_id()
-	(_overlay().get_node(^"%MainMenuButton") as Button).pressed.emit()
+	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).main_menu()
 	await _wait_until(func() -> bool: return current_scene != null and current_scene.get_instance_id() != old_id and current_scene.is_node_ready(), 600)
 	await _frames(1)
 	_check(current_scene is MainMenu and not paused, "Main Menu loads the menu scene, unpaused")
@@ -165,7 +176,7 @@ func _test_wind_relic_and_menu() -> void:
 
 ## If the Mage is already dead, the boss's death does not open the victory screen.
 func _test_no_victory_after_mage_death() -> void:
-	while _run.level < RunState.MAX_LEVEL:
+	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
 	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
 	await _frames(2)
@@ -180,7 +191,7 @@ func _test_no_victory_after_mage_death() -> void:
 
 ## Fresh run, boss killed, victory screen open.
 func _win_fast() -> void:
-	while _run.level < RunState.MAX_LEVEL:
+	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
 	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
 	await _frames(2)
@@ -199,7 +210,8 @@ func _restart_via_game_over_path() -> void:
 func _check_fresh_run(label: String) -> void:
 	_check(not paused and not _overlay().is_open and not _overlay().visible, "%s: unpaused, victory screen closed" % label)
 	_check(_run.level == 1 and _run.xp == 0 and _run.currency == 0, "%s: level, XP and gold reset" % label)
-	_check(_run.collected.is_empty() and _run.purchased.is_empty() and _run.relic.is_empty(), "%s: items, purchases and relic reset" % label)
+	_check(_run.collected.is_empty() and _run.purchased.is_empty() and _run.relic.is_empty() and _run.relics.is_empty(), "%s: items, purchases and relics reset" % label)
+	_check(_run.dungeon_level == 1 and _run.run_time < 2.0 and not _run.is_replay, "%s: dungeon level and timers reset" % label)
 	_check(not _run.boss_defeated and not _dungeon.victory and _run.enemies_defeated == 0, "%s: boss state and counters reset" % label)
 	_check(_dungeon.current_index == _dungeon.start_room and _dungeon.rooms_cleared_count() == 0 and _dungeon.final_anvil == null
 			and not _dungeon.is_visited(_dungeon.index_at(BOSS)) and not _dungeon.is_visited(_dungeon.index_at(BOOTS_ROOM)),

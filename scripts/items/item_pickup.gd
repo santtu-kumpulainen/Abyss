@@ -40,7 +40,7 @@ func _ready() -> void:
 
 ## True while the item can be picked up.
 func is_active() -> bool:
-	return run_state != null and RunState.ITEMS.has(item_id) and not run_state.is_collected(item_id) \
+	return run_state != null and RunState.ITEMS.has(item_id) and run_state.can_collect(item_id) \
 		and (_room == null or _room.state == Room.State.CLEARED)
 
 
@@ -64,7 +64,7 @@ func collect() -> bool:
 
 
 func _refresh() -> void:
-	if run_state and run_state.is_collected(item_id):
+	if run_state and not run_state.can_collect(item_id):
 		queue_free()
 		return
 	visible = is_active()

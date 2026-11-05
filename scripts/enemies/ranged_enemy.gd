@@ -15,11 +15,16 @@ signal fired(projectile: Projectile)
 ## Pixels per second.
 @export var projectile_speed: float = 200.0
 ## Backs away when the target is closer than this.
-@export var retreat_distance: float = 140.0
+@export var retreat_distance: float = 160.0
 ## Spawn point offset from the feet (roughly the body centre).
 @export var muzzle_offset := Vector2(0, -24)
+## Seconds the enemy stands still showing `telegraph_effect` before each shot
+## (0 = fires at once, like the Demon Caster).
+@export var telegraph_time: float = 0.0
+@export var telegraph_effect: EffectSheet
 
 var _spell: Spell
+var _telegraph_left := 0.0
 
 
 func _ready() -> void:
@@ -49,12 +54,24 @@ func _physics_process(delta: float) -> void:
 		var to_target := target.global_position - global_position
 		var dist := to_target.length()
 		facing = direction_name(to_target)
-		if dist > attack_range:
-			velocity = to_target.normalized() * speed
-		elif dist < retreat_distance:
-			velocity = -to_target.normalized() * speed
-		if dist <= attack_range and _attack_cooldown_left <= 0.0:
-			fire(target.global_position)
+		if _telegraph_left > 0.0:
+			# Standing still while the telegraph plays; then the shot is fired.
+			_telegraph_left -= delta
+			if _telegraph_left <= 0.0:
+				fire(target.global_position)
+		else:
+			if dist > attack_range:
+				velocity = to_target.normalized() * speed
+			elif dist < retreat_distance:
+				velocity = -to_target.normalized() * speed
+			if dist <= attack_range and _attack_cooldown_left <= 0.0:
+				if telegraph_time > 0.0:
+					_telegraph_left = telegraph_time
+					PixelEffect.spawn(telegraph_effect, self, global_position + muzzle_offset, telegraph_time, 56.0)
+				else:
+					fire(target.global_position)
+	else:
+		_telegraph_left = 0.0
 
 	move_and_slide()
 	_play(&"walk" if velocity != Vector2.ZERO else &"idle")

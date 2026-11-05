@@ -87,26 +87,36 @@ func add_encounter_enemies(scenes: Array[PackedScene]) -> void:
 ## enemy or next to an arriving Mage. If too few safe markers are free, fewer
 ## enemies are added. Returns the number added. Call before the room enters the tree.
 func add_extra_enemies(scenes: Array[PackedScene], count: int, used: int, min_door_distance: float = 180.0) -> int:
-	if scenes.is_empty() or count <= 0 or not has_node(^"SpawnPoints"):
+	if scenes.is_empty() or count <= 0:
 		return 0
-	var spawn_root := get_node(^"SpawnPoints") as Node2D
-	var doors := get_node(^"Doors").get_children()
 	var added := 0
-	var points := spawn_root.get_children()
-	for i in range(used, points.size()):
+	for pos in safe_extra_points(used, min_door_distance):
 		if added >= count:
 			break
-		var pos := spawn_root.position + (points[i] as Node2D).position
-		var safe := doors.all(func(door: Node2D) -> bool:
-			return pos.distance_to(door.position + (door.get_parent() as Node2D).position) >= min_door_distance)
-		if not safe:
-			continue
 		var enemy := scenes[added % scenes.size()].instantiate() as Enemy
 		enemy.position = pos
 		enemy.detection_radius = spawn_detection_radius
 		get_node(^"Enemies").add_child(enemy, true)
 		added += 1
 	return added
+
+
+## Positions (room coordinates) of the SpawnPoints from index `used` on that are
+## at least `min_door_distance` from every door: where extra enemies may spawn.
+func safe_extra_points(used: int, min_door_distance: float = 180.0) -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	if not has_node(^"SpawnPoints"):
+		return result
+	var spawn_root := get_node(^"SpawnPoints") as Node2D
+	var doors := get_node(^"Doors").get_children()
+	var points := spawn_root.get_children()
+	for i in range(used, points.size()):
+		var pos := spawn_root.position + (points[i] as Node2D).position
+		var safe := doors.all(func(door: Node2D) -> bool:
+			return pos.distance_to(door.position + (door.get_parent() as Node2D).position) >= min_door_distance)
+		if safe:
+			result.append(pos)
+	return result
 
 
 ## True when the Mage may leave through an open door (the Dungeon checks this).

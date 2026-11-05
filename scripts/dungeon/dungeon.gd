@@ -14,6 +14,10 @@ extends Node2D
 ## whose `required_level` is above the Mage's level are level-locked and
 ## labelled; they open when the level is reached. An optional "DungeonMap/Map"
 ## child is given this Dungeon to draw the explored rooms.
+## Mage level gates move with the dungeon level (MageLevels): see gate_level().
+## Items and treasures stack (up to RunState.MAX_STACKS) and their pickups and
+## chests refresh on every dungeon level; Practice runs start at the Mage level
+## a normal run would arrive with, including the level-up max HP.
 ## Rooms whose RoomSpec has an `item` get an ItemPickup (`item_pickup_scene`);
 ## collected items raise max HP / speed / damage through RunState. Defeating a
 ## Boss marks RunState.boss_defeated and announces the victory; its phase
@@ -41,12 +45,22 @@ extends Node2D
 ## free safe spawn points. All Mage healing goes through heal_mage() and all
 ## max HP gains through raise_max_health(). Victory records the difficulty
 ## with Progression.record_victory() (death never does).
+## Endless levels: the victory above is only the end of the current dungeon
+## level. Choosing the boss relic calls advance_level(), which resets the level
+## (rooms, enemies, boss, anvil, level timer; the RunState's build, XP, gold
+## and run timer are kept), fully heals the Mage and starts RunState.dungeon_level
+## + 1 in `start_room`. Enemies scale with the level (LevelScaling) on top of
+## the difficulty, and Biomes picks the theme / enemy pool per level. Run
+## progress (highest level, best run) is saved through Progression.record_run()
+## on every level start, boss kill and death, except in replay runs.
 
 signal room_changed(room: Room, index: int)
 ## Something the map shows changed (room entered or cleared, level gates).
 signal map_changed
-## Emitted once when the boss is defeated and the run is won.
+## Emitted once per level when its boss is defeated.
 signal victory_started
+## Emitted after the next dungeon level has started (with its number).
+signal level_started(dungeon_level: int)
 
 const DOOR_BY_DIRECTION := {
 	Vector2i.RIGHT: &"DoorRight", Vector2i.LEFT: &"DoorLeft",
@@ -78,9 +92,9 @@ var current_room: Room
 var current_index: int = -1
 ## The anvil added after the full clear (null until then).
 var final_anvil: UpgradeStation
-## True once the run is won (set once, on the boss's death).
+## True once this level's boss is defeated (reset by advance_level()).
 var victory := false
-## Difficulty tier this run's victory unlocked (-1 = none).
+## Difficulty tier this run's first boss kill unlocked (-1 = none).
 var unlocked_tier: int = -1
 
 ## "<room>:<door>" -> [room index, door name]
@@ -89,6 +103,12 @@ var _link_map := {}
 var _neighbours := {}
 var _room_cache := {}
 var _transitioning := false
+var _level_changing := false
+var _victory_recorded := false
+## Identifies this run in the saved best-run record.
+var _run_id := 0
+## Run time when the current dungeon level was entered.
+var _reach_time := 0.0
 
 @onready var mage: Mage = $Mage
 @onready var _hud: RoomHud = $RoomHud
@@ -101,8 +121,15 @@ var _transitioning := false
 func _ready() -> void:
 	_build_links()
 	var progression := ProgressionStore.instance(get_tree())
-	run_state.configure(progression.selected_difficulty, progression.selected_pact)
+	run_state.configure(progression.selected_difficulty, progression.selected_pact,
+			clampi(progression.selected_start_level, 1, progression.highest_level))
+	_run_id = int(Time.get_unix_time_from_system() * 1000.0) ^ randi()
+	run_state.unlocked_permanent = progression.unlocked_upgrades.duplicate()
 	mage.health.scale_max_health(run_state.max_health_multiplier())
+	# A practice run starts at a higher Mage level: grant those level-ups' max HP.
+	for i in run_state.level - 1:
+		mage.health.increase_max_health(run_state.max_health_per_level * run_state.max_health_multiplier(), 0.0)
+	mage.health.increase_max_health(0.0, mage.health.max_health)
 	mage.caster.momentum_window = Pacts.MOMENTUM_WINDOW
 	run_state.synergy_activated.connect(_on_synergy_activated)
 	run_state.leveled_up.connect(_on_leveled_up)
@@ -112,10 +139,20 @@ func _ready() -> void:
 	run_state.treasure_claimed.connect(_on_treasure_claimed)
 	run_state.changed.connect(_apply_spell_modifiers)
 	_apply_spell_modifiers()
+	mage.died.connect(_on_mage_died)
 	_run_hud.set_run_state(run_state)
 	if _map:
 		_map.set_dungeon(self)
+	_record_progress()
 	enter_room(start_room)
+
+
+func _process(delta: float) -> void:
+	# Only active play counts: not during the boss reward, after victory or death.
+	if victory or mage.is_dead():
+		return
+	run_state.run_time += delta
+	run_state.level_time += delta
 
 
 ## Shows room `index`. With `from_door` (a door name in that room) the Mage
@@ -197,6 +234,10 @@ func run_summary() -> Dictionary:
 		"difficulty_bonus_gold": run_state.difficulty_bonus_gold,
 		"modifier_bonus_gold": run_state.modifier_bonus_gold,
 		"unlocked_tier": unlocked_tier,
+		"dungeon_level": run_state.dungeon_level,
+		"biome": Biomes.biome_name(run_state.dungeon_level),
+		"run_time": run_state.run_time,
+		"replay": run_state.is_replay,
 	}
 
 
@@ -217,9 +258,14 @@ func raise_max_health(amount: float, heal: float = 0.0) -> void:
 	heal_mage(heal)
 
 
+## Mage level needed to enter room `index` on the current dungeon level.
+func gate_level(index: int) -> int:
+	return run_state.room_gate(rooms[index].required_level, rooms[index].is_boss)
+
+
 ## True if the Mage's level allows entering room `index`.
 func can_enter(index: int) -> bool:
-	return run_state.level >= rooms[index].required_level
+	return run_state.level >= gate_level(index)
 
 
 ## Indexes of the rooms linked to room `index`.
@@ -263,17 +309,26 @@ func _transition(index: int, door_name: StringName) -> void:
 func _get_room(index: int) -> Room:
 	if not _room_cache.has(index):
 		var spec := rooms[index]
-		var room := spec.scene.instantiate() as Room
+		var level := run_state.dungeon_level
+		var room := Biomes.map_scene(spec.scene, level, "room_map").instantiate() as Room
+		var theme := Biomes.theme_for(level)
+		if theme and not spec.is_treasure():
+			(room.get_node(^"Visuals") as RoomVisuals).theme = theme
 		# Connected before the room is ready, so scene-placed enemies are scaled too.
-		room.enemy_registered.connect(_scale_enemy.bind(spec.is_treasure()))
+		# The player-output HP modifier is snapshotted here, when the room is first created
+		# (just before the Mage enters), and also covers enemies registered later (waves).
+		room.enemy_registered.connect(_scale_enemy.bind(spec.is_treasure(), run_state.output_hp_modifier()))
 		if not spec.enemies.is_empty():
-			room.add_encounter_enemies(spec.enemies)
+			var pool: Array[PackedScene] = []
+			for scene in spec.enemies:
+				pool.append(Biomes.map_scene(scene, level, "enemy_map"))
+			room.add_encounter_enemies(pool)
 			if not spec.is_boss and not spec.is_treasure():
-				room.add_extra_enemies(spec.enemies, run_state.extra_room_enemies(spec.required_level), spec.enemies.size())
+				var free := room.safe_extra_points(pool.size()).size()
+				room.add_extra_enemies(pool, run_state.extra_room_enemies(spec.required_level, free), pool.size())
 		if room is SurvivalRoom:
 			var trial := room as SurvivalRoom
 			trial.extra_per_wave = run_state.extra_wave_enemies()
-			trial.duration += run_state.survival_time_bonus()
 		if not spec.item.is_empty() and item_pickup_scene:
 			var pickup := item_pickup_scene.instantiate() as ItemPickup
 			pickup.item_id = spec.item
@@ -331,9 +386,9 @@ func _spawn_final_anvil() -> void:
 
 
 ## Applies the run's enemy modifiers once to `enemy` (Enemy.apply_scaling() ignores repeats).
-func _scale_enemy(enemy: Enemy, treasure_room: bool) -> void:
+func _scale_enemy(enemy: Enemy, treasure_room: bool, output_modifier: float = 1.0) -> void:
 	var elite := enemy.elite or enemy is Boss
-	enemy.apply_scaling(run_state.enemy_health_multiplier(treasure_room),
+	enemy.apply_scaling(run_state.enemy_health_multiplier(treasure_room) * output_modifier,
 			run_state.enemy_damage_multiplier(elite, treasure_room),
 			run_state.enemy_pace_multiplier(), run_state.enemy_vulnerability_multiplier(elite))
 
@@ -354,7 +409,11 @@ func _start_victory() -> void:
 	if victory or mage.is_dead():
 		return
 	victory = true
-	unlocked_tier = ProgressionStore.instance(get_tree()).record_victory(run_state.difficulty)
+	if not _victory_recorded and not run_state.is_replay:
+		# The first boss kill completes the run for difficulty unlocks.
+		_victory_recorded = true
+		unlocked_tier = ProgressionStore.instance(get_tree()).record_victory(run_state.difficulty)
+	_record_progress()
 	mage.end_run()
 	_clear_projectiles()
 	victory_started.emit()
@@ -375,7 +434,52 @@ func _open_victory_overlay() -> void:
 		_victory_overlay.open(self)
 
 
-## RunState only emits this once per run.
+## Starts the next dungeon level after the boss relic was chosen. Returns false
+## (changing nothing) unless the boss is dead, its relic was chosen and no
+## level change is under way, so it cannot run twice per boss.
+func advance_level() -> bool:
+	if _level_changing or not victory or mage.is_dead() or not run_state.begin_next_level():
+		return false
+	_level_changing = true
+	_transitioning = false
+	if current_room:
+		remove_child(current_room)
+	for room: Room in _room_cache.values():
+		room.queue_free()
+	_room_cache.clear()
+	current_room = null
+	current_index = -1
+	final_anvil = null
+	victory = false
+	_clear_projectiles()
+	mage.resume_run()
+	mage.health.increase_max_health(0.0, mage.health.max_health)
+	_reach_time = run_state.run_time
+	_record_progress()
+	enter_room(start_room)
+	var level := run_state.dungeon_level
+	var text := "Level %d" % level
+	if Biomes.is_transition(level):
+		text += " - entering %s!" % Biomes.biome_name(level)
+	_run_hud.show_message(text)
+	_level_changing = false
+	level_started.emit(level)
+	return true
+
+
+## Saves run progress (highest level, best run); replay runs save nothing.
+func _record_progress() -> void:
+	if run_state.is_replay:
+		return
+	ProgressionStore.instance(get_tree()).record_run(_run_id, run_state.dungeon_level, run_state.run_time,
+			_reach_time, run_state.difficulty, Biomes.biome_id(run_state.dungeon_level))
+
+
+func _on_mage_died() -> void:
+	_record_progress()
+
+
+## RunState only emits this once per boss.
 func _on_relic_chosen(id: StringName) -> void:
 	var bonus: float = RunState.RELICS[id].get("max_health", 0.0)
 	if bonus > 0.0:
@@ -387,7 +491,7 @@ func _on_leveled_up(new_level: int) -> void:
 	if current_index >= 0:
 		_update_level_gates(current_index)
 	map_changed.emit()
-	var unlocked := rooms.filter(func(r: RoomSpec) -> bool: return r.required_level == new_level)
+	var unlocked := rooms.filter(func(r: RoomSpec) -> bool: return run_state.room_gate(r.required_level, r.is_boss) == new_level)
 	if unlocked.any(func(r: RoomSpec) -> bool: return r.is_boss):
 		_run_hud.show_message("Level %d! The boss gate is open." % new_level)
 	elif not unlocked.is_empty():
@@ -404,11 +508,15 @@ func _update_level_gates(index: int) -> void:
 		if not _link_map.has(key):
 			continue
 		var target: RoomSpec = rooms[_link_map[key][0]]
-		door.level_locked = run_state.level < target.required_level
-		door.lock_label = ("BOSS Lv %d" if target.is_boss else "Lv %d") % target.required_level
+		var gate := run_state.room_gate(target.required_level, target.is_boss)
+		door.level_locked = run_state.level < gate
+		door.lock_label = ("BOSS Lv %d" if target.is_boss else "Lv %d") % gate
 
 
 func _on_upgrade_purchased(id: StringName) -> void:
+	# Permanent upgrades (Twin Cast) are unlocked for all future runs, except by practice runs.
+	if RunState.UPGRADES[id].get("permanent", false) and not run_state.is_replay:
+		ProgressionStore.instance(get_tree()).unlock_upgrade(id)
 	var bonus: float = RunState.UPGRADES[id].get("max_health", 0.0)
 	if bonus > 0.0:
 		raise_max_health(bonus, bonus)
@@ -435,6 +543,7 @@ func _on_item_collected(id: StringName) -> void:
 ## Idempotent: recomputed from RunState, so bonuses never stack twice.
 func _apply_spell_modifiers() -> void:
 	mage.caster.set_modifiers(run_state.spell_damage_multiplier(), run_state.spell_cooldown_multiplier())
+	mage.caster.set_projectiles(run_state.projectile_count(), run_state.projectile_damage_factor())
 	mage.speed_multiplier = run_state.move_speed_multiplier()
 	mage.damage_taken_multiplier = run_state.damage_taken_multiplier()
 	mage.caster.momentum = run_state.cast_momentum()
