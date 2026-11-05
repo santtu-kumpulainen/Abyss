@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="1_enemy"]
+[ext_resource type="Script" path="res://scripts/enemies/ranged_enemy.gd" id="2_ranged"]
+[ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/blood_monster.tres" id="3_frames"]
+[ext_resource type="Resource" path="res://scenes/spells/water_bolt/water_bolt.tres" id="4_bolt"]
+[ext_resource type="Resource" path="res://scenes/effects/water_telegraph.tres" id="5_telegraph"]
+
+[node name="WaterCaster" instance=ExtResource("1_enemy")]
+script = ExtResource("2_ranged")
+projectile = ExtResource("4_bolt")
+projectile_damage = 8.0
+projectile_speed = 190.0
+retreat_distance = 160.0
+muzzle_offset = Vector2(0, -24)
+telegraph_time = 0.4
+telegraph_effect = ExtResource("5_telegraph")
+speed = 60.0
+attack_range = 280.0
+attack_cooldown = 1.8
+xp_reward = 2
+currency_reward = 10
+sprite_frames = ExtResource("3_frames")
+sprite_scale = 2.2
+side_view = true
+
+[node name="AnimatedSprite2D" parent="." index="0"]
+self_modulate = Color(0.45, 0.75, 1, 1)
+texture_filter = 1
+scale = Vector2(2.2, 2.2)
+sprite_frames = ExtResource("3_frames")
+animation = &"idle"
+offset = Vector2(0, -10)

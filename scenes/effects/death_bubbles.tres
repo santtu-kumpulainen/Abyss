@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="EffectSheet" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_sheet.gd" id="1_sheet"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/spells/Free Pixel Effects Pack/20_magicbubbles_spritesheet.png" id="2_tex"]
+
+[resource]
+script = ExtResource("1_sheet")
+texture = ExtResource("2_tex")
+columns = 8
+first_frame = 0
+frame_count = 61
+fps = 80.0
+scale = 0.6
+tint = Color(1, 1, 1, 1)

@@ -22,6 +22,11 @@ extends Resource
 ## Direction the source art points, in degrees (0 = right, 180 = left).
 @export var art_angle_degrees: float = 0.0
 
+@export_group("Effects")
+## Played at the caster when the spell is cast / where a projectile hits.
+@export var cast_effect: EffectSheet
+@export var impact_effect: EffectSheet
+
 @export_group("Stats")
 @export var damage: float = 10.0
 ## Pixels per second.

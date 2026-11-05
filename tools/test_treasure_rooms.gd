@@ -92,7 +92,7 @@ func _test_survival() -> void:
 	var t0 := room.time_left()
 	await _wait_until(func() -> bool: return room.time_left() < t0 - 0.05)
 	_check(room.time_left() < t0 and room.time_left() > room.duration - 5.0, "timer counts down (%.2f s left)" % room.time_left())
-	_check(_hud_text().begins_with("Survive ") and _hud_text().contains("Wave 1/4"), "HUD shows timer and wave (%s)" % _hud_text())
+	_check(_hud_text().begins_with("Defeat all waves") and _hud_text().contains("Wave 1/4") and _hud_text().contains("Time "), "HUD shows timer and wave (%s)" % _hud_text())
 
 	_check(room.wave_sizes == PackedInt32Array([3, 4, 5, 6]) and room.wave_enemies.size() == 18, "waves escalate 3/4/5/6 (18 enemies)")
 
@@ -124,20 +124,13 @@ func _test_survival() -> void:
 	_check(_hud_text().contains("Wave 4/4"), "HUD tracks the wave (%s)" % _hud_text())
 	_check(room._spawned_enemies == 18, "all 18 wave enemies spawned once")
 
-	# All waves cleared early: survive until the timer runs out.
+	# All waves cleared early: the trial ends at once, the timer is display-only.
 	await _kill_all(room)
 	await _frames(2)
-	_check(room.all_waves_cleared() and room.state == Room.State.COMBAT and room.time_left() > 0.0 and _all_locked(room)
-			and room.waves_spawned == 4, "all waves cleared before time: trial still running, exits locked")
-	_check(_hud_text().begins_with("All waves cleared - survive until time runs out"), "HUD explains the wait (%s)" % _hud_text())
-	_check(room.time_left() < t_before, "timer kept counting during the waves")
-	var t1 := room.time_left()
-	await _wait_until(func() -> bool: return room.time_left() < t1 - 0.05)
-	_check(room.time_left() < t1, "timer keeps counting between waves")
-	room._advance(room.duration)
-	await _frames(1)
+	_check(room.all_waves_cleared() and room.waves_spawned == 4 and room.time_left() > 0.0 and room.time_left() < t_before,
+			"all waves cleared with time left (%.0f s)" % room.time_left())
 	_check(room.state == Room.State.CLEARED and room.can_exit() and _door(room, &"DoorLeft").is_open(),
-			"timer over + enemies cleared completes the trial and unlocks the exit")
+			"clearing the last wave completes the trial immediately and unlocks the exit")
 	_check(_dungeon.is_cleared(index) and _map().marker_color(index) != _map().survival_color, "minimap shows the trial as completed")
 	_check(_hud_text() == "Trial complete! Open the chest", "HUD points at the chest (%s)" % _hud_text())
 
@@ -245,7 +238,7 @@ func _test_restart() -> void:
 	survival._advance(survival.duration)
 	_check(survival.time_left() == 0.0 and survival.waves_spawned == 1 and survival.state == Room.State.COMBAT,
 			"timer over during wave 1: trial not complete")
-	_check(_hud_text().begins_with("Time's up! Defeat the remaining waves"), "HUD asks for the remaining waves (%s)" % _hud_text())
+	_check(_hud_text().begins_with("Defeat all waves") and _hud_text().contains("Time 0:00"), "HUD keeps asking for the remaining waves (%s)" % _hud_text())
 	await _kill_all(survival)
 	await _wait_until(func() -> bool: return survival.waves_spawned == 2)
 	_check(survival.waves_spawned == 2 and survival.state == Room.State.COMBAT, "after time is up, the next wave still spawns")
