@@ -1,7 +1,7 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://c3ctnsbjq0sve"]
 
-[ext_resource type="Script" path="res://scripts/enemies/enemy.gd" id="1_enemy"]
-[ext_resource type="Script" path="res://scripts/components/health.gd" id="2_health"]
+[ext_resource type="Script" uid="uid://bm0yftcur6vr" path="res://scripts/enemies/enemy.gd" id="1_enemy"]
+[ext_resource type="Script" uid="uid://2fp02idn6wvx" path="res://scripts/components/health.gd" id="2_health"]
 [ext_resource type="PackedScene" path="res://scenes/ui/health_bar.tscn" id="3_health_bar"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_feet"]
@@ -11,34 +11,34 @@ radius = 12.0
 radius = 16.0
 height = 56.0
 
-[node name="Enemy" type="CharacterBody2D" groups=["enemies"]]
+[node name="Enemy" type="CharacterBody2D" unique_id=756562260 groups=["enemies"]]
 collision_layer = 4
 collision_mask = 7
 motion_mode = 1
 script = ExtResource("1_enemy")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=956072630]
 texture_filter = 4
 scale = Vector2(0.45, 0.45)
 offset = Vector2(0, -63)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2065637387]
 shape = SubResource("CircleShape2D_feet")
 
-[node name="Hurtbox" type="Area2D" parent="."]
+[node name="Hurtbox" type="Area2D" parent="." unique_id=1027977564]
 collision_layer = 4
 collision_mask = 0
 monitoring = false
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox" unique_id=258208376]
 position = Vector2(0, -28)
 shape = SubResource("CapsuleShape2D_body")
 
-[node name="Health" type="Node" parent="."]
+[node name="Health" type="Node" parent="." unique_id=2123741916]
 script = ExtResource("2_health")
 max_health = 50.0
 
-[node name="HealthBar" parent="." node_paths=PackedStringArray("health") instance=ExtResource("3_health_bar")]
+[node name="HealthBar" parent="." unique_id=1407607316 node_paths=PackedStringArray("health") instance=ExtResource("3_health_bar")]
 offset_left = -18.0
 offset_top = -72.0
 offset_right = 18.0
