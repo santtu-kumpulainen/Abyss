@@ -5,7 +5,7 @@ extends CharacterBody2D
 ## Combat and progression are handled in later Issues.
 
 ## Movement speed in pixels per second.
-@export var speed: float = 130.0
+@export var speed: float = 145.0
 
 ## Animation set for the current visual level (see scenes/player/sprite_frames/).
 @export var sprite_frames: SpriteFrames:

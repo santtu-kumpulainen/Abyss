@@ -10,13 +10,13 @@ extends CharacterBody2D
 signal died
 
 ## Movement speed in pixels per second.
-@export var speed: float = 80.0
+@export var speed: float = 95.0
 ## Distance at which the enemy notices a target.
 @export var detection_radius: float = 260.0
 ## Distance (between origins) at which the enemy stops and attacks.
-@export var attack_range: float = 28.0
+@export var attack_range: float = 32.0
 ## Damage dealt per contact attack.
-@export var contact_damage: float = 10.0
+@export var contact_damage: float = 12.0
 ## Seconds between contact attacks.
 @export var attack_cooldown: float = 1.0
 ## Group searched for targets.
