@@ -179,6 +179,7 @@ func _test_dungeon_integration() -> void:
 	change_scene_to_file(DUNGEON_SCENE)
 	await _wait_for_scene(scene_id)
 	var dungeon := current_scene as Dungeon
+	dungeon.run_state.xp_multiplier_override = 1.0
 	dungeon.enter_room(CAVE, &"DoorBottom")
 	await _frames(2)
 	var cave := dungeon.current_room

@@ -42,8 +42,14 @@ func run_info_text() -> String:
 	var dungeon := get_parent() as Dungeon
 	if dungeon == null:
 		return ""
-	return "Difficulty: %s   Pact: %s\nDefeat the Abyss Warden to unlock the next difficulty." % [
-		Difficulty.display_name(dungeon.run_state.difficulty), Pacts.pact_name(dungeon.run_state.pact)]
+	var run := dungeon.run_state
+	var text := "Reached Level %d (%s) in %s\nDifficulty: %s   Pact: %s\n" % [run.dungeon_level,
+			Biomes.biome_name(run.dungeon_level), RunState.format_time(run.run_time),
+			Difficulty.display_name(run.difficulty), Pacts.pact_name(run.pact)]
+	if run.is_replay:
+		return text + "Practice run: records and unlocks are not affected."
+	return text + "Best run: %s\nDefeat the Abyss Warden to unlock the next difficulty." % \
+			ProgressionStore.instance(get_tree()).best_run_text()
 
 
 func _on_player_died() -> void:

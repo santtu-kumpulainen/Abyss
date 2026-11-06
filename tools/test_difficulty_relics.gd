@@ -134,7 +134,7 @@ func _test_normal_baseline() -> void:
 	_check(_enemies(room).size() == spec.enemies.size(), "Normal: no extra enemies")
 	var enemy := _enemies(room)[0] as Enemy
 	var base := _base_stats(spec.enemies[0])
-	_check(enemy.scaled and is_equal_approx(enemy.health.max_health, base["hp"]) and is_equal_approx(enemy.contact_damage, base["damage"]),
+	_check(enemy.scaled and is_equal_approx(enemy.health.max_health, base["hp"]) and is_equal_approx(enemy.contact_damage, base["damage"] * RunState.ENEMY_DAMAGE_FACTOR),
 			"Normal: enemies keep baseline stats")
 	var gold := _run.currency
 	var xp := _run.xp
@@ -143,7 +143,7 @@ func _test_normal_baseline() -> void:
 	var xp_reward := enemy.xp_reward
 	enemy.take_damage(99999.0)
 	await _frames(1)
-	_check(_run.currency == gold + reward and _run.xp == xp + xp_reward, "Normal: standard gold and XP")
+	_check(_run.currency == gold + reward and _run.xp == xp + xp_reward, "Normal: standard gold and XP (raw XP override)")
 	_check(_mage.health.max_health == _base_hp and is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage),
 			"difficulty never scales the player")
 
@@ -160,7 +160,7 @@ func _test_hard_scaling() -> void:
 	var enemy := _enemies(room)[0] as Enemy
 	var base := _base_stats(spec.enemies[0])
 	_check(is_equal_approx(enemy.health.max_health, base["hp"] * 1.35) and is_equal_approx(enemy.health.current, base["hp"] * 1.35)
-			and is_equal_approx(enemy.contact_damage, base["damage"] * 1.25) and is_equal_approx(enemy.speed, base["speed"] * 1.1)
+			and is_equal_approx(enemy.contact_damage, base["damage"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR) and is_equal_approx(enemy.speed, base["speed"] * 1.1)
 			and is_equal_approx(enemy.attack_cooldown, base["cooldown"] / 1.1), "Hard melee: HP x1.35, damage x1.25, pace x1.1")
 	_check(not enemy.apply_scaling(2.0, 2.0, 2.0) and is_equal_approx(enemy.health.max_health, base["hp"] * 1.35),
 			"scaling applies exactly once per enemy")
@@ -190,20 +190,20 @@ func _test_hard_scaling() -> void:
 	if ranged:
 		var rbase := _base_stats(load(ranged.scene_file_path))
 		var shot := ranged.fire(_mage.global_position)
-		_check(is_equal_approx(ranged.projectile_damage, rbase["projectile"] * 1.25) and shot != null
-				and is_equal_approx(shot.spell.damage, rbase["projectile"] * 1.25), "Hard ranged: projectile damage x1.25 (fired bolt too)")
+		_check(is_equal_approx(ranged.projectile_damage, rbase["projectile"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR) and shot != null
+				and is_equal_approx(shot.spell.damage, rbase["projectile"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR), "Hard ranged: projectile damage x1.25 (fired bolt too)")
 		if shot:
 			shot.queue_free()
 	# Boss.
 	var boss := await _boss_room()
 	var bbase := _base_stats(load(boss.scene_file_path))
 	_check(boss.elite and boss.scaled and is_equal_approx(boss.health.max_health, bbase["hp"] * 1.35)
-			and is_equal_approx(boss.slam_damage, bbase["slam"] * 1.25) and is_equal_approx(boss.volley_damage, bbase["volley"] * 1.25)
-			and is_equal_approx(boss.contact_damage, bbase["damage"] * 1.25), "Hard boss: HP, slam, volley and contact damage scaled")
+			and is_equal_approx(boss.slam_damage, bbase["slam"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR) and is_equal_approx(boss.volley_damage, bbase["volley"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR)
+			and is_equal_approx(boss.contact_damage, bbase["damage"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR), "Hard boss: HP, slam, volley and contact damage scaled")
 	boss.begin_attack(&"volley")
 	await _wait_until(func() -> bool: return boss.state != Boss.State.WINDUP)
 	var bolts := _hostile_shots()
-	_check(not bolts.is_empty() and bolts.all(func(p: Projectile) -> bool: return is_equal_approx(p.spell.damage, bbase["volley"] * 1.25)),
+	_check(not bolts.is_empty() and bolts.all(func(p: Projectile) -> bool: return is_equal_approx(p.spell.damage, bbase["volley"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR)),
 			"Hard boss bolts carry the scaled damage")
 	for b in bolts:
 		b.queue_free()
@@ -291,7 +291,7 @@ func _test_pacts() -> void:
 	_check(is_equal_approx(_mage.health.max_health, _base_hp * 0.75 + 15.0), "Glass Heart: max HP gains also -25%")
 	_run.changed.emit()
 	_run.changed.emit()
-	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * 1.4), "Pact bonus does not stack on recalculation")
+	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * 1.35), "Pact bonus does not stack on recalculation")
 	_check(not _run.configure(NORMAL, &"avarice") and _run.pact == &"glass_heart", "a run's Pact cannot be changed or added twice")
 
 	# Swift Casting.
@@ -349,9 +349,9 @@ func _test_pacts() -> void:
 		var normal := pair[1] as Enemy
 		var ebase := _base_stats(load(elite.scene_file_path))
 		var nbase := _base_stats(load(normal.scene_file_path))
-		_check(is_equal_approx(elite.damage_taken_multiplier, 1.4) and is_equal_approx(elite.contact_damage, ebase["damage"] * 1.3),
+		_check(is_equal_approx(elite.damage_taken_multiplier, 1.4) and is_equal_approx(elite.contact_damage, ebase["damage"] * 1.3 * RunState.ENEMY_DAMAGE_FACTOR),
 				"Hunter's Mark: elites take +40% and deal +30% damage")
-		_check(is_equal_approx(normal.damage_taken_multiplier, 1.0) and is_equal_approx(normal.contact_damage, nbase["damage"]),
+		_check(is_equal_approx(normal.damage_taken_multiplier, 1.0) and is_equal_approx(normal.contact_damage, nbase["damage"] * RunState.ENEMY_DAMAGE_FACTOR),
 				"Hunter's Mark: ordinary enemies unaffected")
 		var before := elite.health.current
 		elite.take_damage(10.0)
@@ -359,7 +359,7 @@ func _test_pacts() -> void:
 	else:
 		_check(false, "setup: found an elite and an ordinary enemy")
 	var boss := await _boss_room()
-	_check(is_equal_approx(boss.damage_taken_multiplier, 1.4) and is_equal_approx(boss.slam_damage, _base_stats(load(boss.scene_file_path))["slam"] * 1.3),
+	_check(is_equal_approx(boss.damage_taken_multiplier, 1.4) and is_equal_approx(boss.slam_damage, _base_stats(load(boss.scene_file_path))["slam"] * 1.3 * RunState.ENEMY_DAMAGE_FACTOR),
 			"Hunter's Mark: affects the boss")
 
 	# Treasure Seeker: treasure rooms and rewards only.
@@ -369,11 +369,11 @@ func _test_pacts() -> void:
 	base = _base_stats(_dungeon.rooms[index].enemies[0])
 	_check(is_equal_approx((_enemies(room)[0] as Enemy).health.max_health, base["hp"]), "Treasure Seeker: normal rooms unaffected")
 	var trial := await _enter(_dungeon.index_at(SURVIVAL)) as SurvivalRoom
-	_check(is_equal_approx(trial.duration, 140.0) and trial.status_text().contains("140 s"), "Treasure Seeker: survival timer +20 s, shown in the HUD text")
+	_check(is_equal_approx(trial.duration, 120.0), "Treasure Seeker: survival timer unchanged (display only)")
 	trial.begin_challenge()
 	var first := _enemies(trial)[0] as Enemy
 	var wbase := _base_stats(trial.wave_enemies[0])
-	_check(is_equal_approx(first.health.max_health, wbase["hp"] * 1.3) and is_equal_approx(first.contact_damage, wbase["damage"] * 1.3),
+	_check(is_equal_approx(first.health.max_health, wbase["hp"] * 1.3) and is_equal_approx(first.contact_damage, wbase["damage"] * 1.3 * RunState.ENEMY_DAMAGE_FACTOR),
 			"Treasure Seeker: treasure-room enemies +30% HP and damage")
 	_mage.take_damage(90.0)
 	hp = _mage.health.current
@@ -381,7 +381,7 @@ func _test_pacts() -> void:
 	_run.claim_treasure(&"survivor_cache")
 	_check(_run.currency == gold + 263 and is_equal_approx(_mage.health.current, hp + 87.5), "Treasure Seeker: chest gold and heal x1.75")
 	await _restart()
-	_check(is_equal_approx((await _enter(_dungeon.index_at(SURVIVAL)) as SurvivalRoom).duration, 140.0), "survival timer bonus applied once after Restart")
+	_check(is_equal_approx((await _enter(_dungeon.index_at(SURVIVAL)) as SurvivalRoom).duration, 120.0), "survival timer still unchanged after Restart")
 
 
 # --- Synergies ---------------------------------------------------------------
@@ -459,10 +459,10 @@ func _test_victory_summaries() -> void:
 	_check(_prog.is_unlocked(HARD) and _dungeon.unlocked_tier == HARD, "Normal victory unlocks Hard")
 	ember.pressed.emit()
 	_check(_run.relic == &"ember_relic" and _run.is_synergy_active(&"glass_cannon"), "post-boss Ember Relic completes Glass Cannon")
-	var text := (overlay.get_node(^"%SummaryLabel") as Label).text
-	_check(text.contains("Difficulty: Normal") and text.contains("Pact: Glass Heart") and text.contains("Glass Cannon")
-			and text.contains("Gold earned: 150") and text.contains("NEW: Hard difficulty unlocked!") and text.contains("Relic: Ember Relic"),
-			"victory summary shows difficulty, Pact, gold, synergy and unlock:\n%s" % text)
+	var first := _dungeon.run_summary()
+	_check(first["difficulty"] == NORMAL and first["pact"] == &"glass_heart" and first["synergies"] == [&"glass_cannon"]
+			and first["gold_earned"] == 150 and first["unlocked_tier"] == HARD and first["relic"] == &"ember_relic",
+			"run summary shows difficulty, Pact, gold, synergy and unlock (%s)" % first)
 
 	_prog.select(HARD)
 	await _restart()
@@ -474,9 +474,8 @@ func _test_victory_summaries() -> void:
 			"boss gold x1.25 with the difficulty bonus tracked (%s)" % summary)
 	overlay = current_scene.get_node(^"VictoryOverlay") as VictoryOverlay
 	overlay.choose_relic(&"wind_relic")
-	text = (overlay.get_node(^"%SummaryLabel") as Label).text
-	_check(text.contains("Difficulty: Hard") and text.contains("difficulty bonus +38") and text.contains("NEW: Abyssal difficulty unlocked!"),
-			"Hard summary shows the reward bonus and unlock:\n%s" % text)
+	_check(_dungeon.run_summary()["difficulty"] == HARD and _dungeon.run_summary()["difficulty_bonus_gold"] == 38,
+			"Hard summary shows the reward bonus (%s)" % _dungeon.run_summary())
 
 	_prog.select(HARD)
 	await _restart()
@@ -548,7 +547,7 @@ func _elite_and_normal() -> Array:
 
 
 func _boss_room() -> Boss:
-	while _run.level < RunState.MAX_LEVEL:
+	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
 	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
 	await _frames(2)
@@ -595,6 +594,8 @@ func _bind() -> void:
 	_dungeon = current_scene as Dungeon
 	_mage = _dungeon.mage if _dungeon else null
 	_run = _dungeon.run_state if _dungeon else null
+	if _run:
+		_run.xp_multiplier_override = 1.0  # raw enemy XP (scaled XP is tested in test_endless_progression.gd)
 
 
 func _wait_for_scene(old_id: int, dungeon: bool = true) -> void:

@@ -16,8 +16,7 @@ extends RefCounted
 ## Enemy-side keys (fixed for the run, applied once per enemy at spawn):
 ## enemy_health (all enemies), elite_vulnerability (damage elites take from
 ## the Mage), elite_damage (damage elites deal), treasure_enemy_health /
-## treasure_enemy_damage (treasure-room enemies only), survival_time (seconds
-## added to the survival trial).
+## treasure_enemy_damage (treasure-room enemies only).
 
 const PACTS := {
 	&"glass_heart": {
@@ -43,8 +42,8 @@ const PACTS := {
 	},
 	&"treasure_seeker": {
 		"name": "Treasure Seeker", "benefit": "Treasure chest gold and healing x1.75",
-		"drawback": "Treasure-room enemies +30% HP and damage; survival trial +20 s",
-		"treasure_reward": 0.75, "treasure_enemy_health": 0.3, "treasure_enemy_damage": 0.3, "survival_time": 20.0,
+		"drawback": "Treasure-room enemies +30% HP and damage",
+		"treasure_reward": 0.75, "treasure_enemy_health": 0.3, "treasure_enemy_damage": 0.3,
 	},
 }
 

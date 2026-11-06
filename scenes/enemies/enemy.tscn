@@ -4,6 +4,8 @@
 [ext_resource type="Script" uid="uid://2fp02idn6wvx" path="res://scripts/components/health.gd" id="2_health"]
 [ext_resource type="PackedScene" path="res://scenes/ui/health_bar.tscn" id="3_health_bar"]
 
+[ext_resource type="Resource" path="res://scenes/effects/death_bubbles.tres" id="4_death"]
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_feet"]
 radius = 12.0
 
@@ -16,6 +18,7 @@ collision_layer = 4
 collision_mask = 7
 motion_mode = 1
 script = ExtResource("1_enemy")
+death_effect = ExtResource("4_death")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=956072630]
 texture_filter = 4
