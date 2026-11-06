@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="Spell" format=3]
+[gd_resource type="Resource" script_class="Spell" format=3 uid="uid://cc2c3ho3s3ak6"]
 
-[ext_resource type="Script" path="res://scripts/spells/spell.gd" id="1_spell"]
+[ext_resource type="Script" uid="uid://1mc7epk6mcu0" path="res://scripts/spells/spell.gd" id="1_spell"]
 [ext_resource type="PackedScene" path="res://scenes/spells/enemy_projectile.tscn" id="2_projectile"]
 [ext_resource type="SpriteFrames" path="res://scenes/spells/fire_ball/fire_ball_frames.tres" id="3_frames"]
 
