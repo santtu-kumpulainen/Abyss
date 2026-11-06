@@ -165,39 +165,46 @@ func _test_puzzle() -> void:
 	var room := _dungeon.current_room as RunePuzzleRoom
 	_check(room != null and room.state == Room.State.IDLE and room.can_exit() and _door(room, &"DoorRight").is_open(),
 			"rune room: no combat, exit open")
-	_check(room.sequence == PackedStringArray(["moon", "sun", "star"]) and room.get_rune("sun") and room.get_rune("moon")
-			and room.get_rune("star"), "three runes, fixed order Moon-Sun-Star")
+	var order := room.sequence
+	var a := order[0] if order.size() == 3 else "moon"
+	var b := order[1] if order.size() == 3 else "sun"
+	var c := order[2] if order.size() == 3 else "star"
+	var sorted := Array(order)
+	sorted.sort()
+	_check(sorted == ["moon", "star", "sun"] and room.get_rune("sun") and room.get_rune("moon") and room.get_rune("star")
+			and (room.get_node(^"Decor/Plaque") as Label).text == room.hint_text(order),
+			"three runes in a seeded order %s, the plaque gives that order" % order)
 	_check(_hud_text().begins_with("Rune puzzle") and _hud_text().contains("0/3"), "HUD explains the puzzle (%s)" % _hud_text())
 	_check(not room.chest.interact(), "chest sealed before solving")
 
 	# Wrong first rune.
-	_check(not room.activate("sun") and room.progress == 0 and room.mistakes == 1, "wrong first rune is rejected")
-	_check(room.get_rune("sun").wrong_flash > 0.0 and not room.get_rune("sun").lit, "wrong rune flashes red")
+	_check(not room.activate(b) and room.progress == 0 and room.mistakes == 1, "wrong first rune is rejected")
+	_check(room.get_rune(b).wrong_flash > 0.0 and not room.get_rune(b).lit, "wrong rune flashes red")
 	_check(_hud_text().begins_with("Wrong order"), "HUD reports the mistake (%s)" % _hud_text())
 	# Correct, then wrong: everything resets.
-	_check(room.activate("moon") and room.get_rune("moon").lit and room.progress == 1, "correct rune lights up")
-	_check(not room.activate("star") and room.progress == 0 and not room.get_rune("moon").lit and room.mistakes == 2,
+	_check(room.activate(a) and room.get_rune(a).lit and room.progress == 1, "correct rune lights up")
+	_check(not room.activate(c) and room.progress == 0 and not room.get_rune(a).lit and room.mistakes == 2,
 			"wrong rune after a correct one resets the sequence")
 	# A lit rune is ignored (no reset).
-	room.activate("moon")
-	_check(not room.activate("moon") and room.progress == 1 and room.mistakes == 2, "touching a lit rune again is ignored")
+	room.activate(a)
+	_check(not room.activate(a) and room.progress == 1 and room.mistakes == 2, "touching a lit rune again is ignored")
 
 	# Progress persists when leaving mid-sequence.
 	await _try_exit(room, &"DoorRight", &"move_right")
 	_check(_dungeon.current_index == _dungeon.index_at(PUZZLE_ENTRY), "Mage can leave the unsolved rune room")
 	_dungeon.enter_room(index, &"DoorRight")
 	await _frames(2)
-	_check(_dungeon.current_room == room and room.progress == 1 and room.get_rune("moon").lit, "partial progress kept on revisit")
+	_check(_dungeon.current_room == room and room.progress == 1 and room.get_rune(a).lit, "partial progress kept on revisit")
 
 	# Real "interact" press on the next rune.
-	_mage.global_position = room.get_rune("sun").global_position + Vector2(0, 36)
-	await _wait_until(func() -> bool: return room.get_rune("sun").player_near)
+	_mage.global_position = room.get_rune(b).global_position + Vector2(0, 36)
+	await _wait_until(func() -> bool: return room.get_rune(b).player_near)
 	_press_interact()
 	await _wait_until(func() -> bool: return room.progress == 2)
-	_check(room.progress == 2 and room.get_rune("sun").lit, "[E] at a rune activates it")
-	_check(room.activate("star") and room.is_solved() and room.state == Room.State.CLEARED, "correct full sequence solves the puzzle")
-	_check(room.get_rune("moon").solved and room.get_rune("sun").solved and room.get_rune("star").solved, "solved runes turn gold")
-	_check(not room.activate("sun") and room.progress == 3, "solved puzzle ignores further activations")
+	_check(room.progress == 2 and room.get_rune(b).lit, "[E] at a rune activates it")
+	_check(room.activate(c) and room.is_solved() and room.state == Room.State.CLEARED, "correct full sequence solves the puzzle")
+	_check(room.get_rune(a).solved and room.get_rune(b).solved and room.get_rune(c).solved, "solved runes turn gold")
+	_check(not room.activate(b) and room.progress == 3, "solved puzzle ignores further activations")
 	_check(_dungeon.is_cleared(index) and _map().marker_color(index) != _map().puzzle_color, "minimap shows the puzzle as completed")
 
 	var cooldown := _run.spell_cooldown_multiplier()

@@ -232,6 +232,7 @@ func _test_gates_and_refresh() -> void:
 	_check(_dungeon.gate_level(boss_i) == 4 and _dungeon.gate_level(boots_i) == 1 and _dungeon.gate_level(tier2) == 2,
 			"scene gates on level 1: tier 1 = Lv 1, tier 2 = Lv 2, boss = Lv 4")
 	_run.add_rewards(10000, 0)
+	_grant_seals()
 	_check(_run.level == 4 and _dungeon.can_enter(boss_i), "the boss opens at Lv 4")
 	# Build on level 1: boots (item) and Rune Sigil (treasure).
 	_dungeon.enter_room(boots_i, &"DoorRight")
@@ -251,6 +252,7 @@ func _test_gates_and_refresh() -> void:
 			"level 2: a high Mage level does not bypass the gates")
 	_check(_run.max_level() == 7 and not _run.is_max_level(), "the Mage cap rose to Lv 7")
 	_run.add_rewards(10000, 0)
+	_grant_seals()
 	_check(_run.level == 7 and _dungeon.can_enter(boss_i), "level 2: the boss opens at Lv 7")
 	# Pickup and chests refresh on level 2.
 	_dungeon.enter_room(boots_i, &"DoorRight")
@@ -337,7 +339,8 @@ func _test_practice_start() -> void:
 func _first_room_with_level(level: int) -> int:
 	for i in _dungeon.rooms.size():
 		var spec := _dungeon.rooms[i]
-		if spec.required_level == level and not spec.is_boss and not spec.is_treasure() and not spec.enemies.is_empty():
+		# Miniboss rooms replace their line-up and get no extras (test_minibosses.gd).
+		if spec.required_level == level and not spec.is_boss and not spec.is_treasure() and not spec.enemies.is_empty() and _dungeon.miniboss_scene(i) == null:
 			return i
 	return -1
 
@@ -363,6 +366,7 @@ func _load_scene() -> void:
 func _win_fast() -> void:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
+	_grant_seals()
 	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
 	await _frames(2)
 	for e in _dungeon.current_room.get_node(^"Enemies").get_children():
@@ -411,3 +415,9 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Ancient Seals (Issue #43): the boss gate also needs this level's seals; collect them all.
+func _grant_seals() -> void:
+	for i: int in _dungeon.seal_rooms():
+		_run.collect_seal(_dungeon.seal_id(i))
