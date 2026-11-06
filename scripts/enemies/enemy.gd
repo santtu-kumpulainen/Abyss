@@ -57,6 +57,8 @@ var target: Node2D
 var scaled := false
 ## Multiplier on damage taken (set by apply_scaling()).
 var damage_taken_multiplier := 1.0
+## Summoned mid-fight (e.g. by a Miniboss): grants no XP, gold or kill heal.
+var summoned := false
 
 var _attack_cooldown_left := 0.0
 
