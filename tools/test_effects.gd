@@ -118,6 +118,7 @@ func _test_enemy_death() -> void:
 
 func _test_boss_telegraph() -> void:
 	_run.add_rewards(100000, 0)
+	_grant_seals()
 	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
 	await _frames(2)
 	var boss: Boss = null
@@ -211,3 +212,9 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Ancient Seals (Issue #43): the boss gate also needs this level's seals; collect them all.
+func _grant_seals() -> void:
+	for i: int in _dungeon.seal_rooms():
+		_run.collect_seal(_dungeon.seal_id(i))

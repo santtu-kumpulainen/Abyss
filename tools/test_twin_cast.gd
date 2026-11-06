@@ -249,6 +249,7 @@ func _test_boss_bolts() -> void:
 	_prog.clear_progress()
 	await _load_scene()
 	_run.add_rewards(100000, 0)
+	_grant_seals()
 	var boss_room := await _enter(_dungeon.index_at(BOSS))
 	var boss: Boss = null
 	for e in boss_room.get_node(^"Enemies").get_children():
@@ -303,7 +304,7 @@ func _boss_bolt_hit(boss: Boss) -> float:
 func _ranged_shot() -> Projectile:
 	for i in _dungeon.rooms.size():
 		var spec := _dungeon.rooms[i]
-		if not spec.is_boss and spec.enemies.any(func(s: PackedScene) -> bool: return s.resource_path.ends_with("demon_caster.tscn")):
+		if not spec.is_boss and _dungeon.room_lineup(i).any(func(s: PackedScene) -> bool: return s.resource_path.ends_with("demon_caster.tscn")):
 			var room := await _enter(i)
 			for e in room.get_node(^"Enemies").get_children():
 				if e is RangedEnemy:
@@ -349,7 +350,12 @@ func _test_enemy_damage_scene() -> void:
 	await _load_scene()
 	var goblin := _stats("res://scenes/enemies/giant_goblin.tscn")
 	var room := await _enter(_dungeon.index_at(GOBLIN_ROOM))
+	# Spawn order is seeded (EncounterPlanner): check the room's first goblin.
 	var enemy := room.get_node(^"Enemies").get_child(0) as Enemy
+	for child in room.get_node(^"Enemies").get_children():
+		if child.scene_file_path.ends_with("giant_goblin.tscn"):
+			enemy = child as Enemy
+			break
 	_check(is_equal_approx(enemy.contact_damage, goblin["damage"] * 1.10), "a regular enemy deals 10%% more (%.2f -> %.2f)" % [goblin["damage"], enemy.contact_damage])
 	_check(is_equal_approx(enemy.health.max_health, goblin["hp"]) and is_equal_approx(enemy.speed, goblin["speed"])
 			and is_equal_approx(enemy.attack_cooldown, goblin["cooldown"]) and enemy.xp_reward == goblin["xp"] and enemy.currency_reward == goblin["gold"],
@@ -359,7 +365,8 @@ func _test_enemy_damage_scene() -> void:
 	caster_base.free()
 	var found: RangedEnemy = null
 	for i in _dungeon.rooms.size():
-		if _dungeon.rooms[i].enemies.any(func(s: PackedScene) -> bool: return s.resource_path.ends_with("demon_caster.tscn")) and not _dungeon.rooms[i].is_boss:
+		# The run's planned line-up (EncounterPlanner may swap casters out of an authored room).
+		if _dungeon.room_lineup(i).any(func(s: PackedScene) -> bool: return s.resource_path.ends_with("demon_caster.tscn")) and not _dungeon.rooms[i].is_boss:
 			var r := await _enter(i)
 			for e in r.get_node(^"Enemies").get_children():
 				if e is RangedEnemy:
@@ -368,6 +375,7 @@ func _test_enemy_damage_scene() -> void:
 			break
 	_check(found != null and is_equal_approx(found.projectile_damage, caster_damage * 1.10), "a ranged enemy's projectile deals 10%% more (%.2f)" % (found.projectile_damage if found else -1.0))
 	var boss_base := (load(_dungeon.rooms[_dungeon.index_at(BOSS)].scene.resource_path) as PackedScene)
+	_grant_seals()
 	var boss_room := await _enter(_dungeon.index_at(BOSS))
 	var boss: Boss = null
 	for e in boss_room.get_node(^"Enemies").get_children():
@@ -427,3 +435,9 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Ancient Seals (Issue #43): the boss gate also needs this level's seals; collect them all.
+func _grant_seals() -> void:
+	for i: int in _dungeon.seal_rooms():
+		_run.collect_seal(_dungeon.seal_id(i))

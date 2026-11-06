@@ -101,6 +101,17 @@ func add_extra_enemies(scenes: Array[PackedScene], count: int, used: int, min_do
 	return added
 
 
+## Adds `enemy` (not yet in the tree) to the running encounter at global `pos`,
+## e.g. a miniboss summon. It is registered like any encounter enemy (counted for
+## the clear, scaled by the Dungeon through enemy_registered) and active at once
+## while the room is in COMBAT.
+func add_summoned_enemy(enemy: Enemy, pos: Vector2) -> void:
+	enemy.detection_radius = spawn_detection_radius
+	_enemy_container.add_child(enemy, true)
+	enemy.global_position = pos
+	_register_enemy(enemy, state == State.COMBAT)
+
+
 ## Positions (room coordinates) of the SpawnPoints from index `used` on that are
 ## at least `min_door_distance` from every door: where extra enemies may spawn.
 func safe_extra_points(used: int, min_door_distance: float = 180.0) -> Array[Vector2]:

@@ -6,8 +6,13 @@ extends Area2D
 ## run. Collected pickups free themselves and never reappear, even in cached
 ## rooms. Inert until the Dungeon assigns `run_state`. Drawn as a glowing gem
 ## in the item's colour, so no extra art is needed.
+## Reward choices: pickups sharing a non-empty `choice_group` under the same
+## parent are alternatives (e.g. a miniboss's pick-1-of-2); collecting one
+## removes the others for good (the cached room never restores them).
 
 @export var item_id: StringName
+## Pickups with the same group under one parent are mutually exclusive.
+@export var choice_group: StringName = &""
 
 var run_state: RunState:
 	set(value):
@@ -33,6 +38,9 @@ func _ready() -> void:
 		_room.state_changed.connect(func(_state: Room.State) -> void: _refresh())
 	if RunState.ITEMS.has(item_id):
 		_label.text = RunState.ITEMS[item_id]["name"]
+		if not choice_group.is_empty():
+			_label.text = "%s\n%s" % [_label.text, RunState.ITEMS[item_id]["effect"]]
+			_label.offset_top -= 18.0
 	else:
 		push_warning("ItemPickup: unknown item id '%s'" % item_id)
 	_refresh()
@@ -41,7 +49,7 @@ func _ready() -> void:
 ## True while the item can be picked up.
 func is_active() -> bool:
 	return run_state != null and RunState.ITEMS.has(item_id) and run_state.can_collect(item_id) \
-		and (_room == null or _room.state == Room.State.CLEARED)
+		and not is_queued_for_deletion() and (_room == null or _room.state == Room.State.CLEARED)
 
 
 func _physics_process(delta: float) -> void:
@@ -59,8 +67,23 @@ func _physics_process(delta: float) -> void:
 func collect() -> bool:
 	if not is_active() or not run_state.collect_item(item_id):
 		return false
+	if not choice_group.is_empty():
+		for node in alternatives():
+			node.queue_free()
 	queue_free()
 	return true
+
+
+## Other pickups of this pickup's choice group (empty without a group).
+func alternatives() -> Array[ItemPickup]:
+	var result: Array[ItemPickup] = []
+	if choice_group.is_empty() or get_parent() == null:
+		return result
+	for node in get_parent().get_children():
+		if node != self and node is ItemPickup and (node as ItemPickup).choice_group == choice_group \
+				and not node.is_queued_for_deletion():
+			result.append(node)
+	return result
 
 
 func _refresh() -> void:
