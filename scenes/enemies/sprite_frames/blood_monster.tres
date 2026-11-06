@@ -1,7 +1,7 @@
-[gd_resource type="SpriteFrames" format=3]
+[gd_resource type="SpriteFrames" format=3 uid="uid://dxwqfkon2qllp"]
 
-[ext_resource type="Texture2D" path="res://assets/characters/enemies/Tiny RPG Character Asset Pack 02 -Free Demon_A&Blood Monster_A/Characters(100x100 split)/Blood Monster_A/Blood Monster_A with shadows/Blood Monster_A_Idle.png" id="1_fsmjn"]
-[ext_resource type="Texture2D" path="res://assets/characters/enemies/Tiny RPG Character Asset Pack 02 -Free Demon_A&Blood Monster_A/Characters(100x100 split)/Blood Monster_A/Blood Monster_A with shadows/Blood Monster_A_Walk.png" id="2_52cgh"]
+[ext_resource type="Texture2D" uid="uid://c7j1ox5aa8577" path="res://assets/characters/enemies/Tiny RPG Character Asset Pack 02 -Free Demon_A&Blood Monster_A/Characters(100x100 split)/Blood Monster_A/Blood Monster_A with shadows/Blood Monster_A_Idle.png" id="1_fsmjn"]
+[ext_resource type="Texture2D" uid="uid://43iwswhwyyvx" path="res://assets/characters/enemies/Tiny RPG Character Asset Pack 02 -Free Demon_A&Blood Monster_A/Characters(100x100 split)/Blood Monster_A/Blood Monster_A with shadows/Blood Monster_A_Walk.png" id="2_52cgh"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_omhkd"]
 atlas = ExtResource("1_fsmjn")
