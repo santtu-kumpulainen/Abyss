@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="RoomTheme" format=3]
+[gd_resource type="Resource" script_class="RoomTheme" format=3 uid="uid://clf5h15tfnror"]
 
-[ext_resource type="Script" path="res://scripts/rooms/room_theme.gd" id="1_theme"]
-[ext_resource type="Texture2D" path="res://assets/environment/dungeon_objects/PNG/walls_floor.png" id="2_walls_floor"]
+[ext_resource type="Script" uid="uid://ooc0fkb52mnp" path="res://scripts/rooms/room_theme.gd" id="1_theme"]
+[ext_resource type="Texture2D" uid="uid://btv0b204yw2u0" path="res://assets/environment/dungeon_objects/PNG/walls_floor.png" id="2_walls_floor"]
 
 [resource]
 script = ExtResource("1_theme")
