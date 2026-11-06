@@ -1,9 +1,9 @@
-[gd_resource type="Resource" script_class="RoomTheme" format=3]
+[gd_resource type="Resource" script_class="RoomTheme" format=3 uid="uid://v3fdayno7n0j"]
 
-[ext_resource type="Script" path="res://scripts/rooms/room_theme.gd" id="1_theme"]
-[ext_resource type="Texture2D" path="res://assets/environment/dungeon_tileset/PNG/Ground.png" id="2_ground"]
-[ext_resource type="Texture2D" path="res://assets/environment/dungeon_objects/PNG/walls_floor.png" id="3_walls_floor"]
-[ext_resource type="Texture2D" path="res://assets/environment/dungeon_tileset/PNG/spots.png" id="4_spots"]
+[ext_resource type="Script" uid="uid://ooc0fkb52mnp" path="res://scripts/rooms/room_theme.gd" id="1_theme"]
+[ext_resource type="Texture2D" uid="uid://dv41nl2vaaqfn" path="res://assets/environment/dungeon_tileset/PNG/Ground.png" id="2_ground"]
+[ext_resource type="Texture2D" uid="uid://btv0b204yw2u0" path="res://assets/environment/dungeon_objects/PNG/walls_floor.png" id="3_walls_floor"]
+[ext_resource type="Texture2D" uid="uid://c2t1ie0g50rmu" path="res://assets/environment/dungeon_tileset/PNG/spots.png" id="4_spots"]
 
 [resource]
 script = ExtResource("1_theme")
