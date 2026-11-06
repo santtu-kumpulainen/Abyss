@@ -2,11 +2,11 @@ class_name UpgradeStation
 extends Node2D
 ## Anvil upgrade station. When the Mage (any "player" body) stands in
 ## "InteractArea", a prompt appears; "interact" (E) opens/closes the menu and
-## "upgrade_1".."upgrade_3" (1-3) buy RunState.UPGRADES in order. Each line
+## "upgrade_1".."upgrade_4" (1-4) buy RunState.UPGRADES in order. Each line
 ## shows the cost, required level and effect; RunState blocks purchases that
 ## are unaffordable or level-locked. Unavailable while its room is in combat. Inert until the Dungeon assigns `run_state`.
 
-const BUY_ACTIONS: Array[StringName] = [&"upgrade_1", &"upgrade_2", &"upgrade_3"]
+const BUY_ACTIONS: Array[StringName] = [&"upgrade_1", &"upgrade_2", &"upgrade_3", &"upgrade_4"]
 
 var run_state: RunState:
 	set(value):
@@ -81,8 +81,12 @@ func purchase(id: StringName) -> bool:
 	var ok := run_state.purchase(id)
 	if ok:
 		_message = "Bought %s!" % upgrade_name
+	elif run_state.upgrade_stacks(id) >= run_state.upgrade_max_stacks(id):
+		_message = ("%s is already unlocked." if run_state.is_permanent_upgrade(id) else "%s is at its maximum.") % upgrade_name
+	elif run_state.dungeon_level < run_state.upgrade_min_dungeon_level(id):
+		_message = "%s is sold from dungeon level %d." % [upgrade_name, run_state.upgrade_min_dungeon_level(id)]
 	elif run_state.is_purchased(id):
-		_message = "%s already owned." % upgrade_name
+		_message = "%s already bought this level." % upgrade_name
 	elif run_state.level < run_state.upgrade_level(id):
 		_message = "%s requires Lv %d." % [upgrade_name, run_state.upgrade_level(id)]
 	else:
@@ -120,13 +124,20 @@ func _refresh() -> void:
 		var data: Dictionary = RunState.UPGRADES[ids[i]]
 		var status := ""
 		var required := run_state.upgrade_level(ids[i])
-		if run_state.is_purchased(ids[i]):
-			status = "  [OWNED]"
+		var stacks := run_state.upgrade_stacks(ids[i])
+		var max_stacks := run_state.upgrade_max_stacks(ids[i])
+		if stacks >= max_stacks:
+			status = "  [UNLOCKED]" if run_state.is_permanent_upgrade(ids[i]) else "  [MAX]"
+		elif run_state.dungeon_level < run_state.upgrade_min_dungeon_level(ids[i]):
+			status = "  [from dungeon level %d]" % run_state.upgrade_min_dungeon_level(ids[i])
+		elif run_state.is_purchased(ids[i]):
+			status = "  [bought this level]"
 		elif run_state.level < required:
 			status = "  [requires Lv %d]" % required
 		elif run_state.currency < run_state.upgrade_cost(ids[i]):
 			status = "  [not enough gold]"
-		lines.append("[%d] %s - %d gold, Lv %d: %s%s" % [i + 1, data["name"], run_state.upgrade_cost(ids[i]), required, data["effect"], status])
+		lines.append("[%d] %s (%d/%d) - %d gold, Lv %d: %s%s" % [i + 1, data["name"], stacks, max_stacks,
+				run_state.upgrade_cost(ids[i]), required, data["effect"], status])
 	lines.append("")
-	lines.append(_message if not _message.is_empty() else "[1-3] Buy   [E] Close")
+	lines.append(_message if not _message.is_empty() else "[1-4] Buy   [E] Close")
 	_menu_label.text = "\n".join(lines)

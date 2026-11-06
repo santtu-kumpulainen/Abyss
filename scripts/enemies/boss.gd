@@ -47,6 +47,11 @@ const PHASE_FLASH_TIME := 0.6
 ## Spell used for the bolts (scene, art, collision radius, lifetime).
 @export var projectile: Spell
 @export var volley_damage: float = 10.0
+## Each volley / ring bolt that hits deals this fraction of the target's current
+## max HP (so it scales with Vitality, level-ups and items). It replaces
+## volley_damage on a hit and ignores difficulty, level, Pact and global enemy
+## damage multipliers; targets without a Health fall back to volley_damage.
+@export var volley_max_hp_fraction: float = 0.25
 @export var volley_speed: float = 230.0
 ## Bolts per volley in phases 1-3. Even counts leave a gap on the aim line.
 @export var volley_counts := PackedInt32Array([3, 5, 8])
@@ -57,6 +62,8 @@ const PHASE_FLASH_TIME := 0.6
 @export var volley_range: float = 560.0
 
 @export_group("Slam")
+## Ring shown over the slam radius while the slam winds up (optional).
+@export var slam_telegraph: EffectSheet
 @export var slam_damage: float = 22.0
 @export var slam_radius: float = 200.0
 ## The slam is only started when the target is this close.
@@ -177,6 +184,7 @@ func begin_attack(attack: StringName) -> bool:
 		&"slam":
 			_state_left = current_slam_windup()
 			_slam_left = slam_cooldown
+			PixelEffect.spawn(slam_telegraph, self, global_position, _state_left, slam_radius * 2.0)
 		_:
 			_state_left = volley_windup
 			_volley_left = volley_cooldown
@@ -272,6 +280,7 @@ func _fire(direction: Vector2) -> Projectile:
 		push_error("Boss: projectile_scene root is not a Projectile")
 		return null
 	shot.setup(_spell, direction, self)
+	shot.max_hp_fraction = volley_max_hp_fraction
 	var container: Node = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	container.add_child(shot)
 	shot.global_position = global_position + muzzle_offset

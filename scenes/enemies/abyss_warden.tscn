@@ -6,6 +6,8 @@
 [ext_resource type="Resource" path="res://scenes/spells/enemy_bolt/enemy_bolt.tres" id="4_bolt"]
 [ext_resource type="PackedScene" path="res://scenes/ui/health_bar.tscn" id="5_health_bar"]
 
+[ext_resource type="Resource" path="res://scenes/effects/slam_telegraph.tres" id="6_slam_fx"]
+
 [sub_resource type="CircleShape2D" id="CircleShape2D_boss_feet"]
 radius = 22.0
 
@@ -20,6 +22,7 @@ bg_color = Color(0.65, 0.2, 0.85, 1)
 script = ExtResource("2_boss")
 display_name = "Abyss Warden"
 projectile = ExtResource("4_bolt")
+slam_telegraph = ExtResource("6_slam_fx")
 speed = 55.0
 detection_radius = 900.0
 attack_range = 48.0

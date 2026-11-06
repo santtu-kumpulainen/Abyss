@@ -128,11 +128,11 @@ func _test_run_state_unit() -> void:
 	run.add_rewards(51, 0)  # 100 total: 50 -> Lv 2, 50 left (< 100)
 	_check(run.level == 2 and run.xp == 50 and levels == [2] and run.currency == 3,
 			"RunState: level-up carries leftover XP (Lv %d, XP %d, %s)" % [run.level, run.xp, levels])
-	run.add_rewards(500, 0)  # Lv 3 is the cap: excess XP is discarded, no Lv 4+
-	_check(run.level == 3 and run.xp == 0 and levels == [2, 3] and run.is_max_level(),
-			"RunState: capped at Lv 3, excess XP discarded (Lv %d, XP %d, %s)" % [run.level, run.xp, levels])
+	run.add_rewards(500, 0)  # Lv 4 is the dungeon level 1 cap: excess XP is discarded
+	_check(run.level == 4 and run.xp == 0 and levels == [2, 3, 4] and run.is_max_level(),
+			"RunState: capped at Lv 4, excess XP discarded (Lv %d, XP %d, %s)" % [run.level, run.xp, levels])
 	run.add_rewards(999, 0)
-	_check(run.level == 3 and run.xp == 0 and levels == [2, 3], "RunState: more XP at cap emits no level-up")
+	_check(run.level == 4 and run.xp == 0 and levels == [2, 3, 4], "RunState: more XP at cap emits no level-up")
 	run.reset()
 	_check(run.level == 1 and run.xp == 0 and run.currency == 0, "RunState: reset() clears progression")
 	run.free()
@@ -142,6 +142,7 @@ func _bind() -> void:
 	_dungeon = current_scene as Dungeon
 	_mage = _dungeon.mage
 	_run = _dungeon.run_state
+	_run.xp_multiplier_override = 1.0  # these checks use the raw enemy XP values
 
 
 func _kill_all(room: Room) -> void:

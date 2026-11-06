@@ -46,9 +46,9 @@ func _run_tests() -> void:
 	station.set_open(true)
 	_check(station.is_open and (station.get_node(^"Menu") as CanvasLayer).visible, "menu opens near the station")
 	var menu_text := (station.get_node(^"Menu/Panel/MenuLabel") as Label).text
-	_check(menu_text.contains("Lv 1   Gold 0") and menu_text.contains("Vitality - 100 gold, Lv 1: +20 max HP")
-			and menu_text.contains("Quick Cast - 250 gold, Lv 2: -20% spell cooldown  [requires Lv 2]")
-			and menu_text.contains("Ember Core - 450 gold, Lv 3: +40% spell damage  [requires Lv 3]"),
+	_check(menu_text.contains("Lv 1   Gold 0") and menu_text.contains("Vitality (0/3) - 100 gold, Lv 1: +20 max HP per stack")
+			and menu_text.contains("Quick Cast (0/3) - 200 gold, Lv 2: -5% spell cooldown per stack  [requires Lv 2]")
+			and menu_text.contains("Ember Core (0/3) - 300 gold, Lv 3: +25% spell damage per stack  [requires Lv 3]"),
 			"menu lists gold, upgrade names, costs, required levels and effects")
 	_check(not station.purchase(&"vitality") and _run.currency == 0 and not _run.is_purchased(&"vitality")
 			and is_equal_approx(_mage.health.max_health, base_max_hp), "insufficient gold blocks purchase")
@@ -61,7 +61,7 @@ func _run_tests() -> void:
 	_check(is_equal_approx(_mage.health.max_health, base_max_hp + 20.0) and is_equal_approx(_mage.health.current, hp_before + 20.0),
 			"Vitality: +20 max HP and +20 HP")
 	_check(not station.purchase(&"vitality") and _run.currency == 900 and is_equal_approx(_mage.health.max_health, base_max_hp + 20.0),
-			"one-time upgrade cannot be bought again")
+			"an upgrade cannot be bought twice on one dungeon level")
 	_check(not station.purchase(&"quick_cast") and not station.purchase(&"ember_core") and _run.currency == 900
 			and _run.purchased.size() == 1 and is_equal_approx(_cast_cooldown(), base_cooldown) and is_equal_approx(_cast_damage(), base_damage),
 			"Lv 1: Quick Cast (Lv 2) and Ember Core (Lv 3) blocked despite enough gold")
@@ -81,30 +81,30 @@ func _run_tests() -> void:
 	_run.add_rewards(_run.xp_to_next_level() - _run.xp, 0)
 	_check(levels_before == 1 and _run.level == 2 and is_equal_approx(_mage.health.max_health, base_max_hp + 40.0),
 			"Lv 2: +20 max HP (%.0f)" % _mage.health.max_health)
-	_check(is_equal_approx(_cast_damage(), base_damage * 1.1), "Lv 2: +10%% spell damage (%.2f)" % _cast_damage())
+	_check(is_equal_approx(_cast_damage(), base_damage * 1.05), "Lv 2: +5%% spell damage (%.2f)" % _cast_damage())
 	station.set_open(true)
-	_check(station.purchase(&"quick_cast") and _run.currency == gold_before - 250 and is_equal_approx(_cast_cooldown(), base_cooldown * 0.8),
-			"Lv 2: Quick Cast for 250 gold, -20%% cooldown (%.3f)" % _cast_cooldown())
-	_check(not station.purchase(&"ember_core") and _run.currency == gold_before - 250, "Lv 2: Ember Core still blocked")
+	_check(station.purchase(&"quick_cast") and _run.currency == gold_before - 200 and is_equal_approx(_cast_cooldown(), base_cooldown * 0.95),
+			"Lv 2: Quick Cast for 200 gold, -5%% cooldown (%.3f)" % _cast_cooldown())
+	_check(not station.purchase(&"ember_core") and _run.currency == gold_before - 200, "Lv 2: Ember Core still blocked")
 	_run.add_rewards(10000, 0)
-	_check(_run.level == 3 and _run.xp == 0 and is_equal_approx(_mage.health.max_health, base_max_hp + 60.0),
-			"Lv 3 cap: single extra level-up only (Lv %d, max HP %.0f)" % [_run.level, _mage.health.max_health])
-	_check(is_equal_approx(_cast_damage(), base_damage * 1.2), "Lv 3: +20%% level damage total (%.2f)" % _cast_damage())
-	_check(station.purchase(&"ember_core") and _run.currency == 215, "Lv 3: Ember Core for 450 gold (gold %d)" % _run.currency)
-	_check(is_equal_approx(_cast_damage(), base_damage * 1.6), "Ember Core: +40%% stacks with level bonus (%.2f)" % _cast_damage())
+	_check(_run.level == 4 and _run.xp == 0 and is_equal_approx(_mage.health.max_health, base_max_hp + 80.0),
+			"Lv 4 cap: no level-ups past the cap (Lv %d, max HP %.0f)" % [_run.level, _mage.health.max_health])
+	_check(is_equal_approx(_cast_damage(), base_damage * 1.15), "Lv 4: +15%% level damage total (%.2f)" % _cast_damage())
+	_check(station.purchase(&"ember_core") and _run.currency == 415, "Lv 4: Ember Core for 300 gold (gold %d)" % _run.currency)
+	_check(is_equal_approx(_cast_damage(), base_damage * 1.4), "Ember Core: +25%% stacks with level bonus (%.2f)" % _cast_damage())
 	_check(is_equal_approx(fire_ball.damage, base_damage) and is_equal_approx(fire_ball.cooldown, base_cooldown)
 			and _mage.caster.spell == fire_ball and _mage.caster.get_cast_spell() != fire_ball,
 			"shared Fire Ball resource is not modified")
 	var shot := _mage.caster.try_cast(_mage.caster.global_position + Vector2(0, -100))
-	_check(shot != null and is_equal_approx(shot.spell.damage, base_damage * 1.6), "cast projectile carries the upgraded damage")
+	_check(shot != null and is_equal_approx(shot.spell.damage, base_damage * 1.4), "cast projectile carries the upgraded damage")
 	_check(_mage.health.current <= _mage.health.max_health, "HP never exceeds max HP")
-	_check(_hud_text() == "Lv 3 (MAX)   Gold 215", "HUD shows max level (%s)" % _hud_text())
+	_check(_hud_text() == "Lv 4 (MAX)   Gold 415", "HUD shows max level (%s)" % _hud_text())
 
 	# --- Persistence across rooms ---
 	_dungeon.enter_room(CRYPT, &"DoorLeft")
 	await _frames(3)
-	_check(_run.level == 3 and _run.is_purchased(&"ember_core") and _run.currency == 215
-			and is_equal_approx(_mage.health.max_health, base_max_hp + 60.0) and is_equal_approx(_cast_damage(), base_damage * 1.6),
+	_check(_run.level == 4 and _run.is_purchased(&"ember_core") and _run.currency == 415
+			and is_equal_approx(_mage.health.max_health, base_max_hp + 80.0) and is_equal_approx(_cast_damage(), base_damage * 1.4),
 			"level, gold, upgrades and stats persist into the Crypt")
 	_check(not station.is_open and not station.is_usable(), "station is closed after leaving the Hall")
 

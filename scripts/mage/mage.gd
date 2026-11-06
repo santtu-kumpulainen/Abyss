@@ -89,6 +89,12 @@ func end_run() -> void:
 	_play(&"idle")
 
 
+## Undoes end_run() when the run continues on the next dungeon level.
+func resume_run() -> void:
+	invulnerable = false
+	set_physics_process(true)
+
+
 ## Maps a vector to one of the eight direction names.
 static func direction_name(v: Vector2) -> StringName:
 	return DIRECTIONS[wrapi(roundi(v.angle() / (PI / 4.0)), 0, DIRECTIONS.size())]

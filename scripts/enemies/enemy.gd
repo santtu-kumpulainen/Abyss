@@ -50,6 +50,9 @@ signal died
 ## Facing direction: "down", "left", "right" or "up".
 var facing: StringName = &"down"
 var target: Node2D
+## Played where this enemy dies (optional).
+@export var death_effect: EffectSheet
+
 ## True once apply_scaling() has run (it only works once per instance).
 var scaled := false
 ## Multiplier on damage taken (set by apply_scaling()).
@@ -157,5 +160,7 @@ func _flash() -> void:
 
 
 func _on_died() -> void:
+	# Not under the Enemies container (rooms count its children); the scene root outlives the room.
+	PixelEffect.spawn(death_effect, get_tree().current_scene if get_tree().current_scene else get_tree().root, global_position)
 	died.emit()
 	queue_free()

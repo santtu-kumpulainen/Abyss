@@ -27,6 +27,15 @@ var _spent := false
 @onready var _shape: CollisionShape2D = $CollisionShape2D
 
 
+## Multiplies the spell's damage for this projectile only (Twin Cast: 0.7); the
+## shared Spell resource is never changed.
+var damage_factor := 1.0
+## If > 0 and the victim has a `health` (Health), the hit deals this fraction of
+## the victim's CURRENT max HP instead of the spell's damage (boss bolts); no
+## other damage multiplier is applied to such a hit.
+var max_hp_fraction := 0.0
+
+
 ## Call before adding the projectile to the tree.
 func setup(p_spell: Spell, p_direction: Vector2, p_source: Node) -> void:
 	spell = p_spell
@@ -63,11 +72,21 @@ func _on_body_entered(body: Node) -> void:
 	if _spent or body == source or _is_friendly(body):
 		return
 	_spent = true
+	if spell.impact_effect:
+		PixelEffect.spawn(spell.impact_effect, get_parent(), global_position)
 	if body.has_method(&"take_damage"):
-		body.take_damage(spell.damage)
+		body.take_damage(_damage_for(body))
 		hit.emit(body)
 	set_deferred(&"monitoring", false)
 	queue_free()
+
+
+func _damage_for(body: Node) -> float:
+	if max_hp_fraction > 0.0:
+		var victim_health = body.get(&"health")
+		if victim_health is Health:
+			return (victim_health as Health).max_health * max_hp_fraction
+	return spell.damage * damage_factor
 
 
 ## Hurtbox areas (e.g. an enemy's body-sized Area2D) count as hits on their parent.
