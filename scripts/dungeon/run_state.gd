@@ -24,10 +24,10 @@ extends Node
 ## optional treasure rooms are claimed once per run: their gold is added once,
 ## stat keys join the bonus sums and "heal" is applied by the owner.
 ##
-## Economy (current dungeon, full clear): tier-1 rooms (Lv 1) give ~56 XP and
-## ~246 gold, tier-2 rooms (Lv 2) ~114 XP and ~488 gold, so a Mage reaches the
-## boss with roughly 650-730 gold. All three upgrades cost 800 together: the
-## player can afford two of them, not everything.
+## Economy (current dungeon, full clear): tier-1 rooms (Lv 1) give 51 base XP and
+## ~225 gold, tier-2 rooms (Lv 2) 106 base XP and ~456 gold, so a full clear
+## pays ~680 gold plus the miniboss bonus gold. All three upgrades cost 800
+## together: the player can afford two of them, not everything.
 ##
 ## Run configuration: configure() sets the run's difficulty (Difficulty.TIERS)
 ## and Pact (Pacts.PACTS) once. Pact and active synergy (Pacts.SYNERGIES)
@@ -52,8 +52,8 @@ signal synergy_activated(id: StringName)
 signal seal_collected(id: StringName)
 
 ## Ancient Seals needed on every dungeon level to unseal the boss gate (on top
-## of the Mage level cap). The Dungeon registers more sources than this
-## (EncounterPlanner.MIN_SEAL_SOURCES), so one can be skipped.
+## of the Mage level cap). The Dungeon registers one more source than this
+## (EncounterPlanner.SEAL_SOURCES), so one can be skipped.
 const SEALS_REQUIRED := 3
 
 ## Most copies of one item / treasure that stack (counts persist across levels).

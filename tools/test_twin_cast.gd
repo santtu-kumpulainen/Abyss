@@ -10,9 +10,8 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
-const BOSS := Vector2i(2, 0)
-const GOBLIN_ROOM := Vector2i(0, 4)
 const NORMAL := Difficulty.Tier.NORMAL
 const HARD := Difficulty.Tier.HARD
 
@@ -36,6 +35,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	_prog = ProgressionStore.instance(self)
 	_prog.clear_progress()
 	_test_eligibility()
@@ -48,6 +48,7 @@ func _run_tests() -> void:
 	await _test_boss_bolts()
 	_prog.clear_progress()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -250,7 +251,7 @@ func _test_boss_bolts() -> void:
 	await _load_scene()
 	_run.add_rewards(100000, 0)
 	_grant_seals()
-	var boss_room := await _enter(_dungeon.index_at(BOSS))
+	var boss_room := await _enter(_dungeon.boss_index())
 	var boss: Boss = null
 	for e in boss_room.get_node(^"Enemies").get_children():
 		if e is Boss:
@@ -349,7 +350,7 @@ func _test_enemy_damage_scene() -> void:
 	_prog.clear_progress()  # an earlier test unlocked Twin Cast, which would add the output HP modifier
 	await _load_scene()
 	var goblin := _stats("res://scenes/enemies/giant_goblin.tscn")
-	var room := await _enter(_dungeon.index_at(GOBLIN_ROOM))
+	var room := await _enter(_dungeon.item_room_index(&"swift_boots"))
 	# Spawn order is seeded (EncounterPlanner): check the room's first goblin.
 	var enemy := room.get_node(^"Enemies").get_child(0) as Enemy
 	for child in room.get_node(^"Enemies").get_children():
@@ -366,7 +367,8 @@ func _test_enemy_damage_scene() -> void:
 	var found: RangedEnemy = null
 	for i in _dungeon.rooms.size():
 		# The run's planned line-up (EncounterPlanner may swap casters out of an authored room).
-		if _dungeon.room_lineup(i).any(func(s: PackedScene) -> bool: return s.resource_path.ends_with("demon_caster.tscn")) and not _dungeon.rooms[i].is_boss:
+		if _dungeon.room_lineup(i).any(func(s: PackedScene) -> bool: return s.resource_path.ends_with("demon_caster.tscn")) and not _dungeon.rooms[i].is_boss \
+				and _dungeon.miniboss_scene(i) == null:
 			var r := await _enter(i)
 			for e in r.get_node(^"Enemies").get_children():
 				if e is RangedEnemy:
@@ -374,9 +376,9 @@ func _test_enemy_damage_scene() -> void:
 					break
 			break
 	_check(found != null and is_equal_approx(found.projectile_damage, caster_damage * 1.10), "a ranged enemy's projectile deals 10%% more (%.2f)" % (found.projectile_damage if found else -1.0))
-	var boss_base := (load(_dungeon.rooms[_dungeon.index_at(BOSS)].scene.resource_path) as PackedScene)
+	var boss_base := (load(_dungeon.rooms[_dungeon.boss_index()].scene.resource_path) as PackedScene)
 	_grant_seals()
-	var boss_room := await _enter(_dungeon.index_at(BOSS))
+	var boss_room := await _enter(_dungeon.boss_index())
 	var boss: Boss = null
 	for e in boss_room.get_node(^"Enemies").get_children():
 		if e is Boss:
@@ -400,7 +402,7 @@ func _stats(path: String) -> Dictionary:
 
 
 func _enter(index: int) -> Room:
-	_dungeon.enter_room(index, &"DoorBottom")
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(2)
 	return _dungeon.current_room
 

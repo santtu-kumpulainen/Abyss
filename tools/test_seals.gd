@@ -1,11 +1,14 @@
 extends SceneTree
-## Headless check of the Ancient Seals objective (Issue #43, stage 2):
-## seal source planning (>= 4 sources for 1-3 miniboss rooms, both treasure
-## rooms, reachable before the boss, deterministic per seed), RunState seal
-## rules (known sources only, once per level), collecting seals in a combat seal
-## room and the rune puzzle (only after the room is complete), revisits, the
-## HUD objective, minimap markers, the boss gate (3 seals AND the Mage level
-## cap, door label), skipping one source, and the reset on the next level.
+## Headless check of the Ancient Seals objective (Issues #43 / #45):
+## seal source planning (exactly 4 sources for 1-3 miniboss rooms: both
+## treasure rooms + 2 miniboss rooms, champions only with fewer minibosses;
+## reachable before the boss, deterministic per seed), seeded safe seal
+## positions (same seed -> same spots, varied between seeds, clear of doors,
+## walls, obstacles, spawn points, enemies and pickups), RunState seal rules
+## (known sources only, once per level), collecting seals in a combat seal room
+## and the rune puzzle (only after the room is complete), revisits, the HUD
+## objective, no minimap seal markers, the boss gate (3 of 4 seals AND the Mage
+## level cap, door label), skipping one source, and the reset on the next level.
 ##
 ## Usage (after importing):
 ##   godot --headless --path . --script res://tools/test_seals.gd
@@ -13,9 +16,9 @@ extends SceneTree
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
-const BOSS := Vector2i(2, 0)
-const BOSS_ENTRY := Vector2i(2, 1)
 const SEEDS := 200
+## Seeds of the seal position checks (every seal room of each layout is built).
+const POSITION_SEEDS := 20
 
 var _failures := 0
 var _dungeon: Dungeon
@@ -39,6 +42,7 @@ func _run_tests() -> void:
 		_check(false, "dungeon scene loaded")
 	else:
 		_test_planning()
+		_test_seal_positions()
 		await _load()
 		await _test_combat_seal_and_revisit()
 		await _test_puzzle_seal()
@@ -75,9 +79,6 @@ func _test_run_state_rules() -> void:
 
 
 func _test_planning() -> void:
-	var anvil := _dungeon.index_at(_dungeon.final_anvil_cell)
-	var boss := _dungeon.index_at(BOSS)
-	var reachable := _reachable_without_boss()
 	for bosses in [1, 2, 3]:
 		_dungeon.miniboss_rooms = bosses
 		var ok := true
@@ -86,20 +87,32 @@ func _test_planning() -> void:
 		for s in SEEDS:
 			_run.run_seed = s + 1
 			_dungeon._plan_level()
+			# Each seed has its own layout (Issue #45).
+			var anvil := _dungeon.index_at(_dungeon.final_anvil_cell)
+			var boss := _dungeon.boss_index()
+			var reachable := _reachable_without_boss()
 			var seals := _dungeon.seal_rooms()
 			distinct[str(seals.keys())] = true
 			var counts := {&"treasure": 0, &"miniboss": 0, &"champion": 0}
+			var minibosses := _dungeon.miniboss_room_indexes()
 			for i: int in seals:
 				counts[seals[i]] += 1
 				ok = ok and i != boss and i != anvil and reachable.has(i) and not _dungeon.rooms[i].is_boss
-			ok = ok and seals.size() >= EncounterPlanner.MIN_SEAL_SOURCES and seals.size() > RunState.SEALS_REQUIRED
+				match seals[i]:
+					&"treasure":
+						kinds_ok = kinds_ok and _dungeon.rooms[i].is_treasure()
+					&"miniboss":
+						kinds_ok = kinds_ok and minibosses.has(i) and _dungeon.miniboss_scene(i) != null
+					&"champion":
+						kinds_ok = kinds_ok and not minibosses.has(i) and _dungeon.miniboss_scene(i) == null
+			ok = ok and seals.size() == EncounterPlanner.SEAL_SOURCES and EncounterPlanner.SEAL_SOURCES == RunState.SEALS_REQUIRED + 1
 			ok = ok and _run.seal_sources().size() == seals.size()
-			kinds_ok = kinds_ok and counts[&"treasure"] == 2 and counts[&"miniboss"] == bosses \
-					and counts[&"champion"] == maxi(EncounterPlanner.MIN_SEAL_SOURCES - bosses - 2, 0)
-		_check(ok, "%d miniboss room(s): >= %d seal sources, never the boss/anvil room, all reachable before the boss (%d seeds)"
-				% [bosses, EncounterPlanner.MIN_SEAL_SOURCES, SEEDS])
-		_check(kinds_ok, "%d miniboss room(s): both treasure rooms + %d miniboss + champion rooms fill up to %d"
-				% [bosses, bosses, EncounterPlanner.MIN_SEAL_SOURCES])
+			kinds_ok = kinds_ok and minibosses.size() == bosses and counts[&"treasure"] == 2 and counts[&"miniboss"] == mini(bosses, 2) \
+					and counts[&"champion"] == maxi(2 - bosses, 0)
+		_check(ok, "%d miniboss room(s): exactly %d seal sources, never the boss/anvil room, all reachable before the boss (%d seeds)"
+				% [bosses, EncounterPlanner.SEAL_SOURCES, SEEDS])
+		_check(kinds_ok, "%d miniboss room(s): both puzzle rooms + %d of the %d miniboss rooms%s"
+				% [bosses, mini(bosses, 2), bosses, " + %d champion room(s)" % (2 - bosses) if bosses < 2 else ""])
 		_check(distinct.size() > 5, "%d miniboss room(s): seal rooms vary between seeds (%d layouts)" % [bosses, distinct.size()])
 	_dungeon.miniboss_rooms = 2
 	_run.run_seed = 4242
@@ -107,6 +120,106 @@ func _test_planning() -> void:
 	var first := _dungeon.seal_rooms()
 	_dungeon._plan_level()
 	_check(first == _dungeon.seal_rooms(), "same seed -> same seal rooms")
+
+
+## Seeded seal spots (Issue #45): every seal room of many layouts is built and
+## its seal checked for safety; the same seed gives the same spots, different
+## seeds varied spots. Miniboss rooms without a seal get no AncientSeal.
+func _test_seal_positions() -> void:
+	var unsafe: Array[String] = []
+	var spots := {}
+	var per_kind := {&"treasure": {}, &"miniboss": {}, &"champion": {}}
+	var deterministic := true
+	var missing := 0
+	var stray := 0
+	for bosses in [1, 3]:
+		_dungeon.miniboss_rooms = bosses
+		for s in POSITION_SEEDS:
+			_run.run_seed = 9001 + s * 31
+			var first := _seal_spots(unsafe)
+			var again := _seal_spots(unsafe)
+			deterministic = deterministic and first == again and first.size() == EncounterPlanner.SEAL_SOURCES
+			missing += EncounterPlanner.SEAL_SOURCES - first.size()
+			var seals := _dungeon.seal_rooms()
+			for i: int in seals:
+				var pos: Vector2 = first.get(_dungeon.rooms[i].cell, Vector2.INF)
+				spots[pos] = true
+				per_kind[seals[i]][pos] = true
+			for i in _dungeon.miniboss_room_indexes():
+				if not seals.has(i):
+					var room := _build(i)
+					stray += 1 if room.get_node_or_null(^"Decor/AncientSeal") else 0
+					_unbuild(i, room)
+	_dungeon.miniboss_rooms = 2
+	_check(missing == 0 and stray == 0, "every seal source holds one seal, other miniboss rooms none (missing %d, stray %d)" % [missing, stray])
+	_check(unsafe.is_empty(), "%d layouts: every seal spot is safe%s" % [POSITION_SEEDS * 2, "" if unsafe.is_empty() else ": " + ", ".join(unsafe.slice(0, 6))])
+	_check(deterministic, "same seed -> same seal spots in every seal room")
+	_check(spots.size() >= POSITION_SEEDS * 2 and per_kind[&"treasure"].size() >= 10 and per_kind[&"miniboss"].size() >= 10,
+			"seal spots vary between seeds (%d distinct; treasure rooms %d, miniboss rooms %d)"
+			% [spots.size(), per_kind[&"treasure"].size(), per_kind[&"miniboss"].size()])
+
+
+## Plans the level, builds each seal room and returns {cell: seal position};
+## unsafe spots are appended to `unsafe`.
+func _seal_spots(unsafe: Array[String]) -> Dictionary:
+	_dungeon._plan_level()
+	var result := {}
+	for i: int in _dungeon.seal_rooms():
+		var room := _build(i)
+		var seal := room.get_node_or_null(^"Decor/AncientSeal") as AncientSeal
+		if seal:
+			result[_dungeon.rooms[i].cell] = seal.position
+			var problem := _unsafe_reason(room, seal)
+			if not problem.is_empty():
+				unsafe.append("%s %s: %s" % [room.name, seal.position, problem])
+		_unbuild(i, room)
+	return result
+
+
+## Why `seal` is not safe in `room` ("" if it is). Thresholds are independent of the Dungeon's.
+func _unsafe_reason(room: Room, seal: AncientSeal) -> String:
+	var p := seal.position
+	var floor_rect := (room.get_node(^"Visuals") as RoomVisuals).floor_rect
+	if not floor_rect.grow(-100.0).has_point(p):
+		return "too close to a wall"
+	for door in room.get_node(^"Doors").get_children():
+		if p.distance_to((door as Node2D).position) < 180.0:
+			return "too close to %s" % door.name
+	for node in room.find_children("*", "", true, false):
+		if node == seal:
+			continue
+		var at := _local(room, node)
+		if node is Obstacle:
+			var o := node as Obstacle
+			if Rect2(at - o.footprint / 2.0, o.footprint).grow(40.0).has_point(p):
+				return "on obstacle %s" % node.name
+		elif (node is Marker2D and node.get_parent().name == &"SpawnPoints") or node is Enemy or node is ItemPickup \
+				or node is Interactable or node is UpgradeStation:
+			if p.distance_to(at) < 80.0:
+				return "on %s" % node.name
+	return ""
+
+
+## Position of `node` in room coordinates (the room is not in the tree).
+func _local(room: Room, node: Node) -> Vector2:
+	var pos := Vector2.ZERO
+	while node != null and node != room:
+		if node is Node2D:
+			pos = (node as Node2D).transform * pos
+		node = node.get_parent()
+	return pos
+
+
+## Builds room `index` through the Dungeon (without entering it).
+func _build(index: int) -> Room:
+	return _dungeon._get_room(index)
+
+
+## Drops a room built by _build() so the next layout builds it afresh.
+func _unbuild(index: int, room: Room) -> void:
+	if index != _dungeon.current_index:
+		_dungeon._room_cache.erase(index)
+		room.free()
 
 
 func _test_combat_seal_and_revisit() -> void:
@@ -117,8 +230,8 @@ func _test_combat_seal_and_revisit() -> void:
 	var id := _dungeon.seal_id(index)
 	var map := current_scene.get_node(^"DungeonMap/Map") as DungeonMap
 	_check(_objective().begins_with("Ancient Seals 0/3"), "HUD shows the objective (%s)" % _objective())
-	_check(map.seal_marker_color(index) == map.seal_color and map.seal_marker_color(_dungeon.start_room).a == 0.0,
-			"minimap: available seal room marked, ordinary rooms not")
+	_check(map != null and not map.has_method(&"seal_marker_color") and not (&"seal_color" in map),
+			"minimap: Ancient Seal rooms are not highlighted")
 	_dungeon.enter_room(index)
 	await _frames(2)
 	var room := _dungeon.current_room
@@ -137,7 +250,6 @@ func _test_combat_seal_and_revisit() -> void:
 	await _frames(1)
 	_check(_objective().begins_with("Ancient Seals 1/3") and _message().begins_with("Ancient Seal 1/3 claimed"),
 			"HUD objective and message follow (%s / %s)" % [_objective(), _message()])
-	_check(map.seal_marker_color(index) == map.seal_collected_color, "minimap: collected seal room is dimmed")
 	_dungeon.enter_room(_dungeon.start_room)
 	await _frames(1)
 	_dungeon.enter_room(index)
@@ -167,8 +279,8 @@ func _test_puzzle_seal() -> void:
 
 
 func _test_boss_gate_and_skip() -> void:
-	var boss := _dungeon.index_at(BOSS)
-	var entry := _dungeon.index_at(BOSS_ENTRY)
+	var boss := _dungeon.boss_index()
+	var entry := _dungeon.index_at(_dungeon.final_anvil_cell)
 	_dungeon.enter_room(entry)
 	await _frames(1)
 	var door := _dungeon.current_room.get_node(^"Doors/DoorTop") as Door
@@ -189,6 +301,10 @@ func _test_boss_gate_and_skip() -> void:
 			"3 seals + level cap open the gate at once, skipping a source (%d left)" % (remaining.size() - 1))
 	_check(_objective().ends_with("the Warden's gate is open") and _message().begins_with("All Ancient Seals claimed"),
 			"HUD reports the open gate (%s)" % _objective())
+	# The skipped 4th source stays optional: collecting it changes nothing for the gate.
+	_check(_run.collect_seal(_dungeon.seal_id(remaining[1])) and _run.seals_collected() == EncounterPlanner.SEAL_SOURCES
+			and _run.seals_complete() and _dungeon.can_enter(boss) and not _run.collect_seal(_dungeon.seal_id(remaining[1])),
+			"the 4th seal can still be collected once; the gate stays open")
 
 
 func _test_next_level_reset() -> void:
@@ -196,14 +312,14 @@ func _test_next_level_reset() -> void:
 	await _load()
 	for i: int in _dungeon.seal_rooms():
 		_run.collect_seal(_dungeon.seal_id(i))
-	_dungeon.enter_room(_dungeon.index_at(BOSS_ENTRY))
+	_dungeon.enter_room(_dungeon.index_at(_dungeon.final_anvil_cell))
 	await _frames(1)
 	var door := _dungeon.current_room.get_node(^"Doors/DoorTop") as Door
 	_check(door.level_locked and door.lock_label == "BOSS Lv %d" % _run.max_level() and _objective().contains("reach Lv"),
 			"seals alone do not open the gate (%s)" % door.lock_label)
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
-	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.boss_index(), &"DoorBottom")
 	await _frames(2)
 	for e in _dungeon.current_room.get_node(^"Enemies").get_children():
 		if e is Boss:
@@ -212,15 +328,15 @@ func _test_next_level_reset() -> void:
 	_run.choose_relic(Biomes.relic_pool(_run.dungeon_level)[0])
 	_check(_dungeon.advance_level(), "setup: advanced to the next dungeon level")
 	await _frames(2)
-	_check(_run.dungeon_level == 2 and _run.seals_collected() == 0 and _run.seal_sources().size() >= EncounterPlanner.MIN_SEAL_SOURCES
+	_check(_run.dungeon_level == 2 and _run.seals_collected() == 0 and _run.seal_sources().size() == EncounterPlanner.SEAL_SOURCES
 			and _dungeon.seal_rooms().size() == _run.seal_sources().size(), "next level: seals reset, new sources registered")
 	_check(_objective().begins_with("Ancient Seals 0/3"), "HUD objective resets (%s)" % _objective())
 	var any := _dungeon.seal_rooms().keys()[0] as int
 	_check(_run.can_collect_seal(_dungeon.seal_id(any)), "seals can be collected again on the new level")
-	_dungeon.enter_room(_dungeon.index_at(BOSS_ENTRY))
+	_dungeon.enter_room(_dungeon.index_at(_dungeon.final_anvil_cell))
 	await _frames(1)
 	door = _dungeon.current_room.get_node(^"Doors/DoorTop") as Door
-	_check(door.level_locked and not _dungeon.can_enter(_dungeon.index_at(BOSS)), "next level: the boss gate is sealed again")
+	_check(door.level_locked and not _dungeon.can_enter(_dungeon.boss_index()), "next level: the boss gate is sealed again")
 
 
 ## Room indexes reachable from the start without entering the boss room.
