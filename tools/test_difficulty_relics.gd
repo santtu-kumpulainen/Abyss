@@ -11,10 +11,9 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
 const MENU := "res://scenes/ui/main_menu.tscn"
-const BOSS := Vector2i(2, 0)
-const SURVIVAL := Vector2i(5, 2)
 const NORMAL := Difficulty.Tier.NORMAL
 const HARD := Difficulty.Tier.HARD
 const ABYSSAL := Difficulty.Tier.ABYSSAL
@@ -35,6 +34,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	_prog = ProgressionStore.instance(self)
 	_real_save_time = FileAccess.get_modified_time(ProgressionStore.SAVE_PATH) if FileAccess.file_exists(ProgressionStore.SAVE_PATH) else 0
 	_check(_prog.save_path == ProgressionStore.TEST_SAVE_PATH, "headless progression uses the test save path (%s)" % _prog.save_path)
@@ -55,6 +55,7 @@ func _run_tests() -> void:
 	_check(real_time == _real_save_time, "the player's real progression file was not touched")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(ProgressionStore.TEST_SAVE_PATH))
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -236,7 +237,7 @@ func _test_abyssal_pressure() -> void:
 	_check(template.add_extra_enemies(spec.enemies, 3, points) == 0, "no free safe spawn points: no extra enemies (no overlap)")
 	template.free()
 	# Survival waves.
-	var trial := await _enter(_dungeon.index_at(SURVIVAL)) as SurvivalRoom
+	var trial := await _enter(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)) as SurvivalRoom
 	_check(trial.extra_per_wave == 2 and is_equal_approx(trial.duration, 120.0), "Abyssal survival: +2 per wave, timer unchanged")
 	trial.begin_challenge()
 	_check(_enemies(trial).size() == trial.wave_sizes[0] + 2, "Abyssal survival: wave 1 has %d+2 enemies" % trial.wave_sizes[0])
@@ -368,7 +369,7 @@ func _test_pacts() -> void:
 	room = await _enter(index)
 	base = _base_stats(load((_enemies(room)[0] as Enemy).scene_file_path))
 	_check(is_equal_approx((_enemies(room)[0] as Enemy).health.max_health, base["hp"]), "Treasure Seeker: normal rooms unaffected")
-	var trial := await _enter(_dungeon.index_at(SURVIVAL)) as SurvivalRoom
+	var trial := await _enter(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)) as SurvivalRoom
 	_check(is_equal_approx(trial.duration, 120.0), "Treasure Seeker: survival timer unchanged (display only)")
 	trial.begin_challenge()
 	var first := _enemies(trial)[0] as Enemy
@@ -381,7 +382,7 @@ func _test_pacts() -> void:
 	_run.claim_treasure(&"survivor_cache")
 	_check(_run.currency == gold + 263 and is_equal_approx(_mage.health.current, hp + 87.5), "Treasure Seeker: chest gold and heal x1.75")
 	await _restart()
-	_check(is_equal_approx((await _enter(_dungeon.index_at(SURVIVAL)) as SurvivalRoom).duration, 120.0), "survival timer still unchanged after Restart")
+	_check(is_equal_approx((await _enter(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)) as SurvivalRoom).duration, 120.0), "survival timer still unchanged after Restart")
 
 
 # --- Synergies ---------------------------------------------------------------
@@ -551,7 +552,7 @@ func _boss_room() -> Boss:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
 	_grant_seals()
-	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.boss_index(), &"DoorBottom")
 	await _frames(2)
 	for e in _enemies(_dungeon.current_room):
 		if e is Boss:

@@ -9,11 +9,8 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
-const BOSS := Vector2i(2, 0)
-const BOOTS_ROOM := Vector2i(0, 4)
-const SURVIVAL := Vector2i(5, 2)
-const PUZZLE := Vector2i(-1, 3)
 const NORMAL := Difficulty.Tier.NORMAL
 const HARD := Difficulty.Tier.HARD
 const ABYSSAL := Difficulty.Tier.ABYSSAL
@@ -31,6 +28,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	_prog = ProgressionStore.instance(self)
 	_prog.clear_progress()
 	_test_formulas()
@@ -44,6 +42,7 @@ func _run_tests() -> void:
 	await _test_practice_start()
 	_prog.clear_progress()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -65,8 +64,8 @@ func _test_formulas() -> void:
 				"level %d: the first room is open on arrival and the boss is 3 level-ups away" % d)
 	_check([MageLevels.level_up_cost(1, XP_PER_LEVEL), MageLevels.level_up_cost(2, XP_PER_LEVEL), MageLevels.level_up_cost(3, XP_PER_LEVEL)]
 			== [300, 750, 1200], "level-up cost per dungeon level: 300 / 750 / 1200 XP")
-	_check(absf(MageLevels.xp_multiplier(1, XP_PER_LEVEL) - 2.294) < 0.01 and absf(MageLevels.xp_multiplier(2, XP_PER_LEVEL) - 5.735) < 0.01
-			and absf(MageLevels.xp_multiplier(3, XP_PER_LEVEL) - 9.176) < 0.01, "XP multiplier: 2.29 / 5.74 / 9.18")
+	_check(absf(MageLevels.xp_multiplier(1, XP_PER_LEVEL) - 2.484) < 0.01 and absf(MageLevels.xp_multiplier(2, XP_PER_LEVEL) - 6.210) < 0.01
+			and absf(MageLevels.xp_multiplier(3, XP_PER_LEVEL) - 9.936) < 0.01, "XP multiplier: 2.48 / 6.21 / 9.94")
 
 
 # --- XP budget ------------------------------------------------------------------
@@ -226,8 +225,8 @@ func _test_stacking_rules() -> void:
 # --- Scene tests -----------------------------------------------------------------------
 
 func _test_gates_and_refresh() -> void:
-	var boss_i := _dungeon.index_at(BOSS)
-	var boots_i := _dungeon.index_at(BOOTS_ROOM)
+	var boss_i := _dungeon.boss_index()
+	var boots_i := _dungeon.item_room_index(&"swift_boots")
 	var tier2 := _first_room_with_level(2)
 	_check(_dungeon.gate_level(boss_i) == 4 and _dungeon.gate_level(boots_i) == 1 and _dungeon.gate_level(tier2) == 2,
 			"scene gates on level 1: tier 1 = Lv 1, tier 2 = Lv 2, boss = Lv 4")
@@ -235,7 +234,7 @@ func _test_gates_and_refresh() -> void:
 	_grant_seals()
 	_check(_run.level == 4 and _dungeon.can_enter(boss_i), "the boss opens at Lv 4")
 	# Build on level 1: boots (item) and Rune Sigil (treasure).
-	_dungeon.enter_room(boots_i, &"DoorRight")
+	_dungeon.enter_room(boots_i, _dungeon.entry_door(boots_i))
 	await _frames(2)
 	await _kill_all(_dungeon.current_room)
 	var pickup := _pickup(_dungeon.current_room)
@@ -243,6 +242,10 @@ func _test_gates_and_refresh() -> void:
 	_check(_run.claim_treasure(&"rune_sigil") and _run.treasures[&"rune_sigil"] == 1, "level 1: Rune Sigil claimed")
 	await _win_fast()
 	_check(_overlay().choose_relic(&"ember_relic") and _run.dungeon_level == 2, "setup: level 2 started")
+	# Every level has its own seeded layout (Issue #45): find the rooms again.
+	boss_i = _dungeon.boss_index()
+	boots_i = _dungeon.item_room_index(&"swift_boots")
+	tier2 = _first_room_with_level(2)
 	var hp_items := _run.collected.duplicate()
 	_check(_run.level == 4 and _run.collected == hp_items and _run.treasures[&"rune_sigil"] == 1, "owned counts survive the level change")
 	# Gates on level 2: the Mage keeps Lv 4, which is exactly the first tier.
@@ -255,7 +258,7 @@ func _test_gates_and_refresh() -> void:
 	_grant_seals()
 	_check(_run.level == 7 and _dungeon.can_enter(boss_i), "level 2: the boss opens at Lv 7")
 	# Pickup and chests refresh on level 2.
-	_dungeon.enter_room(boots_i, &"DoorRight")
+	_dungeon.enter_room(boots_i, _dungeon.entry_door(boots_i))
 	await _frames(2)
 	var base_enemies := _dungeon.rooms[boots_i].enemies.size()
 	_check(_enemies(_dungeon.current_room).size() >= base_enemies + 1 or _enemies(_dungeon.current_room).size() == _dungeon.current_room.get_node(^"SpawnPoints").get_child_count(),
@@ -267,13 +270,13 @@ func _test_gates_and_refresh() -> void:
 	var label := (_dungeon.get_node(^"RunHud") as RunHud).get_node(^"%ItemsLabel") as Label
 	_check(label.text.contains("Swift Boots x2") and label.text.contains("Rune Sigil"), "HUD shows the stack count (%s)" % label.text.replace("\n", " | "))
 	_check(is_equal_approx(_mage.speed_multiplier, 1.0 + 0.15 * 2), "stacked speed bonus is applied once (x%.2f)" % _mage.speed_multiplier)
-	var puzzle := await _enter(_dungeon.index_at(PUZZLE))
+	var puzzle := await _enter(_dungeon.treasure_index(RoomSpec.Treasure.PUZZLE))
 	var chest := puzzle.get_node(^"Decor/TreasureChest") as TreasureChest
 	_check(chest.run_state == _run and not chest.is_claimed() and chest.prompt_text() != "Empty chest", "level 2: the puzzle chest is not empty")
 	_check(_run.claim_treasure(&"rune_sigil") and _run.treasures[&"rune_sigil"] == 2, "level 2: the chest bonus stacks to x2")
-	var boss := await _enter(_dungeon.index_at(BOSS))
+	var boss := await _enter(_dungeon.boss_index())
 	_check(_enemies(boss).size() == 1, "no extra enemies in the boss room")
-	var survival := await _enter(_dungeon.index_at(SURVIVAL)) as SurvivalRoom
+	var survival := await _enter(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)) as SurvivalRoom
 	_check(survival.extra_per_wave == 1, "level 2: survival waves get +1 enemy each")
 	_check(_enemies(survival).is_empty() and survival.get_node(^"Decor/TreasureChest").run_state == _run,
 			"no extra enemies in the survival room before the trial")
@@ -282,7 +285,7 @@ func _test_gates_and_refresh() -> void:
 func _test_survival_early_clear() -> void:
 	await _load_scene()
 	_run.add_rewards(10000, 0)
-	var room := await _enter(_dungeon.index_at(SURVIVAL)) as SurvivalRoom
+	var room := await _enter(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)) as SurvivalRoom
 	_check(room.begin_challenge(), "setup: survival trial started")
 	var tries := 0
 	while room.state == Room.State.COMBAT and tries < 12:
@@ -314,11 +317,11 @@ func _test_practice_start() -> void:
 	_check(is_equal_approx(_mage.health.max_health, expected_hp) and is_equal_approx(_mage.health.current, expected_hp),
 			"practice run has the max HP of 6 level-ups (%.0f)" % _mage.health.max_health)
 	var tier2 := _first_room_with_level(2)
-	_check(_dungeon.can_enter(_dungeon.index_at(BOOTS_ROOM)) and not _dungeon.can_enter(tier2) and not _dungeon.can_enter(_dungeon.index_at(BOSS)),
+	_check(_dungeon.can_enter(_dungeon.item_room_index(&"swift_boots")) and not _dungeon.can_enter(tier2) and not _dungeon.can_enter(_dungeon.boss_index()),
 			"practice gates: tier 1 open, tier 2 (Lv 8) and boss (Lv 10) locked")
 	# Extra enemies in real rooms: tier 1 gets +2 on level 3, tier 2 may get one more.
-	var room := await _enter(_dungeon.index_at(BOOTS_ROOM))
-	var spec := _dungeon.rooms[_dungeon.index_at(BOOTS_ROOM)]
+	var room := await _enter(_dungeon.item_room_index(&"swift_boots"))
+	var spec := _dungeon.rooms[_dungeon.item_room_index(&"swift_boots")]
 	var fresh := spec.scene.instantiate() as Room
 	var free := fresh.safe_extra_points(spec.enemies.size()).size()
 	fresh.free()
@@ -346,7 +349,7 @@ func _first_room_with_level(level: int) -> int:
 
 
 func _enter(index: int) -> Room:
-	_dungeon.enter_room(index, &"DoorLeft" if _dungeon.rooms[index].is_treasure() else &"DoorBottom")
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(2)
 	return _dungeon.current_room
 
@@ -367,7 +370,7 @@ func _win_fast() -> void:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
 	_grant_seals()
-	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.boss_index(), &"DoorBottom")
 	await _frames(2)
 	for e in _dungeon.current_room.get_node(^"Enemies").get_children():
 		if e is Boss:

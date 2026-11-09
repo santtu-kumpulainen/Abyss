@@ -1,9 +1,10 @@
 extends SceneTree
 ## Headless check of the 5x5 dungeon layout and its progression-gated tiers
 ## (scenes/dungeon/dungeon.tscn): room links, Level 2 / boss (Level 3) gates,
-## tier XP totals, no duplicate rewards, minimap state and Restart. Optional
-## treasure rooms (RoomSpec.treasure) sit outside the 5x5 grid and are checked
-## separately in tools/test_treasure_rooms.gd.
+## tier XP totals, no duplicate rewards, minimap state and Restart. The layout
+## is seeded (DungeonLayout, Issue #45); rooms are found by role under a fixed
+## seed. Treasure rooms are checked in tools/test_treasure_rooms.gd and the
+## layout generator over many seeds in tools/test_dungeon_layout.gd.
 ##
 ## Usage (after importing):
 ##   godot --headless --path . --script res://tools/test_room_progression.gd
@@ -11,15 +12,15 @@ extends SceneTree
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
-const L1_GATE := Vector2i(0, 3)  # Level 1 room with a door up into the Level 2 tier
-const L2_ENTRY := Vector2i(0, 2)
-const ANTECHAMBER := Vector2i(2, 1)
-const BOSS := Vector2i(2, 0)
+const SEED := 4242
+const ACTIONS := {&"DoorTop": &"move_up", &"DoorBottom": &"move_down", &"DoorLeft": &"move_left", &"DoorRight": &"move_right"}
+const OPPOSITE := {&"DoorTop": &"DoorBottom", &"DoorBottom": &"DoorTop", &"DoorLeft": &"DoorRight", &"DoorRight": &"DoorLeft"}
 
 var _failures := 0
 var _dungeon: Dungeon
 var _mage: Mage
 var _run: RunState
+var _gate_cell := Vector2i(-1, -1)
 
 
 func _initialize() -> void:
@@ -27,6 +28,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	var scene_id := current_scene.get_instance_id() if current_scene else 0
 	change_scene_to_file(SCENE)
 	await _wait_for_scene(scene_id)
@@ -35,6 +37,7 @@ func _run_tests() -> void:
 	_test_xp_budget()
 	await _test_gates()
 	await _test_restart()
+	RunState.seed_override = 0
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	quit(1 if _failures > 0 else 0)
 
@@ -47,17 +50,18 @@ func _test_layout() -> void:
 	cells = {}
 	for spec in _core():
 		cells[spec.cell] = spec
-	_check(_core().size() == 25 and cells.size() == 25, "25 main rooms on distinct cells")
-	_check(cells.keys().all(func(c: Vector2i) -> bool: return c.x >= 0 and c.x < 5 and c.y >= 0 and c.y < 5),
+	_check(_dungeon.rooms.size() == 25 and cells.size() == 23 and _dungeon.rooms.size() - _core().size() == 2,
+			"25 rooms: 23 main rooms + 2 treasure rooms on distinct cells")
+	_check(_dungeon.rooms.all(func(r: RoomSpec) -> bool: return r.cell.x >= 0 and r.cell.x < 5 and r.cell.y >= 0 and r.cell.y < 5),
 			"all rooms inside the 5x5 grid")
 	_check(_dungeon._link_map.size() == _dungeon.links.size() * 2, "every link joins two neighbouring rooms")
 	var bad_degree := []
 	for i in _dungeon.rooms.size():
 		var degree := _dungeon.get_neighbours(i).size()
-		var ok := degree == 1 if _dungeon.rooms[i].is_boss or _dungeon.rooms[i].is_treasure() else degree >= 2 and degree <= 4
+		var ok := degree == 1 if _dungeon.rooms[i].is_boss or _dungeon.rooms[i].is_treasure() else degree >= 1 and degree <= 4
 		if not ok:
 			bad_degree.append(_dungeon.rooms[i].cell)
-	_check(bad_degree.is_empty(), "every room has 2-4 doors, boss and treasure rooms 1 (bad: %s)" % [bad_degree])
+	_check(bad_degree.is_empty(), "every room has 1-4 doors, boss and treasure rooms exactly 1 (bad: %s)" % [bad_degree])
 	var tiers_ok := true
 	for spec in _core():
 		var expected := 3 if spec.is_boss else (1 if spec.cell.y >= 3 else 2)
@@ -65,9 +69,9 @@ func _test_layout() -> void:
 	_check(tiers_ok and _core().filter(func(r: RoomSpec) -> bool: return r.is_boss).size() == 1,
 			"tiers: rows 3-4 Lv 1, rows 0-2 Lv 2, one boss room at Lv 3")
 	# Reachability within each tier (only through rooms of that tier or lower).
-	_check(_reachable(1, false).size() == 10, "all 10 Level 1 rooms reachable at Lv 1 (%d)" % _reachable(1, false).size())
-	_check(_reachable(2, false).size() == 24, "all Level 1+2 rooms reachable at Lv 2 (%d)" % _reachable(2, false).size())
-	_check(_reachable(3, false).size() == 25, "boss room reachable at Lv 3 without treasure rooms")
+	_check(_reachable(1, false).size() == 9, "all 9 Level 1 main rooms reachable at Lv 1 (%d)" % _reachable(1, false).size())
+	_check(_reachable(2, false).size() == 22, "all 22 Level 1+2 main rooms reachable at Lv 2 (%d)" % _reachable(2, false).size())
+	_check(_reachable(3, false).size() == 23, "boss room reachable at Lv 3 without treasure rooms")
 	_check(_reachable(3).size() == _dungeon.rooms.size(), "every room, treasure rooms included, reachable at Lv 3")
 	var gates := 0
 	for i in _dungeon.rooms.size():
@@ -99,28 +103,33 @@ func _test_gates() -> void:
 	var hall := _dungeon.current_room
 	hall.start_encounter()
 	await _kill_all(hall)
-	_check(_door(hall, &"DoorLeft").is_open() and _door(hall, &"DoorRight").is_open(), "Level 1 doors open at Lv 1")
+	var hall_doors := _dungeon.get_neighbours(0).map(func(j: int) -> StringName: return _dungeon.door_to(0, j))
+	_check(not hall_doors.is_empty() and hall_doors.all(func(d: StringName) -> bool: return _door(hall, d).is_open()), "Level 1 doors open at Lv 1")
 
-	# --- Level 2 gate ---
-	var gate_index := _dungeon.index_at(L1_GATE)
-	_dungeon.enter_room(gate_index, &"DoorRight")
+	# --- Level 2 gate: a Level 1 room linked to a Level 2 main room ---
+	var pair := _gate_pair()
+	var gate_index: int = pair[0]
+	var l2_index: int = pair[1]
+	var gate_door := _dungeon.door_to(gate_index, l2_index)
+	var back_door: StringName = OPPOSITE[gate_door]
+	var l1_door := _dungeon.door_to(gate_index, _tier1_neighbour(gate_index))
+	_dungeon.enter_room(gate_index, l1_door)
 	await _frames(2)
 	var gate_room := _dungeon.current_room
 	await _kill_all(gate_room)
-	var up := _door(gate_room, &"DoorTop")
-	_check(gate_room.state == Room.State.CLEARED and _door(gate_room, &"DoorRight").is_open(), "cleared Level 1 room opens its Level 1 doors")
+	var up := _door(gate_room, gate_door)
+	_check(gate_room.state == Room.State.CLEARED and _door(gate_room, l1_door).is_open(), "cleared Level 1 room opens its Level 1 doors")
 	_check(up.level_locked and not up.is_open() and _shape_enabled(up) and up.lock_label == "Lv 2",
 			"Level 2 door stays locked at Lv 1, labelled Lv 2")
-	_check(not _dungeon.can_enter(_dungeon.index_at(L2_ENTRY)), "Level 2 room not enterable at Lv 1")
-	await _try_exit(gate_room, &"DoorTop", &"move_up")
+	_check(not _dungeon.can_enter(l2_index), "Level 2 room not enterable at Lv 1")
+	await _try_exit(gate_room, gate_door, ACTIONS[gate_door])
 	_check(_dungeon.current_room == gate_room, "Mage cannot pass the Level 2 door at Lv 1")
 
 	_run.add_rewards(_run.xp_to_next_level() - _run.xp, 0)
 	await _frames(2)
 	_check(_run.level == 2 and not up.level_locked and up.is_open() and not _shape_enabled(up), "Level 2 door opens at Lv 2")
 	_check(_message() == "Level 2! Deeper rooms unlocked.", "level-up announces unlocked rooms (%s)" % _message())
-	await _try_exit(gate_room, &"DoorTop", &"move_up")
-	var l2_index := _dungeon.index_at(L2_ENTRY)
+	await _try_exit(gate_room, gate_door, ACTIONS[gate_door])
 	var l2_room := _dungeon.current_room
 	_check(_dungeon.current_index == l2_index, "Level 2 door leads to the Level 2 room")
 	await _frames(2)
@@ -136,8 +145,8 @@ func _test_gates() -> void:
 	_check(gained == _room_xp(spec) and l2_room.state == Room.State.CLEARED, "Level 2 room grants its XP once (%d)" % gained)
 
 	# --- Revisit: no respawn, no duplicate XP ---
-	await _try_exit(l2_room, &"DoorBottom", &"move_down")
-	await _try_exit(gate_room, &"DoorTop", &"move_up")
+	await _try_exit(l2_room, back_door, ACTIONS[back_door])
+	await _try_exit(gate_room, gate_door, ACTIONS[gate_door])
 	_check(_dungeon.current_room == l2_room and l2_room.state == Room.State.CLEARED
 			and l2_room.get_node(^"Enemies").get_child_count() == 0 and _run.xp == xp_before + gained,
 			"revisited Level 2 room stays cleared, no extra XP")
@@ -146,20 +155,23 @@ func _test_gates() -> void:
 	var map := current_scene.get_node(^"DungeonMap/Map") as DungeonMap
 	_check(map != null and map._dungeon == _dungeon, "minimap is bound to the dungeon")
 	_check(_dungeon.is_visited(0) and _dungeon.is_visited(gate_index) and _dungeon.is_visited(l2_index)
-			and not _dungeon.is_visited(_dungeon.index_at(BOSS)), "visited rooms tracked for the minimap")
+			and not _dungeon.is_visited(_dungeon.boss_index()), "visited rooms tracked for the minimap")
 
 	# --- Boss gate ---
 	# The level gate is checked here; the Ancient Seal half is covered by test_seals.gd.
 	_grant_seals()
-	var ante_index := _dungeon.index_at(ANTECHAMBER)
-	_dungeon.enter_room(ante_index, &"DoorLeft")
+	var ante_index := _dungeon.index_at(_dungeon.final_anvil_cell)
+	_check(_dungeon.get_neighbours(_dungeon.boss_index()) == [ante_index] and _dungeon.door_to(ante_index, _dungeon.boss_index()) == &"DoorTop",
+			"the antechamber (anvil room) is the boss room's only neighbour, below it")
+	var ante_others := _dungeon.get_neighbours(ante_index).filter(func(j: int) -> bool: return j != _dungeon.boss_index())
+	_dungeon.enter_room(ante_index, _dungeon.door_to(ante_index, ante_others[0]))
 	await _frames(2)
 	var ante := _dungeon.current_room
 	await _kill_all(ante)
 	var boss_door := _door(ante, &"DoorTop")
 	_check(_run.level == 2 and boss_door.level_locked and not boss_door.is_open() and boss_door.lock_label == "BOSS Lv 4",
 			"boss gate locked below Lv 4, labelled BOSS Lv 4")
-	_check(_door(ante, &"DoorRight").is_open() and _door(ante, &"DoorBottom").is_open(), "other antechamber doors open at Lv 2")
+	_check(ante_others.all(func(j: int) -> bool: return _door(ante, _dungeon.door_to(ante_index, j)).is_open()), "other antechamber doors open at Lv 2")
 	await _try_exit(ante, &"DoorTop", &"move_up")
 	_check(_dungeon.current_room == ante, "Mage cannot pass the boss gate at Lv 2")
 	_run.add_rewards(_run.xp_to_next_level() - _run.xp, 0)
@@ -171,7 +183,7 @@ func _test_gates() -> void:
 	_check(_message() == "Level 4! The boss gate is open.", "Lv 4 announces the boss gate (%s)" % _message())
 	await _try_exit(ante, &"DoorTop", &"move_up")
 	var boss_room := _dungeon.current_room
-	_check(_dungeon.current_index == _dungeon.index_at(BOSS), "boss gate leads to the boss room")
+	_check(_dungeon.current_index == _dungeon.boss_index(), "boss gate leads to the boss room")
 	await _frames(2)
 	_check(boss_room.state == Room.State.COMBAT and boss_room.enemies_remaining == 1
 			and not _door(boss_room, &"DoorBottom").is_open(), "boss fight starts on entry and locks the exit (see test_boss.gd)")
@@ -190,12 +202,38 @@ func _test_restart() -> void:
 	_check(_run.level == 1 and _run.xp == 0 and _run.currency == 0 and _run.purchased.is_empty(), "Restart resets the run")
 	var visited := range(_dungeon.rooms.size()).filter(func(i: int) -> bool: return _dungeon.is_visited(i))
 	_check(visited == [0] and _dungeon.current_room.state == Room.State.IDLE, "Restart resets room progression (only Hall visited)")
-	_dungeon.enter_room(_dungeon.index_at(L1_GATE), &"DoorRight")
+	var old_cell := _gate_cell
+	var pair := _gate_pair()
+	_check(_gate_cell == old_cell, "Restart with the same seed rebuilds the same layout")
+	_dungeon.enter_room(pair[0], _dungeon.door_to(pair[0], _tier1_neighbour(pair[0])))
 	await _frames(2)
 	var gate_room := _dungeon.current_room
 	_check(gate_room.state == Room.State.COMBAT and gate_room.enemies_remaining > 0, "Restart respawns room enemies")
 	await _kill_all(gate_room)
-	_check(_door(gate_room, &"DoorTop").level_locked, "Restart re-locks the Level 2 gate")
+	_check(_door(gate_room, _dungeon.door_to(pair[0], pair[1])).level_locked, "Restart re-locks the Level 2 gate")
+
+
+## [Level 1 room, linked Level 2 main room]: the first gate room by index
+## (not the start room) that also links to another Level 1 main room.
+func _gate_pair() -> Array:
+	for i in range(1, _dungeon.rooms.size()):
+		var spec := _dungeon.rooms[i]
+		if spec.required_level != 1 or spec.is_treasure() or _tier1_neighbour(i) < 0:
+			continue
+		for j: int in _dungeon.get_neighbours(i):
+			if _dungeon.rooms[j].required_level == 2 and not _dungeon.rooms[j].is_treasure():
+				_gate_cell = spec.cell
+				return [i, j]
+	_check(false, "layout has a Level 1 -> Level 2 gate room")
+	return [0, 0]
+
+
+## A Level 1 main room linked to room `index` (-1 if none).
+func _tier1_neighbour(index: int) -> int:
+	for j: int in _dungeon.get_neighbours(index):
+		if _dungeon.rooms[j].required_level == 1 and not _dungeon.rooms[j].is_treasure():
+			return j
+	return -1
 
 
 ## Main (non-treasure) RoomSpecs.

@@ -12,10 +12,8 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
-const BOSS := Vector2i(2, 0)
-const ROOM_A := Vector2i(0, 4)
-const ROOM_B := Vector2i(1, 4)
 const NORMAL := Difficulty.Tier.NORMAL
 
 var _failures := 0
@@ -40,10 +38,12 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	_test_table()
 	_test_caps_and_exclusions()
 	await _test_snapshot_and_boss()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -133,7 +133,7 @@ func _test_snapshot_and_boss() -> void:
 	await _load_scene()
 	var goblin := _hp("res://scenes/enemies/giant_goblin.tscn")
 	# Weak build: modifier 1.0.
-	var room_a := await _enter(_dungeon.index_at(ROOM_A))
+	var room_a := await _enter(_dungeon.item_room_index(&"swift_boots"))
 	var enemy_a := _goblin(room_a)
 	_check(enemy_a != null and is_equal_approx(enemy_a.health.max_health, goblin), "weak build: room A goblin HP is the baseline (%.1f)" % enemy_a.health.max_health)
 	# Strengthen the build: Ember Core x3, Quick Cast x3, Shard x3, Sigil x3.
@@ -144,10 +144,10 @@ func _test_snapshot_and_boss() -> void:
 	_run.changed.emit()
 	_check(is_equal_approx(_run.output_hp_modifier(), 2.0), "setup: the strong build is capped at modifier 2.0 (O %.2f)" % _run.player_output())
 	_check(is_equal_approx(enemy_a.health.max_health, goblin), "an already-entered room does not change when the build improves")
-	var room_b := await _enter(_dungeon.index_at(ROOM_B))
+	var room_b := await _enter(_other_tier1_room(_dungeon.item_room_index(&"swift_boots")))
 	var enemy_b := _goblin(room_b)
 	_check(enemy_b != null and is_equal_approx(enemy_b.health.max_health, goblin * 2.0), "room B, first entered with the strong build: goblin HP x2.0 (%.1f)" % enemy_b.health.max_health)
-	var again := await _enter(_dungeon.index_at(ROOM_A))
+	var again := await _enter(_dungeon.item_room_index(&"swift_boots"))
 	_check(again == room_a and is_equal_approx(_goblin(again).health.max_health, goblin), "revisiting room A keeps its snapshot (x1.0)")
 	# Damage, speed, XP and gold are not touched by the modifier.
 	var base := (load("res://scenes/enemies/giant_goblin.tscn") as PackedScene).instantiate() as Enemy
@@ -158,7 +158,7 @@ func _test_snapshot_and_boss() -> void:
 	# Boss room: same snapshot rule.
 	_run.add_rewards(100000, 0)
 	_grant_seals()
-	var boss_room := await _enter(_dungeon.index_at(BOSS))
+	var boss_room := await _enter(_dungeon.boss_index())
 	var boss: Boss = null
 	for e in boss_room.get_node(^"Enemies").get_children():
 		if e is Boss:
@@ -187,7 +187,7 @@ func _hp(path: String) -> float:
 
 
 func _enter(index: int) -> Room:
-	_dungeon.enter_room(index, &"DoorBottom")
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(2)
 	return _dungeon.current_room
 
@@ -228,3 +228,12 @@ func _check(condition: bool, label: String) -> void:
 func _grant_seals() -> void:
 	for i: int in _dungeon.seal_rooms():
 		_run.collect_seal(_dungeon.seal_id(i))
+
+
+## A Level 1 combat room other than the start room and `except` (seeded layout, Issue #45).
+func _other_tier1_room(except: int) -> int:
+	for i in range(1, _dungeon.rooms.size()):
+		var spec := _dungeon.rooms[i]
+		if i != except and spec.required_level == 1 and not spec.is_treasure() and not spec.is_boss:
+			return i
+	return -1

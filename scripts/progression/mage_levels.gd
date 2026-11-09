@@ -17,11 +17,12 @@ extends RefCounted
 ##   cost(D)          = xp_per_level * (m + (m + 1) + (m + 2)),  m = arrival(D)
 ##   xp_multiplier(D) = XP_SLACK * cost(D) / PRE_BOSS_BASE_XP
 ## With xp_per_level 50: cost = 300 / 750 / 1200 and the multiplier is
-## 2.29 / 5.74 / 9.18 for D1 / D2 / D3 (a test checks the budget on the real dungeon).
+## 2.48 / 6.21 / 9.94 for D1 / D2 / D3 (a test checks the budget on the real dungeon).
 
 const LEVEL_UPS_PER_DUNGEON := 3
-## XP of all non-boss, non-treasure rooms of scenes/dungeon/dungeon.tscn (unscaled).
-const PRE_BOSS_BASE_XP := 170
+## XP of all non-boss, non-treasure rooms of scenes/dungeon/dungeon.tscn (unscaled):
+## its 22 combat rooms of the 5x5 grid (tier 1: 51, tier 2: 106; Issue #45).
+const PRE_BOSS_BASE_XP := 157
 ## Budget headroom: a run must clear about 77% of the pre-boss XP to reach the boss gate.
 const XP_SLACK := 1.3
 

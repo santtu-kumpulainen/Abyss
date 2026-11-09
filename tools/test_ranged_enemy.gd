@@ -9,9 +9,8 @@ extends SceneTree
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
 const ROOM_SCENE := "res://scenes/test/cave_room_test.tscn"
+const SEED := 4242
 const DUNGEON_SCENE := "res://scenes/dungeon/dungeon.tscn"
-const CRYPT := 1
-const CAVE := 2
 ## Clear vertical lane in the Cave room (no obstacles between these points).
 const LANE_X := 680.0
 
@@ -23,10 +22,12 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	RunState.seed_override = SEED
 	await _test_projectiles_and_ai()
 	await _test_mage_death()
 	await _test_dungeon_integration()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -180,7 +181,7 @@ func _test_dungeon_integration() -> void:
 	await _wait_for_scene(scene_id)
 	var dungeon := current_scene as Dungeon
 	dungeon.run_state.xp_multiplier_override = 1.0
-	dungeon.enter_room(CAVE, &"DoorBottom")
+	dungeon.enter_room(_scene_room(dungeon, "cave_room"), dungeon.entry_door(_scene_room(dungeon, "cave_room")))
 	await _frames(2)
 	var cave := dungeon.current_room
 	cave.start_encounter()
@@ -208,10 +209,10 @@ func _test_dungeon_integration() -> void:
 	dungeon.add_child(stray)
 	xp = dungeon.run_state.xp
 	currency = dungeon.run_state.currency
-	dungeon.enter_room(CRYPT, &"DoorTop")
+	dungeon.enter_room(_scene_room(dungeon, "crypt_room"), dungeon.entry_door(_scene_room(dungeon, "crypt_room")))
 	await _frames(3)
 	_check(not is_instance_valid(stray), "enemy projectiles cleared on room transition")
-	dungeon.enter_room(CAVE, &"DoorBottom")
+	dungeon.enter_room(_scene_room(dungeon, "cave_room"), dungeon.entry_door(_scene_room(dungeon, "cave_room")))
 	await _frames(3)
 	_check(dungeon.current_room == cave and cave.state == Room.State.CLEARED
 			and cave.get_node(^"Enemies").get_child_count() == 0, "revisited Cave stays cleared; caster does not respawn")
@@ -223,7 +224,7 @@ func _test_dungeon_integration() -> void:
 	await _wait_for_scene(scene_id)
 	dungeon = current_scene as Dungeon
 	_check(dungeon.run_state.xp == 0 and dungeon.run_state.currency == 0 and dungeon.run_state.level == 1, "Restart resets the run")
-	dungeon.enter_room(CAVE, &"DoorBottom")
+	dungeon.enter_room(_scene_room(dungeon, "cave_room"), dungeon.entry_door(_scene_room(dungeon, "cave_room")))
 	await _frames(2)
 	var fresh := dungeon.current_room
 	_check(fresh != cave and fresh.state != Room.State.CLEARED and fresh.enemies_remaining == 4
@@ -266,3 +267,11 @@ func _wait_for_scene(old_id: int) -> void:
 			break
 		await process_frame
 	await _frames(2)
+
+
+## Index of the room built from res://scenes/rooms/<name>.tscn (seeded layout, Issue #45).
+func _scene_room(dungeon: Dungeon, name: String) -> int:
+	for i in dungeon.rooms.size():
+		if dungeon.rooms[i].scene.resource_path == "res://scenes/rooms/%s.tscn" % name:
+			return i
+	return -1

@@ -10,7 +10,8 @@ enum Treasure { NONE, SURVIVAL, PUZZLE }
 
 ## Room scene (a Room). Template scenes have an empty "Enemies" node.
 @export var scene: PackedScene
-## Grid cell (x right, y down). Linked rooms must be orthogonal neighbours.
+## Grid cell (x right, y down). Linked rooms must be orthogonal neighbours. In a
+## seeded dungeon (Dungeon.seeded_layout) DungeonLayout assigns it per level.
 @export var cell: Vector2i
 ## Mage level needed to enter. Doors leading here stay level-locked below it.
 @export var required_level: int = 1

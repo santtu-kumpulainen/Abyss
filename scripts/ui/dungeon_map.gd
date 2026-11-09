@@ -5,8 +5,8 @@ extends Control
 ## links: rooms behind unexplored doors appear as outlines; gold outlines and
 ## links need a higher Mage level (red for the boss room). Known treasure
 ## rooms carry a diamond marker: orange for the survival trial, violet for
-## the rune puzzle (dimmed once completed). Known Ancient Seal rooms carry a
-## ring: bright teal while their seal is still available, dim once collected.
+## the rune puzzle (dimmed once completed). Ancient Seal rooms are not marked
+## (Issue #45): the player finds the seals by exploring; RunHud shows the count.
 
 @export var cell_size: float = 16.0
 @export var gap: float = 6.0
@@ -21,8 +21,6 @@ extends Control
 @export var boss_color := Color(0.9, 0.2, 0.25, 1.0)
 @export var survival_color := Color(1.0, 0.55, 0.15, 1.0)
 @export var puzzle_color := Color(0.72, 0.45, 1.0, 1.0)
-@export var seal_color := Color(0.35, 0.95, 0.85, 1.0)
-@export var seal_collected_color := Color(0.3, 0.45, 0.45, 0.9)
 
 var _dungeon: Dungeon
 var _origin_cell := Vector2i.ZERO
@@ -81,9 +79,6 @@ func _draw() -> void:
 			draw_rect(rect, color, false, 2.0)
 		if _dungeon.rooms[i].is_boss:
 			draw_rect(rect.grow(-cell_size * 0.3), boss_color)
-		var seal := seal_marker_color(i)
-		if seal.a > 0.0:
-			draw_arc(rect.get_center(), cell_size * 0.72, 0.0, TAU, 20, seal, 2.0)
 		var marker := marker_color(i)
 		if marker.a > 0.0:
 			var c := rect.get_center()
@@ -102,13 +97,6 @@ func marker_color(index: int) -> Color:
 		RoomSpec.Treasure.PUZZLE:
 			color = puzzle_color
 	return color.darkened(0.45) if color.a > 0.0 and _dungeon.is_cleared(index) else color
-
-
-## Ancient Seal ring colour for room `index` (transparent if it holds no seal this level).
-func seal_marker_color(index: int) -> Color:
-	if not _dungeon.seal_rooms().has(index):
-		return Color.TRANSPARENT
-	return seal_collected_color if _dungeon.is_seal_collected(index) else seal_color
 
 
 func _gate_color(index: int) -> Color:
