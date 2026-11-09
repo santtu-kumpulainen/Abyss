@@ -9,6 +9,7 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
 const FIRE_BALL := "res://scenes/spells/fire_ball/fire_ball.tres"
 const NORMAL := Difficulty.Tier.NORMAL
@@ -24,6 +25,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	_test_damage_growth_unit()
 	_test_baseline_hp()
 	_test_prices_and_caps()
@@ -31,6 +33,7 @@ func _run_tests() -> void:
 	_test_gates()
 	await _test_scene()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 

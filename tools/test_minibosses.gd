@@ -54,6 +54,13 @@ func _run_tests() -> void:
 		await _test_reward_fallback()
 		await _load()
 		await _test_champion_room()
+		await _load()
+		await _test_unsealed_miniboss_room()
+		_test_progression()
+		await _load()
+		await _test_double_room(5)
+		await _load()
+		await _test_double_room(7)
 	RunState.seed_override = 0
 	if _prog:
 		_prog.clear_progress()
@@ -130,7 +137,6 @@ func _test_floor_hazard() -> void:
 # --- Placement ---------------------------------------------------------------------
 
 func _test_placement() -> void:
-	var anvil := _dungeon.index_at(_dungeon.final_anvil_cell)
 	var pool := RunState.miniboss_reward_pool()
 	_check(pool.size() >= 4 and pool.all(func(id: StringName) -> bool: return RunState.ITEMS.has(id)),
 			"miniboss rewards come from RunState.ITEMS (%d items)" % pool.size())
@@ -146,10 +152,14 @@ func _test_placement() -> void:
 		for s in SEEDS:
 			_run.run_seed = s + 1
 			_dungeon._plan_level()
+			var anvil := _dungeon.index_at(_dungeon.final_anvil_cell)  # per-seed layout (Issue #45)
 			var seals := _dungeon.seal_rooms()
-			var bosses := seals.keys().filter(func(i: int) -> bool: return seals[i] == &"miniboss")
+			var bosses := _dungeon.miniboss_room_indexes()
+			var seal_bosses := seals.keys().filter(func(i: int) -> bool: return seals[i] == &"miniboss")
 			distinct_rooms[str(bosses)] = true
-			ok = ok and bosses.size() == count and seals.size() >= EncounterPlanner.MIN_SEAL_SOURCES
+			# Exactly 4 seal sources (Issue #45): at most 2 miniboss rooms hold a seal.
+			ok = ok and bosses.size() == count and seals.size() == EncounterPlanner.SEAL_SOURCES \
+					and seal_bosses.size() == mini(count, 2) and seal_bosses.all(func(i: int) -> bool: return bosses.has(i))
 			var kinds := {}
 			for i: int in bosses:
 				ok = ok and _dungeon.miniboss_scene(i) != null and i != anvil and not _dungeon.rooms[i].is_boss
@@ -167,8 +177,8 @@ func _test_placement() -> void:
 				rewards_ok = rewards_ok and unique.size() == 4
 			if count == 2:
 				ok = ok and not _adjacent(bosses[0], bosses[1])
-		_check(ok, "%d miniboss room(s): exactly the miniboss seal rooms, never boss/anvil (%d seeds)%s"
-				% [count, SEEDS, " and never adjacent" if count == 2 else ""])
+		_check(ok, "%d miniboss room(s): exactly the planned miniboss rooms, %d of them seal sources, never boss/anvil (%d seeds)%s"
+				% [count, mini(count, 2), SEEDS, " and never adjacent" if count == 2 else ""])
 		_check(both, "%d miniboss room(s): %s" % [count, "both minibosses appear" if count >= 2 else "one miniboss"])
 		_check(rewards_ok, "%d miniboss room(s): two different reward items each%s" % [count, ", all four different" if count == 2 else ""])
 		_check(distinct_rooms.size() > 5, "%d miniboss room(s): placement varies by seed (%d layouts)" % [count, distinct_rooms.size()])
@@ -376,7 +386,8 @@ func _test_hexcaller() -> void:
 # --- Rewards and seal ----------------------------------------------------------------
 
 func _test_rewards_and_seal() -> void:
-	var index := _miniboss_room(BroodMother)
+	# A miniboss room that is one of the 4 seal sources (Issue #45: only 2 of them are).
+	var index := _seal_miniboss_room()
 	var boss := await _enter_miniboss(index)
 	if boss == null:
 		_check(false, "setup: miniboss room built")
@@ -419,9 +430,14 @@ func _test_rewards_and_seal() -> void:
 
 ## A planned reward at its stack cap is replaced when the room is built.
 func _test_reward_fallback() -> void:
-	var index := _miniboss_room(Hexcaller)
+	# An unvisited miniboss room (the reward test above may have used either kind).
+	var index := -1
+	for i in _dungeon.miniboss_room_indexes():
+		if not _dungeon.is_visited(i):
+			index = i
+			break
 	var planned := _dungeon.reward_choices(index)
-	_check(planned.size() == 2 and not _dungeon.is_visited(index), "setup: unbuilt Hexcaller room with two planned rewards")
+	_check(index >= 0 and planned.size() == 2 and not _dungeon.is_visited(index), "setup: unbuilt miniboss room with two planned rewards")
 	var capped := planned[0]
 	_run.collected[capped] = RunState.MAX_STACKS
 	var boss := await _enter_miniboss(index)
@@ -444,7 +460,7 @@ func _test_champion_room() -> void:
 	for i: int in seals:
 		if seals[i] == &"champion":
 			index = i
-	_check(index >= 0 and seals.size() == EncounterPlanner.MIN_SEAL_SOURCES, "1 miniboss: a champion room keeps 4 seal sources")
+	_check(index >= 0 and seals.size() == EncounterPlanner.SEAL_SOURCES, "1 miniboss: a champion room keeps 4 seal sources")
 	if index < 0:
 		return
 	_dungeon.enter_room(index)
@@ -475,6 +491,173 @@ func _test_champion_room() -> void:
 	await _wait_until(func() -> bool: return room.state == Room.State.CLEARED)
 	var seal := room.get_node_or_null(^"Decor/AncientSeal") as AncientSeal
 	_check(seal != null and seal.visible, "champion room: clearing it reveals the seal")
+
+
+# --- Progression and double rooms (Issue #45) -----------------------------------------
+
+## Miniboss rooms that are not seal sources still give their reward choice, but no seal.
+func _test_unsealed_miniboss_room() -> void:
+	var index := -1
+	for i in _dungeon.miniboss_room_indexes():
+		if not _dungeon.seal_rooms().has(i):
+			index = i
+	_check(_dungeon.miniboss_count() == 3 and index >= 0, "level 1: 3 miniboss rooms by default, one without a seal")
+	if index < 0:
+		return
+	var boss := await _enter_miniboss(index)
+	var room := _dungeon.current_room
+	_check(boss != null and room.get_node_or_null(^"Decor/AncientSeal") == null and _pickups(room).size() == 2,
+			"unsealed miniboss room: a miniboss and two reward choices, no seal")
+	for e in _enemies(room):
+		(e as Enemy).take_damage(999999.0)
+	await _wait_until(func() -> bool: return room.state == Room.State.CLEARED)
+	await _frames(1)
+	var shown := _pickups(room)
+	_check(shown.size() == 2 and shown.all(func(p: ItemPickup) -> bool: return p.visible), "unsealed miniboss room: clearing it reveals both rewards")
+
+
+## Miniboss / double-room counts per dungeon level (helpers and the planned
+## levels), exact reward splits, seal sources, distinct pairs and reward choices.
+func _test_progression() -> void:
+	var counts: Array[int] = []
+	var doubles: Array[int] = []
+	for level in range(1, 13):
+		counts.append(EncounterPlanner.miniboss_room_count(level))
+		doubles.append(EncounterPlanner.double_miniboss_room_count(level))
+	_check(counts == [3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4], "miniboss rooms per level 1-12: 3, 3, then 4 (%s)" % [counts])
+	_check(doubles == [0, 0, 0, 0, 1, 1, 2, 2, 2, 2, 2, 2], "double-miniboss rooms per level 1-12: from level 5 one, from level 7 two (%s)" % [doubles])
+	var splits_ok := true
+	for total in range(0, 25):
+		for parts in [1, 2]:
+			var shares := EncounterPlanner.split_reward(total, parts)
+			splits_ok = splits_ok and shares.size() == parts and shares.reduce(func(a: int, b: int) -> int: return a + b, 0) == total \
+					and shares.max() - shares.min() <= 1
+	_check(splits_ok, "split_reward: shares always add up to the exact total (0-24 XP/gold, 1-2 minibosses)")
+	_dungeon.miniboss_rooms = 0
+	var pool := RunState.miniboss_reward_pool()
+	var plan_ok := true
+	var seal_ok := true
+	var pair_ok := true
+	var reward_ok := true
+	var detail := ""
+	for level in range(1, 11):
+		for s in 25:
+			_run.dungeon_level = level
+			_run.run_seed = 5000 + s
+			_dungeon._plan_level()
+			var rooms := _dungeon.miniboss_room_indexes()
+			var double_rooms := rooms.filter(func(i: int) -> bool: return _dungeon.is_double_miniboss(i))
+			var seals := _dungeon.seal_rooms()
+			var ok := rooms.size() == EncounterPlanner.miniboss_room_count(level) and _dungeon.miniboss_count() == rooms.size() \
+					and double_rooms.size() == EncounterPlanner.double_miniboss_room_count(level)
+			for i in _dungeon.rooms.size():
+				ok = ok and _dungeon.is_double_miniboss(i) == double_rooms.has(i) and (_dungeon.miniboss_scene(i) != null) == rooms.has(i)
+			plan_ok = plan_ok and ok
+			if not ok and detail.is_empty():
+				detail = "level %d: %d rooms, %d doubles" % [level, rooms.size(), double_rooms.size()]
+			var kinds := seals.values()
+			seal_ok = seal_ok and seals.size() == EncounterPlanner.SEAL_SOURCES and kinds.count(&"treasure") == 2 \
+					and kinds.count(&"miniboss") == 2 and kinds.count(&"champion") == 0
+			for i in rooms:
+				var pair := _dungeon.miniboss_pair(i)
+				pair_ok = pair_ok and pair.size() == (2 if double_rooms.has(i) else 1) and (pair.size() == 1 or pair[0] != pair[1])
+				var ids := _dungeon.reward_choices(i)
+				reward_ok = reward_ok and ids.size() == 2 and ids[0] != ids[1] and ids.all(func(id: StringName) -> bool: return pool.has(id))
+	_run.dungeon_level = 1
+	_dungeon.miniboss_rooms = 0
+	_check(plan_ok, "levels 1-10 (25 seeds each): miniboss and double-miniboss room counts follow the progression %s" % detail)
+	_check(seal_ok, "levels 1-10: always exactly 4 seal sources (both puzzle rooms + 2 miniboss rooms, no champions)")
+	_check(pair_ok, "double rooms hold two different minibosses (Brood Mother + Hexcaller), other rooms one")
+	_check(reward_ok, "every miniboss room (double or not) offers one pick-1-of-2 choice of two different items")
+
+
+## A double-miniboss room on dungeon level `level`: both minibosses spawn with
+## 0.6x HP, the Brood Mother capped at 2 summons and the Hexcaller's opening
+## delayed; XP and gold are split exactly, bonus gold and the reward choice once.
+func _test_double_room(level: int) -> void:
+	_run.dungeon_level = level
+	_dungeon._plan_level()
+	var double_rooms := _dungeon.miniboss_room_indexes().filter(func(i: int) -> bool: return _dungeon.is_double_miniboss(i))
+	_check(double_rooms.size() == EncounterPlanner.double_miniboss_room_count(level), "level %d: %d double room(s) planned" % [level, double_rooms.size()])
+	if double_rooms.is_empty():
+		return
+	var index: int = double_rooms[0]
+	var lineup := _dungeon.room_lineup(index)
+	var lineup_xp := EncounterPlanner.lineup_xp(lineup)
+	var lineup_gold := EncounterPlanner.lineup_gold(lineup)
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
+	await _frames(2)
+	var room := _dungeon.current_room
+	var bosses: Array = _enemies(room).filter(func(e: Node) -> bool: return e is Miniboss)
+	_check(bosses.size() == 2 and _enemies(room).size() == 2, "level %d double room: exactly two minibosses, nothing else" % level)
+	if bosses.size() != 2:
+		return
+	var brood: BroodMother = bosses.filter(func(e: Node) -> bool: return e is BroodMother).front()
+	var hex: Hexcaller = bosses.filter(func(e: Node) -> bool: return e is Hexcaller).front()
+	_check(brood != null and hex != null, "level %d double room: Brood Mother and Hexcaller" % level)
+	if brood == null or hex == null:
+		return
+	var xp_sum: int = brood.xp_reward + hex.xp_reward
+	var gold_sum: int = brood.currency_reward + hex.currency_reward
+	_check(xp_sum == lineup_xp and absi(brood.xp_reward - hex.xp_reward) <= 1,
+			"level %d double room: XP split exactly (%d + %d = %d, line-up %d)" % [level, brood.xp_reward, hex.xp_reward, xp_sum, lineup_xp])
+	_check(gold_sum == lineup_gold + _dungeon.miniboss_bonus_gold,
+			"level %d double room: gold split exactly, bonus once (%d + %d = %d + %d)" % [level, brood.currency_reward, hex.currency_reward, lineup_gold, _dungeon.miniboss_bonus_gold])
+	# HP: base x 0.6 x the run's enemy HP scaling (same scaling as a single miniboss).
+	var scaling := _run.enemy_health_multiplier() * _run.output_hp_modifier()
+	var hp_ok := true
+	for b: Miniboss in bosses:
+		var base := (load(b.scene_file_path) as PackedScene).instantiate() as Miniboss
+		hp_ok = hp_ok and is_equal_approx(b.health.max_health, (base.get_node(^"Health") as Health).max_health * _dungeon.double_health_factor * scaling)
+		if b is BroodMother:
+			hp_ok = hp_ok and (b as BroodMother).max_summons == _dungeon.double_max_summons
+		elif b is Hexcaller:
+			hp_ok = hp_ok and is_equal_approx(b.opening_delay, base.opening_delay + _dungeon.double_hexcaller_delay)
+		base.free()
+	_check(hp_ok, "level %d double room: 0.6x HP each, Brood Mother max %d summons, Hexcaller opens %.1f s later"
+			% [level, _dungeon.double_max_summons, _dungeon.double_hexcaller_delay])
+	var pickups := _pickups(room)
+	_check(pickups.size() == 2 and pickups[0].item_id != pickups[1].item_id and pickups.all(func(p: ItemPickup) -> bool:
+			return p.choice_group == &"miniboss_reward" and not p.visible), "level %d double room: one hidden pick-1-of-2 reward choice" % level)
+	# Kill both: the room pays exactly the line-up XP (raw) and its gold + bonus once.
+	_run.xp_multiplier_override = 1.0
+	var xp_before := _total_xp()
+	var gold_before := _run.currency
+	for b: Miniboss in bosses:
+		b.take_damage(999999.0)
+	await _wait_until(func() -> bool: return room.state == Room.State.CLEARED)
+	await _frames(1)
+	_check(room.state == Room.State.CLEARED and _total_xp() - xp_before == lineup_xp
+			and _run.currency - gold_before == roundi((lineup_gold + _dungeon.miniboss_bonus_gold) * _run.gold_multiplier()),
+			"level %d double room: clearing it grants exactly the line-up XP (%d) and gold + bonus once (%d)"
+			% [level, _total_xp() - xp_before, _run.currency - gold_before])
+	_run.xp_multiplier_override = 0.0
+	var shown := pickups.filter(func(p: ItemPickup) -> bool: return is_instance_valid(p) and p.visible)
+	_check(shown.size() == 2 and shown[0].collect() and not shown[1].collect(), "level %d double room: only one of the two rewards can be taken" % level)
+	await _frames(1)
+	_dungeon.enter_room(_dungeon.start_room)
+	await _frames(1)
+	_dungeon.enter_room(index)
+	await _frames(2)
+	_check(_dungeon.current_room.state == Room.State.CLEARED and _enemies(_dungeon.current_room).is_empty()
+			and _pickups(_dungeon.current_room).is_empty(), "level %d double room: revisit gives no respawn and no second reward" % level)
+	_run.dungeon_level = 1
+
+
+## Total XP earned so far (levels gained + current XP; xp_per_level * level per level).
+func _total_xp() -> int:
+	var total := _run.xp
+	for l in range(1, _run.level):
+		total += _run.xp_per_level * l
+	return total
+
+
+## A miniboss room that is a seal source (-1 if none).
+func _seal_miniboss_room() -> int:
+	for i in _dungeon.miniboss_room_indexes():
+		if _dungeon.seal_rooms().get(i) == &"miniboss":
+			return i
+	return -1
 
 
 # --- Helpers -----------------------------------------------------------------------

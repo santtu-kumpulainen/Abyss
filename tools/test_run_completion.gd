@@ -10,10 +10,8 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
-const BOSS := Vector2i(2, 0)
-const BOOTS_ROOM := Vector2i(0, 4)
-const SECOND_ROOM := Vector2i(1, 4)
 
 var _failures := 0
 var _dungeon: Dungeon
@@ -29,6 +27,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	change_scene_to_file(SCENE)
 	await _wait_for_scene(0)
 	_base_hp = _mage.health.max_health
@@ -41,6 +40,7 @@ func _run_tests() -> void:
 	await _test_wind_relic_and_menu()
 	await _test_no_victory_after_mage_death()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -49,10 +49,10 @@ func _run_tests() -> void:
 func _test_victory_and_summary() -> void:
 	_check(not _run.choose_relic(&"ember_relic") and _run.relic.is_empty(), "no relic can be chosen before the boss dies")
 	var enemies := 0
-	enemies += await _clear_room(_dungeon.index_at(BOOTS_ROOM))
+	enemies += await _clear_room(_dungeon.item_room_index(&"swift_boots"))
 	var boots := _pickup(_dungeon.current_room)
 	_check(boots != null and boots.collect(), "setup: Swift Boots collected")
-	enemies += await _clear_room(_dungeon.index_at(SECOND_ROOM))
+	enemies += await _clear_room(_other_tier1_room(_dungeon.item_room_index(&"swift_boots")))
 	_check(_run.enemies_defeated == enemies and enemies > 0, "enemies defeated counted per encounter kill (%d)" % _run.enemies_defeated)
 	_run.add_rewards(0, 100)
 	_check(_run.purchase(&"vitality"), "setup: Vitality purchased")
@@ -62,7 +62,7 @@ func _test_victory_and_summary() -> void:
 
 	var victories := [0]
 	_dungeon.victory_started.connect(func() -> void: victories[0] += 1)
-	var boss_index := _dungeon.index_at(BOSS)
+	var boss_index := _dungeon.boss_index()
 	_dungeon.enter_room(boss_index, &"DoorBottom")
 	await _frames(2)
 	var boss := _boss(_dungeon.current_room)
@@ -105,7 +105,7 @@ func _test_victory_and_summary() -> void:
 			"a second relic choice for the same boss is rejected")
 	_check(not _dungeon.advance_level() and _run.dungeon_level == 2, "the level change cannot trigger twice")
 	_check(_dungeon.current_index == _dungeon.start_room and _dungeon.rooms_cleared_count() == 0 and _dungeon.final_anvil == null
-			and not _dungeon.is_visited(boss_index) and not _dungeon.is_visited(_dungeon.index_at(BOOTS_ROOM)),
+			and not _dungeon.is_visited(_dungeon.boss_index()) and not _dungeon.is_visited(_dungeon.item_room_index(&"swift_boots")),
 			"level state reset: rooms, discovery, anvil, boss")
 	_check(_run.level == 4 and _run.collected.has(&"swift_boots") and _run.purchased.has(&"vitality") and _run.enemies_defeated == kills
 			and _run.currency > 0, "build kept: XP level, items, upgrades, gold, kills")
@@ -120,7 +120,7 @@ func _test_victory_and_summary() -> void:
 	_check(is_equal_approx(_run.run_time, run_time) or _run.run_time >= run_time, "run timer keeps its total (%.2f -> %.2f)" % [run_time, _run.run_time])
 	_check(_run.level_time < level_time or is_zero_approx(level_time), "level timer restarted (%.2f -> %.2f)" % [level_time, _run.level_time])
 	var summary := _dungeon.run_summary()
-	_check(summary["dungeon_level"] == 2 and summary["rooms_cleared"] == 0 and summary["rooms_total"] == 25
+	_check(summary["dungeon_level"] == 2 and summary["rooms_cleared"] == 0 and summary["rooms_total"] == 23
 			and summary["items"] == [&"swift_boots"] and summary["upgrades"] == [&"vitality"] and summary["relic"] == &"ember_relic",
 			"run summary values are accurate (%s)" % summary)
 
@@ -180,7 +180,7 @@ func _test_no_victory_after_mage_death() -> void:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
 	_grant_seals()
-	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.boss_index(), &"DoorBottom")
 	await _frames(2)
 	var boss := _boss(_dungeon.current_room)
 	_mage.take_damage(9999.0)
@@ -196,7 +196,7 @@ func _win_fast() -> void:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
 	_grant_seals()
-	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.boss_index(), &"DoorBottom")
 	await _frames(2)
 	_boss(_dungeon.current_room).take_damage(99999.0)
 	await _wait_until(func() -> bool: return _overlay().is_open, 240)
@@ -217,7 +217,7 @@ func _check_fresh_run(label: String) -> void:
 	_check(_run.dungeon_level == 1 and _run.run_time < 2.0 and not _run.is_replay, "%s: dungeon level and timers reset" % label)
 	_check(not _run.boss_defeated and not _dungeon.victory and _run.enemies_defeated == 0, "%s: boss state and counters reset" % label)
 	_check(_dungeon.current_index == _dungeon.start_room and _dungeon.rooms_cleared_count() == 0 and _dungeon.final_anvil == null
-			and not _dungeon.is_visited(_dungeon.index_at(BOSS)) and not _dungeon.is_visited(_dungeon.index_at(BOOTS_ROOM)),
+			and not _dungeon.is_visited(_dungeon.boss_index()) and not _dungeon.is_visited(_dungeon.item_room_index(&"swift_boots")),
 			"%s: room clear/discovery state reset" % label)
 	_check(is_equal_approx(_mage.health.max_health, _base_hp) and is_equal_approx(_mage.health.current, _base_hp)
 			and is_equal_approx(_mage.speed_multiplier, 1.0) and is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage)
@@ -307,3 +307,12 @@ func _check(condition: bool, label: String) -> void:
 func _grant_seals() -> void:
 	for i: int in _dungeon.seal_rooms():
 		_run.collect_seal(_dungeon.seal_id(i))
+
+
+## A Level 1 combat room other than the start room and `except` (seeded layout, Issue #45).
+func _other_tier1_room(except: int) -> int:
+	for i in range(1, _dungeon.rooms.size()):
+		var spec := _dungeon.rooms[i]
+		if i != except and spec.required_level == 1 and not spec.is_treasure() and not spec.is_boss:
+			return i
+	return -1
