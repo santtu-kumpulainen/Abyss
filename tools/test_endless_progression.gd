@@ -259,6 +259,7 @@ func _load_scene(path: String) -> void:
 func _win_fast() -> void:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
+	_grant_seals()
 	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
 	await _frames(2)
 	for e in _dungeon.current_room.get_node(^"Enemies").get_children():
@@ -270,6 +271,10 @@ func _win_fast() -> void:
 func _first_goblin_room_enemy() -> Enemy:
 	_dungeon.enter_room(_dungeon.index_at(GOBLIN_ROOM), &"DoorBottom")
 	await _frames(2)
+	# Spawn order is seeded (EncounterPlanner): pick the room's first goblin, not its first child.
+	for child in _dungeon.current_room.get_node(^"Enemies").get_children():
+		if child.scene_file_path.ends_with("giant_goblin.tscn"):
+			return child as Enemy
 	return _dungeon.current_room.get_node(^"Enemies").get_child(0) as Enemy
 
 
@@ -310,3 +315,9 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Ancient Seals (Issue #43): the boss gate also needs this level's seals; collect them all.
+func _grant_seals() -> void:
+	for i: int in _dungeon.seal_rooms():
+		_run.collect_seal(_dungeon.seal_id(i))

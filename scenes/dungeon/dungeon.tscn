@@ -12,6 +12,9 @@
 [ext_resource type="Script" uid="uid://ggxxf2yodh7t" path="res://scripts/dungeon/room_spec.gd" id="10_room_spec"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dungeon_map.tscn" id="11_map"]
 [ext_resource type="PackedScene" path="res://scenes/items/item_pickup.tscn" id="12_item_pickup"]
+[ext_resource type="PackedScene" path="res://scenes/items/ancient_seal.tscn" id="17_seal"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/brood_mother.tscn" id="18_brood"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/hexcaller.tscn" id="19_hex"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/upgrade_station.tscn" id="13_upgrade_station"]
 [ext_resource type="PackedScene" path="res://scenes/ui/victory_overlay.tscn" id="14_victory"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/survival_room.tscn" id="15_survival"]
@@ -207,6 +210,8 @@ y_sort_enabled = true
 script = ExtResource("1_dungeon")
 rooms = Array[ExtResource("10_room_spec")]([SubResource("Room_2_4"), SubResource("Room_3_4"), SubResource("Room_3_3"), SubResource("Room_0_4"), SubResource("Room_1_4"), SubResource("Room_4_4"), SubResource("Room_0_3"), SubResource("Room_1_3"), SubResource("Room_2_3"), SubResource("Room_4_3"), SubResource("Room_0_2"), SubResource("Room_1_2"), SubResource("Room_2_2"), SubResource("Room_3_2"), SubResource("Room_4_2"), SubResource("Room_0_1"), SubResource("Room_1_1"), SubResource("Room_2_1"), SubResource("Room_3_1"), SubResource("Room_4_1"), SubResource("Room_0_0"), SubResource("Room_1_0"), SubResource("Room_3_0"), SubResource("Room_4_0"), SubResource("Room_2_0"), SubResource("Room_5_2"), SubResource("Room_m1_3")])
 item_pickup_scene = ExtResource("12_item_pickup")
+ancient_seal_scene = ExtResource("17_seal")
+miniboss_scenes = Array[PackedScene]([ExtResource("18_brood"), ExtResource("19_hex")])
 upgrade_station_scene = ExtResource("13_upgrade_station")
 links = PackedStringArray("0,4 - 1,4", "1,4 - 2,4", "2,4 - 3,4", "3,4 - 4,4", "0,4 - 0,3", "0,3 - 1,3", "1,3 - 2,3", "1,4 - 1,3", "3,4 - 3,3", "3,3 - 4,3", "4,4 - 4,3", "2,3 - 3,3", "0,3 - 0,2", "4,3 - 4,2", "0,2 - 1,2", "1,2 - 2,2", "2,2 - 3,2", "3,2 - 4,2", "0,2 - 0,1", "4,2 - 4,1", "0,1 - 0,0", "0,0 - 1,0", "1,0 - 1,1", "1,1 - 2,1", "4,1 - 4,0", "4,0 - 3,0", "3,0 - 3,1", "3,1 - 2,1", "2,2 - 2,1", "2,1 - 2,0", "4,2 - 5,2", "0,3 - -1,3")
 

@@ -34,6 +34,11 @@ extends Node
 ## effect keys join the same on-demand bonus sums, so they cannot stack; the
 ## enemy_*() getters give the fixed per-enemy scaling the Dungeon applies once
 ## per enemy. Gold from kills and treasures goes through gold_multiplier().
+##
+## Ancient Seals (per dungeon level): the Dungeon registers the level's seal
+## source ids with set_seal_sources(); collect_seal() takes each one once.
+## seals_complete() (SEALS_REQUIRED seals) is needed, besides the Mage level
+## cap, to enter the boss room. begin_next_level() clears seals and sources.
 
 signal changed
 signal leveled_up(level: int)
@@ -43,6 +48,13 @@ signal relic_chosen(id: StringName)
 signal treasure_claimed(id: StringName)
 ## Emitted once when a synergy's required relics become owned.
 signal synergy_activated(id: StringName)
+## Emitted once per Ancient Seal collected on the current dungeon level.
+signal seal_collected(id: StringName)
+
+## Ancient Seals needed on every dungeon level to unseal the boss gate (on top
+## of the Mage level cap). The Dungeon registers more sources than this
+## (EncounterPlanner.MIN_SEAL_SOURCES), so one can be skipped.
+const SEALS_REQUIRED := 3
 
 ## Most copies of one item / treasure that stack (counts persist across levels).
 const MAX_STACKS := 3
@@ -79,6 +91,16 @@ const ITEMS := {
 	&"swift_boots": {"name": "Swift Boots", "effect": "+15% move speed", "speed": 0.15, "color": Color(0.45, 0.9, 1.0)},
 	&"ember_shard": {"name": "Ember Shard", "effect": "+15% Fire Ball damage", "damage": 0.15, "color": Color(1.0, 0.5, 0.2)},
 	&"heart_crystal": {"name": "Heart Crystal", "effect": "+25 max HP", "max_health": 25.0, "color": Color(1.0, 0.3, 0.45)},
+	# Miniboss reward pool ("miniboss": true): offered two at a time after a
+	# miniboss (pick one), never placed by RoomSpec.item. Not part of any synergy.
+	&"quickening_rune": {"name": "Quickening Rune", "effect": "-8% spell cooldown", "cooldown": 0.08,
+			"color": Color(0.55, 0.8, 1.0), "miniboss": true},
+	&"warding_charm": {"name": "Warding Charm", "effect": "-10% damage taken", "damage_taken": -0.1,
+			"color": Color(0.6, 1.0, 0.6), "miniboss": true},
+	&"fury_idol": {"name": "Fury Idol", "effect": "+12% spell damage", "damage": 0.12,
+			"color": Color(1.0, 0.35, 0.25), "miniboss": true},
+	&"bloodstone": {"name": "Bloodstone", "effect": "+15 max HP, +5% move speed", "max_health": 15.0, "speed": 0.05,
+			"color": Color(0.85, 0.2, 0.5), "miniboss": true},
 }
 
 ## Post-boss relics (same effect keys); exactly one can be chosen per run.
@@ -151,6 +173,13 @@ var gold_earned: int = 0
 var difficulty_bonus_gold: int = 0
 var modifier_bonus_gold: int = 0
 
+## Run seed for EncounterPlanner (set once by the Dungeon when the run starts;
+## kept by reset()). Each dungeon level is planned from level_seed().
+var run_seed: int = 0
+## If non-zero, the Dungeon uses this as the next runs' seed instead of a
+## random one (tests and bug reproduction).
+static var seed_override: int = 0
+
 ## If > 0, used instead of MageLevels.xp_multiplier() (see xp_multiplier()).
 var xp_multiplier_override: float = 0.0
 
@@ -161,6 +190,9 @@ var _level_purchased := {}
 var _level_treasures := {}
 var _xp_fraction := 0.0
 var _active_synergies: Array[StringName] = []
+## This level's Ancient Seal source ids (set by the Dungeon) and the ones collected.
+var _seal_sources: Array[StringName] = []
+var _level_seals := {}
 
 
 func xp_to_next_level() -> int:
@@ -188,6 +220,11 @@ func xp_multiplier() -> float:
 	if xp_multiplier_override > 0.0:
 		return xp_multiplier_override
 	return MageLevels.xp_multiplier(dungeon_level, xp_per_level)
+
+
+## Encounter seed of the current dungeon level.
+func level_seed() -> int:
+	return EncounterPlanner.level_seed(run_seed, dungeon_level)
 
 
 ## Sets the run's difficulty and Pact once, before the run starts. Returns
@@ -223,8 +260,52 @@ func begin_next_level() -> bool:
 	_level_collected.clear()
 	_level_treasures.clear()
 	_level_purchased.clear()
+	# Ancient Seals are a per-level objective; the Dungeon registers the new sources.
+	_level_seals.clear()
+	_seal_sources.clear()
 	_notify()
 	return true
+
+
+## Registers this dungeon level's Ancient Seal source ids (the Dungeon does
+## this when it plans a level). Seals already collected on this level are kept.
+func set_seal_sources(ids: Array[StringName]) -> void:
+	_seal_sources = ids.duplicate()
+	_notify()
+
+
+func seal_sources() -> Array[StringName]:
+	return _seal_sources.duplicate()
+
+
+## True if `id` is one of this level's seal sources and was not collected yet.
+func can_collect_seal(id: StringName) -> bool:
+	return _seal_sources.has(id) and not _level_seals.has(id)
+
+
+func is_seal_collected(id: StringName) -> bool:
+	return _level_seals.has(id)
+
+
+## Collects Ancient Seal `id` once per dungeon level. Returns false (and
+## changes nothing) for unknown sources and seals already collected.
+func collect_seal(id: StringName) -> bool:
+	if not can_collect_seal(id):
+		return false
+	_level_seals[id] = true
+	_notify()
+	seal_collected.emit(id)
+	return true
+
+
+## Ancient Seals collected on this dungeon level.
+func seals_collected() -> int:
+	return _level_seals.size()
+
+
+## True once SEALS_REQUIRED seals are collected on this dungeon level.
+func seals_complete() -> bool:
+	return seals_collected() >= SEALS_REQUIRED
 
 
 ## "mm:ss" (or "h:mm:ss" from one hour).
@@ -333,6 +414,15 @@ func is_collected(id: StringName) -> bool:
 ## taken on this level and not already at MAX_STACKS.
 func can_collect(id: StringName) -> bool:
 	return ITEMS.has(id) and not is_collected(id) and stack_count(id) < MAX_STACKS
+
+
+## Item ids offered by miniboss reward choices (ITEMS with "miniboss").
+static func miniboss_reward_pool() -> Array[StringName]:
+	var pool: Array[StringName] = []
+	for id: StringName in ITEMS:
+		if ITEMS[id].get("miniboss", false):
+			pool.append(id)
+	return pool
 
 
 ## Owned copies of item or treasure `id`.
@@ -562,6 +652,7 @@ func reset() -> void:
 	relic = &""
 	relics.clear()
 	_relic_claimed = false
+	_level_seals.clear()
 	dungeon_level = start_level
 	run_time = 0.0
 	level_time = 0.0
