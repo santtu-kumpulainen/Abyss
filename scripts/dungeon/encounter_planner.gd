@@ -22,9 +22,9 @@ const SWAP_GROUPS := [
 ]
 ## Most enemies replaced in one room (keeps the authored room's character).
 const MAX_SWAPS_PER_ROOM := 2
-## Fewest Ancient Seal sources per level (RunState.SEALS_REQUIRED + 1), so the
-## player can always skip at least one.
-const MIN_SEAL_SOURCES := 4
+## Ancient Seal sources per level, exactly (RunState.SEALS_REQUIRED + 1), so the
+## player can always skip one (Issue #45: both puzzle rooms + 2 miniboss rooms).
+const SEAL_SOURCES := 4
 
 ## Scene path -> [xp_reward, currency_reward] of a fresh instance.
 static var _reward_cache := {}
@@ -77,6 +77,64 @@ static func pick_seal_rooms(rooms: Array[RoomSpec], candidates: Array[int], coun
 				continue
 			picked.append(index)
 	return picked
+
+
+## Miniboss rooms per dungeon level (Issue #45): 3 on levels 1-2, 4 from level 3.
+static func miniboss_room_count(dungeon_level: int) -> int:
+	return 3 if dungeon_level <= 2 else 4
+
+
+## Double-miniboss rooms per dungeon level: none before level 5, 1 on levels
+## 5-6, 2 from level 7.
+static func double_miniboss_room_count(dungeon_level: int) -> int:
+	if dungeon_level < 5:
+		return 0
+	return 1 if dungeon_level < 7 else 2
+
+
+## The `count` rooms of `miniboss_rooms` that hold an Ancient Seal (seeded
+## choice, returned in `miniboss_rooms` order; all of them if there are fewer).
+static func pick_seal_minibosses(miniboss_rooms: Array[int], count: int, seed_value: int) -> Array[int]:
+	return _pick_subset(miniboss_rooms, count, hash([seed_value, "seal_minibosses"]))
+
+
+## The `count` rooms of `miniboss_rooms` that get two minibosses (seeded,
+## independent of the seal choice; returned in `miniboss_rooms` order).
+static func pick_double_minibosses(miniboss_rooms: Array[int], count: int, seed_value: int) -> Array[int]:
+	return _pick_subset(miniboss_rooms, count, hash([seed_value, "double_minibosses"]))
+
+
+## `total` split into `parts` whole shares that add up to exactly `total`
+## (the first shares take the remainder), e.g. 9 / 2 -> [5, 4].
+static func split_reward(total: int, parts: int) -> Array[int]:
+	var shares: Array[int] = []
+	parts = maxi(parts, 1)
+	for k in parts:
+		shares.append(total / parts + (1 if k < total % parts else 0))
+	return shares
+
+
+## A seeded `count`-element subset of `values`, in `values` order.
+static func _pick_subset(values: Array[int], count: int, seed_value: int) -> Array[int]:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var order: Array = values.duplicate()
+	_shuffle(order, rng)
+	var chosen := order.slice(0, count)
+	var result: Array[int] = []
+	for value in values:
+		if chosen.has(value):
+			result.append(value)
+	return result
+
+
+## One of `points`, chosen from `seed_value` (Vector2.INF if there are none).
+static func pick_point(points: PackedVector2Array, seed_value: int) -> Vector2:
+	if points.is_empty():
+		return Vector2.INF
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed_value, "point"])
+	return points[rng.randi_range(0, points.size() - 1)]
 
 
 ## `authored` with up to MAX_SWAPS_PER_ROOM equal-XP swaps, then shuffled.

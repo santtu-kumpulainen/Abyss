@@ -9,12 +9,8 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
-const ANTECHAMBER := Vector2i(2, 1)
-const BOSS := Vector2i(2, 0)
-const BOOTS_ROOM := Vector2i(0, 4)
-const HEART_ROOM := Vector2i(0, 0)
-const SHARD_ROOM := Vector2i(4, 0)
 
 var _failures := 0
 var _dungeon: Dungeon
@@ -27,6 +23,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	change_scene_to_file(SCENE)
 	await _wait_for_scene(0)
 	await _test_boss_fight()
@@ -34,6 +31,7 @@ func _run_tests() -> void:
 	await _test_items()
 	await _test_final_anvil()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -41,7 +39,7 @@ func _test_boss_fight() -> void:
 	_run.add_rewards(150, 0)
 	_grant_seals()
 	_check(_run.level == 3, "setup: Lv 3")
-	var boss_index := _dungeon.index_at(BOSS)
+	var boss_index := _dungeon.boss_index()
 	_dungeon.enter_room(boss_index, &"DoorBottom")
 	await _frames(2)
 	var room := _dungeon.current_room
@@ -155,7 +153,7 @@ func _test_boss_fight() -> void:
 	_check(_message().contains("Victory"), "victory is announced (%s)" % _message())
 	_check(_room_hud_text() == room.cleared_text, "room HUD shows the victory text")
 	gold = _run.currency
-	_dungeon.enter_room(_dungeon.index_at(ANTECHAMBER), &"DoorTop")
+	_dungeon.enter_room(_dungeon.index_at(_dungeon.final_anvil_cell), _dungeon.entry_door(_dungeon.index_at(_dungeon.final_anvil_cell)))
 	await _frames(2)
 	_dungeon.enter_room(boss_index, &"DoorBottom")
 	await _frames(2)
@@ -167,7 +165,7 @@ func _test_boss_mage_death_and_restart() -> void:
 	await _restart()
 	_run.add_rewards(150, 0)
 	_grant_seals()
-	var boss_index := _dungeon.index_at(BOSS)
+	var boss_index := _dungeon.boss_index()
 	_check(not _dungeon.is_visited(boss_index) and not _run.boss_defeated, "Restart resets the boss room and boss flag")
 	_dungeon.enter_room(boss_index, &"DoorBottom")
 	await _frames(2)
@@ -193,8 +191,8 @@ func _test_items() -> void:
 	_check(is_equal_approx(_mage.speed_multiplier, 1.0) and not _items_label().visible, "no items at the start of a run")
 
 	# --- Swift Boots: hidden during combat, collected once after clearing ---
-	var boots_index := _dungeon.index_at(BOOTS_ROOM)
-	_dungeon.enter_room(boots_index, &"DoorRight")
+	var boots_index := _dungeon.item_room_index(&"swift_boots")
+	_dungeon.enter_room(boots_index, _dungeon.entry_door(boots_index))
 	await _frames(2)
 	var room := _dungeon.current_room
 	var pickup := _pickup(room)
@@ -218,14 +216,14 @@ func _test_items() -> void:
 	_check(_items_label().visible and _items_label().text.contains("Swift Boots (+15% move speed)"), "HUD lists the item (%s)" % _items_label().text)
 
 	# --- Heart Crystal and Ember Shard ---
-	_dungeon.enter_room(_dungeon.index_at(HEART_ROOM), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.item_room_index(&"heart_crystal"), _dungeon.entry_door(_dungeon.item_room_index(&"heart_crystal")))
 	await _frames(2)
 	await _kill_all(_dungeon.current_room)
 	var heart := _pickup(_dungeon.current_room)
 	_check(heart != null and heart.item_id == &"heart_crystal", "Heart Crystal pickup placed in its room")
 	_check(heart.collect() and is_equal_approx(_mage.health.max_health, base_hp + 25.0), "Heart Crystal: +25 max HP (%.0f)" % _mage.health.max_health)
 	_check(not heart.collect() and is_equal_approx(_mage.health.max_health, base_hp + 25.0), "Heart Crystal applies only once")
-	_dungeon.enter_room(_dungeon.index_at(SHARD_ROOM), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.item_room_index(&"ember_shard"), _dungeon.entry_door(_dungeon.item_room_index(&"ember_shard")))
 	await _frames(2)
 	await _kill_all(_dungeon.current_room)
 	var shard := _pickup(_dungeon.current_room)
@@ -235,7 +233,7 @@ func _test_items() -> void:
 	_check(_items_label().text.split("\n").size() == 3, "HUD lists all three items")
 
 	# --- Persistence and no farming ---
-	_dungeon.enter_room(boots_index, &"DoorRight")
+	_dungeon.enter_room(boots_index, _dungeon.entry_door(boots_index))
 	await _frames(3)
 	_check(_pickup(_dungeon.current_room) == null and is_equal_approx(_mage.speed_multiplier, 1.15)
 			and _mage.health.max_health >= base_hp + 25.0 and _run.collected.size() == 3,
@@ -246,15 +244,15 @@ func _test_items() -> void:
 	_check(_run.collected.is_empty() and is_equal_approx(_mage.speed_multiplier, 1.0)
 			and is_equal_approx(_mage.health.max_health, base_hp) and is_equal_approx(_mage.caster.get_cast_spell().damage, base_damage)
 			and not _items_label().visible, "Restart resets items and their effects")
-	_dungeon.enter_room(_dungeon.index_at(BOOTS_ROOM), &"DoorRight")
+	_dungeon.enter_room(_dungeon.item_room_index(&"swift_boots"), _dungeon.entry_door(_dungeon.item_room_index(&"swift_boots")))
 	await _frames(2)
 	_check(_pickup(_dungeon.current_room) != null, "item pickup is back after Restart")
 
 
 func _test_final_anvil() -> void:
 	await _restart()
-	var ante_index := _dungeon.index_at(ANTECHAMBER)
-	var boss_index := _dungeon.index_at(BOSS)
+	var ante_index := _dungeon.index_at(_dungeon.final_anvil_cell)
+	var boss_index := _dungeon.boss_index()
 	_check(_dungeon.final_anvil == null and not _dungeon.all_rooms_cleared(), "no pre-boss anvil at the start of a run")
 	# Clear every non-boss room except the antechamber.
 	for i in _dungeon.rooms.size():
@@ -262,7 +260,7 @@ func _test_final_anvil() -> void:
 			continue
 		await _clear_room(i)
 	_check(not _dungeon.all_rooms_cleared() and _dungeon.final_anvil == null, "anvil still unavailable with one non-boss room left")
-	_dungeon.enter_room(ante_index, &"DoorBottom")
+	_dungeon.enter_room(ante_index, _dungeon.entry_door(ante_index))
 	await _frames(2)
 	var ante := _dungeon.current_room
 	_check(_stations(ante).is_empty(), "antechamber has no anvil before the full clear")
@@ -281,9 +279,10 @@ func _test_final_anvil() -> void:
 			and _run.is_purchased(&"vitality"), "pre-boss anvil sells upgrades through the shared RunState (gold %d)" % _run.currency)
 	_check(not anvil.purchase(&"vitality") and _run.currency == gold - 100, "duplicate purchase still blocked")
 	# Revisits and repeated clears do not duplicate it.
-	_dungeon.enter_room(_dungeon.index_at(Vector2i(2, 2)), &"DoorTop")
+	var beside: int = _dungeon.get_neighbours(ante_index).filter(func(j: int) -> bool: return j != boss_index)[0]
+	_dungeon.enter_room(beside, _dungeon.entry_door(beside))
 	await _frames(2)
-	_dungeon.enter_room(ante_index, &"DoorBottom")
+	_dungeon.enter_room(ante_index, _dungeon.entry_door(ante_index))
 	await _frames(2)
 	_dungeon._on_room_cleared()
 	_check(_dungeon.final_anvil == anvil and _stations(ante) == [anvil] and not anvil.is_open, "anvil stays (single, closed) on revisit")

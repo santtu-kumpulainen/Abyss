@@ -1,6 +1,8 @@
 extends SceneTree
-## Headless check of room transitions and the fixed dungeon run
-## (scenes/dungeon/dungeon.tscn: Hall -right- Crypt -top- Cave, the start of the 5x5 grid).
+## Headless check of room transitions in the dungeon run
+## (scenes/dungeon/dungeon.tscn). The layout is seeded (Issue #45): under a fixed
+## seed the test walks Hall (start room) -> Crypt (a Level 1 neighbour) -> Cave
+## (a Level 1 neighbour of the Crypt) through their linked doors and back.
 ##
 ## Usage (after importing):
 ##   godot --headless --path . --script res://tools/test_dungeon.gd
@@ -8,9 +10,10 @@ extends SceneTree
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
+const SEED := 4242
 const HALL := 0
-const CRYPT := 1
-const CAVE := 2
+const ACTIONS := {&"DoorTop": &"move_up", &"DoorBottom": &"move_down", &"DoorLeft": &"move_left", &"DoorRight": &"move_right"}
+const OPPOSITE := {&"DoorTop": &"DoorBottom", &"DoorBottom": &"DoorTop", &"DoorLeft": &"DoorRight", &"DoorRight": &"DoorLeft"}
 
 var _failures := 0
 var _dungeon: Dungeon
@@ -22,34 +25,42 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	RunState.seed_override = SEED
 	var scene_id := current_scene.get_instance_id() if current_scene else 0
 	change_scene_to_file(SCENE)
 	await _wait_for_scene(scene_id)
 	_bind()
+	var path := _path()
+	var crypt_index: int = path[0]
+	var cave_index: int = path[1]
+	var hall_exit := _dungeon.door_to(HALL, crypt_index)
+	var crypt_exit := _dungeon.door_to(crypt_index, cave_index)
+	var expected_sealed := ["DoorBottom", "DoorLeft", "DoorRight", "DoorTop"].filter(func(d: String) -> bool:
+		return not _dungeon.get_neighbours(HALL).any(func(j: int) -> bool: return String(_dungeon.door_to(HALL, j)) == d))
 
 	# --- Start: Hall, Mage at PlayerSpawn, only the linked door can open ---
 	var hall := _dungeon.current_room
 	_check(_dungeon.current_index == HALL, "run starts in the Hall")
 	_check(_mage.global_position.is_equal_approx(_spawn(hall)), "Mage starts at the Hall PlayerSpawn")
 	_check(hall.state == Room.State.IDLE and _active_enemies(hall) == 0, "Hall starts IDLE, enemies inactive")
-	_check(_sealed_names(hall) == ["DoorBottom", "DoorTop"], "unlinked Hall doors are sealed")
+	_check(expected_sealed.has("DoorBottom") and _sealed_names(hall) == expected_sealed, "unlinked Hall doors are sealed (%s)" % [_sealed_names(hall)])
 	var full_hp := _mage.health.max_health
 
 	# --- Hall encounter: doors locked, sealed doors stay shut after victory ---
 	await _hold(&"move_up", 60, func() -> bool: return hall.state != Room.State.IDLE)
 	_check(hall.state == Room.State.COMBAT and _all_locked(hall), "entering the Hall starts combat and locks doors")
-	await _try_exit(hall, &"DoorRight", &"move_right")
+	await _try_exit(hall, hall_exit, ACTIONS[hall_exit])
 	_check(_dungeon.current_index == HALL, "locked exit blocks the Mage during combat")
 	_mage.take_damage(30.0)
 	await _kill_all(hall)
-	_check(hall.state == Room.State.CLEARED and _door(hall, &"DoorRight").is_open(), "Hall cleared, linked exit open")
+	_check(hall.state == Room.State.CLEARED and _door(hall, hall_exit).is_open(), "Hall cleared, linked exit open")
 	_check(not _door(hall, &"DoorBottom").is_open() and _shape_enabled(_door(hall, &"DoorBottom")),
 			"sealed door stays shut after victory")
 	await _try_exit(hall, &"DoorBottom", &"move_down")
 	_check(_dungeon.current_index == HALL and _mage.global_position.y < 632.0, "sealed door blocks the Mage")
 
-	# --- Hall -> Crypt (exit right, arrive left) ---
-	await _go(hall, &"DoorRight", &"move_right", CRYPT, &"DoorLeft")
+	# --- Hall -> Crypt ---
+	await _go(hall, hall_exit, ACTIONS[hall_exit], crypt_index, OPPOSITE[hall_exit])
 	var crypt := _dungeon.current_room
 	await _frames(3)
 	_check(crypt.state == Room.State.COMBAT and _all_locked(crypt)
@@ -57,24 +68,26 @@ func _run() -> void:
 			"Crypt encounter starts on arrival with all enemies active")
 	_check(_hud_text() == "Enemies remaining: %d" % crypt.enemies_remaining, "HUD follows the new room")
 	await _frames(10)
-	_check(_dungeon.current_index == CRYPT, "no repeated transition while near the arrival door")
+	_check(_dungeon.current_index == crypt_index, "no repeated transition while near the arrival door")
 	await _kill_all(crypt)
 
-	# --- Crypt -> Cave (exit top, arrive bottom) ---
-	await _go(crypt, &"DoorTop", &"move_up", CAVE, &"DoorBottom")
+	# --- Crypt -> Cave ---
+	var cave_back: StringName = OPPOSITE[crypt_exit]
+	await _go(crypt, crypt_exit, ACTIONS[crypt_exit], cave_index, cave_back)
 	var cave := _dungeon.current_room
 	_check(cave.state == Room.State.COMBAT and _all_locked(cave), "Cave encounter starts on arrival, doors locked behind")
-	await _try_exit(cave, &"DoorBottom", &"move_down")
-	_check(_dungeon.current_room == cave and _mage.global_position.y < 632.0, "Mage cannot leave the way it came during combat")
+	await _try_exit(cave, cave_back, ACTIONS[cave_back])
+	_check(_dungeon.current_room == cave and _inside(_mage.global_position), "Mage cannot leave the way it came during combat")
 	await _kill_all(cave)
 
-	# --- Back: Cave -> Crypt (exit bottom, arrive top), Crypt -> Hall (exit left, arrive right) ---
-	await _go(cave, &"DoorBottom", &"move_down", CRYPT, &"DoorTop")
+	# --- Back: Cave -> Crypt, Crypt -> Hall ---
+	var crypt_back: StringName = OPPOSITE[hall_exit]
+	await _go(cave, cave_back, ACTIONS[cave_back], crypt_index, crypt_exit)
 	_check(_dungeon.current_room == crypt and crypt.state == Room.State.CLEARED
-			and crypt.get_node(^"Enemies").get_child_count() == 0 and _door(crypt, &"DoorLeft").is_open(),
+			and crypt.get_node(^"Enemies").get_child_count() == 0 and _door(crypt, crypt_back).is_open(),
 			"revisited Crypt stays cleared, no respawn")
 	_check(_hud_text() == "Room cleared", "HUD shows Room cleared on revisit")
-	await _go(crypt, &"DoorLeft", &"move_left", HALL, &"DoorRight")
+	await _go(crypt, crypt_back, ACTIONS[crypt_back], HALL, hall_exit)
 	_check(_dungeon.current_room == hall and hall.state == Room.State.CLEARED, "revisited Hall stays cleared")
 
 	# --- Game Over and Restart reset the whole run ---
@@ -94,9 +107,33 @@ func _run() -> void:
 	_check(not _mage.is_dead() and is_equal_approx(_mage.health.current, full_hp)
 			and _mage.global_position.is_equal_approx(_spawn(room)), "after Restart: Mage full HP at spawn")
 	_check(not (current_scene.get_node(^"GameOverOverlay") as CanvasLayer).visible, "after Restart: Game Over hidden")
+	RunState.seed_override = 0
 
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	quit(1 if _failures > 0 else 0)
+
+
+## [Crypt, Cave]: a Level 1 combat neighbour of the Hall that has another
+## Level 1 combat neighbour (both open at Lv 1).
+func _path() -> Array:
+	for a: int in _dungeon.get_neighbours(HALL):
+		if not _is_l1_combat(a):
+			continue
+		for b: int in _dungeon.get_neighbours(a):
+			if b != HALL and _is_l1_combat(b):
+				return [a, b]
+	_check(false, "seeded layout has a Hall -> Level 1 -> Level 1 path")
+	return [HALL, HALL]
+
+
+func _is_l1_combat(index: int) -> bool:
+	var spec := _dungeon.rooms[index]
+	return spec.required_level == 1 and not spec.is_treasure() and not spec.is_boss
+
+
+## True if `pos` is inside the room's walls.
+func _inside(pos: Vector2) -> bool:
+	return pos.x > 16.0 and pos.x < 1136.0 and pos.y > 16.0 and pos.y < 632.0
 
 
 func _bind() -> void:

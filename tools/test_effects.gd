@@ -9,8 +9,8 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
-const BOSS := Vector2i(2, 0)
 
 var _failures := 0
 var _dungeon: Dungeon
@@ -31,6 +31,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	_test_resources()
 	await _load_scene()
 	await _test_pixel_effect()
@@ -40,6 +41,7 @@ func _run_tests() -> void:
 	await _test_water_caster()
 	_test_biome_swap()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -119,7 +121,7 @@ func _test_enemy_death() -> void:
 func _test_boss_telegraph() -> void:
 	_run.add_rewards(100000, 0)
 	_grant_seals()
-	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.boss_index(), &"DoorBottom")
 	await _frames(2)
 	var boss: Boss = null
 	for e in _dungeon.current_room.get_node(^"Enemies").get_children():

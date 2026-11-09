@@ -7,10 +7,9 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
 const HALL := 0
-const CRYPT := 1
-const CAVE := 2
 
 var _failures := 0
 var _dungeon: Dungeon
@@ -23,6 +22,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	_test_run_state_unit()
 
 	var scene_id := current_scene.get_instance_id() if current_scene else 0
@@ -66,7 +66,7 @@ func _run_tests() -> void:
 	_run.add_rewards(45, 0)  # stands in for the other Level 1 rooms (48 XP total)
 	var run_before := _run
 	_mage.take_damage(30.0)
-	_dungeon.enter_room(CRYPT, &"DoorLeft")
+	_dungeon.enter_room(_scene_room(_dungeon, "crypt_room"), _dungeon.entry_door(_scene_room(_dungeon, "crypt_room")))
 	await _frames(2)
 	var crypt := _dungeon.current_room
 	_check(_dungeon.run_state == run_before and _run.xp == 48 and _run.currency == 15,
@@ -89,14 +89,14 @@ func _run_tests() -> void:
 	_check(_run.level == 2 and _run.xp == 5 and _run.currency == 42, "Crypt cleared: Lv 2, 5 XP, 42 currency")
 
 	# --- Revisiting a cleared room grants nothing ---
-	_dungeon.enter_room(HALL, &"DoorRight")
+	_dungeon.enter_room(HALL, _dungeon.entry_door(HALL))
 	await _frames(3)
-	_dungeon.enter_room(CRYPT, &"DoorLeft")
+	_dungeon.enter_room(_scene_room(_dungeon, "crypt_room"), _dungeon.entry_door(_scene_room(_dungeon, "crypt_room")))
 	await _frames(3)
 	_check(_run.xp == 5 and _run.currency == 42, "revisiting cleared rooms grants no extra rewards")
 
 	# --- Cave ---
-	_dungeon.enter_room(CAVE, &"DoorBottom")
+	_dungeon.enter_room(_scene_room(_dungeon, "cave_room"), _dungeon.entry_door(_scene_room(_dungeon, "cave_room")))
 	await _frames(2)
 	await _kill_all(_dungeon.current_room)
 	_check(_run.level == 2 and _run.xp == 11 and _run.currency == 70, "Cave cleared (incl. Demon Caster): Lv 2, 11 XP, 70 currency")
@@ -116,6 +116,7 @@ func _run_tests() -> void:
 	_check(_hud_text() == "Lv 1   XP 0/50   Gold 0", "HUD reset after Restart (%s)" % _hud_text())
 
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -174,3 +175,11 @@ func _wait_for_scene(old_id: int) -> void:
 			break
 		await process_frame
 	await _frames(2)
+
+
+## Index of the room built from res://scenes/rooms/<name>.tscn (seeded layout, Issue #45).
+func _scene_room(dungeon: Dungeon, name: String) -> int:
+	for i in dungeon.rooms.size():
+		if dungeon.rooms[i].scene.resource_path == "res://scenes/rooms/%s.tscn" % name:
+			return i
+	return -1

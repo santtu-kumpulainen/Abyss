@@ -7,10 +7,10 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
 const FIRE_BALL := "res://scenes/spells/fire_ball/fire_ball.tres"
 const HALL := 0
-const CRYPT := 1
 
 var _failures := 0
 var _dungeon: Dungeon
@@ -23,6 +23,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	var fire_ball := load(FIRE_BALL) as Spell
 	var base_damage := fire_ball.damage
 	var base_cooldown := fire_ball.cooldown
@@ -101,7 +102,7 @@ func _run_tests() -> void:
 	_check(_hud_text() == "Lv 4 (MAX)   Gold 415", "HUD shows max level (%s)" % _hud_text())
 
 	# --- Persistence across rooms ---
-	_dungeon.enter_room(CRYPT, &"DoorLeft")
+	_dungeon.enter_room(_scene_room(_dungeon, "crypt_room"), _dungeon.entry_door(_scene_room(_dungeon, "crypt_room")))
 	await _frames(3)
 	_check(_run.level == 4 and _run.is_purchased(&"ember_core") and _run.currency == 415
 			and is_equal_approx(_mage.health.max_health, base_max_hp + 80.0) and is_equal_approx(_cast_damage(), base_damage * 1.4),
@@ -123,6 +124,7 @@ func _run_tests() -> void:
 			"fresh station and HUD after Restart")
 
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -178,3 +180,11 @@ func _wait_for_scene(old_id: int) -> void:
 			break
 		await process_frame
 	await _frames(2)
+
+
+## Index of the room built from res://scenes/rooms/<name>.tscn (seeded layout, Issue #45).
+func _scene_room(dungeon: Dungeon, name: String) -> int:
+	for i in dungeon.rooms.size():
+		if dungeon.rooms[i].scene.resource_path == "res://scenes/rooms/%s.tscn" % name:
+			return i
+	return -1

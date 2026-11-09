@@ -9,10 +9,9 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
 const MENU := "res://scenes/ui/main_menu.tscn"
-const BOSS := Vector2i(2, 0)
-const GOBLIN_ROOM := Vector2i(0, 4)
 const NORMAL := Difficulty.Tier.NORMAL
 const HARD := Difficulty.Tier.HARD
 
@@ -28,6 +27,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	_prog = ProgressionStore.instance(self)
 	_prog.clear_progress()
 	_test_level_scaling_data()
@@ -42,6 +42,7 @@ func _run_tests() -> void:
 	await _test_menu()
 	_prog.clear_progress()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
@@ -156,10 +157,10 @@ func _test_flow_and_timer() -> void:
 	var time_at_boss := _run.run_time
 	await _frames(20)
 	_check(is_equal_approx(_run.run_time, time_at_boss), "the timer stops while the boss reward is shown")
-	var visited_boss := _dungeon.is_visited(_dungeon.index_at(BOSS))
+	var visited_boss := _dungeon.is_visited(_dungeon.boss_index())
 	var kills := _run.enemies_defeated
 	_check(_overlay().choose_relic(&"ember_relic") and _run.dungeon_level == 2 and not paused, "relic choice starts level 2")
-	_check(visited_boss and not _dungeon.is_visited(_dungeon.index_at(BOSS)) and _run.level_time < 0.5
+	_check(visited_boss and not _dungeon.is_visited(_dungeon.boss_index()) and _run.level_time < 0.5
 			and is_equal_approx(_run.run_time, time_at_boss), "level state and level timer reset; the run timer is kept")
 	_check(_run.collected.has(&"swift_boots") and _run.purchased.has(&"vitality") and _run.relics == [&"ember_relic"]
 			and _run.level == MageLevels.cap(1) and _run.enemies_defeated == kills, "build is kept across levels")
@@ -260,7 +261,7 @@ func _win_fast() -> void:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
 	_grant_seals()
-	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.boss_index(), &"DoorBottom")
 	await _frames(2)
 	for e in _dungeon.current_room.get_node(^"Enemies").get_children():
 		if e is Boss:
@@ -269,7 +270,7 @@ func _win_fast() -> void:
 
 
 func _first_goblin_room_enemy() -> Enemy:
-	_dungeon.enter_room(_dungeon.index_at(GOBLIN_ROOM), &"DoorBottom")
+	_dungeon.enter_room(_dungeon.item_room_index(&"swift_boots"), _dungeon.entry_door(_dungeon.item_room_index(&"swift_boots")))
 	await _frames(2)
 	# Spawn order is seeded (EncounterPlanner): pick the room's first goblin, not its first child.
 	for child in _dungeon.current_room.get_node(^"Enemies").get_children():

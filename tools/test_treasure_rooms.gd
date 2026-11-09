@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless check of the optional treasure rooms (scenes/dungeon/dungeon.tscn):
-## layout and minimap markers, the timed survival trial (start once, timer,
+## seeded in-grid dead-end layout (Issue #45) and minimap markers, the timed survival trial (start once, timer,
 ## waves, locked exits, completion only after timer + clear), the rune
 ## sequence puzzle (correct order only, reset on mistakes, persistent state),
 ## one-time chest rewards, revisits, Restart, and that the treasure rooms are
@@ -11,11 +11,9 @@ extends SceneTree
 ##
 ## Prints PASS/FAIL per check and exits with code 1 if any check failed.
 
+const SEED := 4242
 const SCENE := "res://scenes/dungeon/dungeon.tscn"
-const SURVIVAL := Vector2i(5, 2)
-const SURVIVAL_ENTRY := Vector2i(4, 2)
-const PUZZLE := Vector2i(-1, 3)
-const PUZZLE_ENTRY := Vector2i(0, 3)
+const ACTIONS := {&"DoorTop": &"move_up", &"DoorBottom": &"move_down", &"DoorLeft": &"move_left", &"DoorRight": &"move_right"}
 
 var _failures := 0
 var _dungeon: Dungeon
@@ -28,6 +26,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	RunState.seed_override = SEED
 	change_scene_to_file(SCENE)
 	await _wait_for_scene(0)
 	if _dungeon == null:
@@ -39,17 +38,22 @@ func _run_tests() -> void:
 		await _test_restart()
 		await _test_not_required_for_anvil()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	RunState.seed_override = 0
 	quit(1 if _failures > 0 else 0)
 
 
 func _test_layout() -> void:
-	var s := _dungeon.index_at(SURVIVAL)
-	var p := _dungeon.index_at(PUZZLE)
-	_check(s >= 0 and _dungeon.rooms[s].treasure == RoomSpec.Treasure.SURVIVAL, "survival treasure room at %s" % SURVIVAL)
-	_check(p >= 0 and _dungeon.rooms[p].treasure == RoomSpec.Treasure.PUZZLE, "rune puzzle treasure room at %s" % PUZZLE)
+	var s := _dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)
+	var p := _dungeon.treasure_index(RoomSpec.Treasure.PUZZLE)
+	_check(s >= 0 and _dungeon.rooms[s].treasure == RoomSpec.Treasure.SURVIVAL and _dungeon.rooms[s].cell.y <= 2,
+			"survival treasure room in the Level 2 rows (%s)" % _dungeon.rooms[s].cell)
+	_check(p >= 0 and _dungeon.rooms[p].treasure == RoomSpec.Treasure.PUZZLE and _dungeon.rooms[p].cell.y >= 3,
+			"rune puzzle treasure room in the Level 1 rows (%s)" % _dungeon.rooms[p].cell)
 	_check(_dungeon.rooms.filter(func(r: RoomSpec) -> bool: return r.is_treasure()).size() == 2, "exactly two treasure rooms")
-	_check(_dungeon.get_neighbours(s) == [_dungeon.index_at(SURVIVAL_ENTRY)]
-			and _dungeon.get_neighbours(p) == [_dungeon.index_at(PUZZLE_ENTRY)], "treasure rooms are dead-end side rooms")
+	_check(_entry_of(s) >= 0 and _entry_of(p) >= 0 and not _dungeon.rooms[_entry_of(s)].is_treasure()
+			and not _dungeon.rooms[_entry_of(p)].is_treasure(), "treasure rooms are dead-end side rooms off main rooms")
+	_check(_exit(s) != &"DoorTop" and _exit(p) != &"DoorBottom",
+			"treasure room doors avoid their chests (survival %s, puzzle %s)" % [_exit(s), _exit(p)])
 	_check(not _dungeon.rooms[s].is_boss and not _dungeon.rooms[p].is_boss and _dungeon.rooms[s].enemies.is_empty(),
 			"treasure rooms are not boss/encounter rooms")
 	var map := _map()
@@ -61,20 +65,20 @@ func _test_layout() -> void:
 
 func _test_survival() -> void:
 	_run.add_rewards(_run.xp_to_next_level(), 0)  # Lv 2: the survival room's neighbour tier
-	var index := _dungeon.index_at(SURVIVAL)
-	_dungeon.enter_room(index, &"DoorLeft")
+	var index := _dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(2)
 	var room := _dungeon.current_room as SurvivalRoom
-	_check(room != null and room.state == Room.State.IDLE and room.can_exit() and _door(room, &"DoorLeft").is_open(),
+	_check(room != null and room.state == Room.State.IDLE and room.can_exit() and _door(room, _exit(index)).is_open(),
 			"survival room: entering does not start the trial, exit open")
 	_check(_hud_text().begins_with("Survival trial"), "HUD names the room before the trial (%s)" % _hud_text())
 	_check(not room.chest.interact() and _run.currency == 0, "chest sealed before the trial")
 	_check(_map().marker_color(index) == _map().survival_color, "survival marker shown while uncompleted")
 
 	# Leaving before the trial is allowed.
-	await _try_exit(room, &"DoorLeft", &"move_left")
-	_check(_dungeon.current_index == _dungeon.index_at(SURVIVAL_ENTRY), "Mage can leave before starting the trial")
-	_dungeon.enter_room(index, &"DoorLeft")
+	await _try_exit(room, _exit(index), ACTIONS[_exit(index)])
+	_check(_dungeon.current_index == _entry_of(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)), "Mage can leave before starting the trial")
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(2)
 
 	# Start through the altar with a real "interact" press, standing next to it.
@@ -101,7 +105,7 @@ func _test_survival() -> void:
 	await _frames(2)
 	_check(room.waves_spawned == 1 and room.enemies_remaining == 3, "no next wave while wave 1 is alive (60 s later)")
 	_check(_all_locked(room) and not room.chest.interact(), "exits locked and chest sealed during the trial")
-	await _try_exit(room, &"DoorLeft", &"move_left")
+	await _try_exit(room, _exit(index), ACTIONS[_exit(index)])
 	_check(_dungeon.current_room == room, "Mage cannot leave during the trial")
 
 	# A duplicate death signal is counted once and cannot skip a wave.
@@ -129,7 +133,7 @@ func _test_survival() -> void:
 	await _frames(2)
 	_check(room.all_waves_cleared() and room.waves_spawned == 4 and room.time_left() > 0.0 and room.time_left() < t_before,
 			"all waves cleared with time left (%.0f s)" % room.time_left())
-	_check(room.state == Room.State.CLEARED and room.can_exit() and _door(room, &"DoorLeft").is_open(),
+	_check(room.state == Room.State.CLEARED and room.can_exit() and _door(room, _exit(index)).is_open(),
 			"clearing the last wave completes the trial immediately and unlocks the exit")
 	_check(_dungeon.is_cleared(index) and _map().marker_color(index) != _map().survival_color, "minimap shows the trial as completed")
 	_check(_hud_text() == "Trial complete! Open the chest", "HUD points at the chest (%s)" % _hud_text())
@@ -148,9 +152,9 @@ func _test_survival() -> void:
 
 	# Revisit.
 	gold = _run.currency
-	await _try_exit(room, &"DoorLeft", &"move_left")
-	_check(_dungeon.current_index == _dungeon.index_at(SURVIVAL_ENTRY), "exit works after the trial")
-	_dungeon.enter_room(index, &"DoorLeft")
+	await _try_exit(room, _exit(index), ACTIONS[_exit(index)])
+	_check(_dungeon.current_index == _entry_of(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)), "exit works after the trial")
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(3)
 	_check(_dungeon.current_room == room and room.state == Room.State.CLEARED and _enemies(room).is_empty()
 			and room.waves_spawned == 4 and room._spawned_enemies == 18 and _run.currency == gold, "revisit: trial stays completed, no respawns")
@@ -159,11 +163,11 @@ func _test_survival() -> void:
 
 
 func _test_puzzle() -> void:
-	var index := _dungeon.index_at(PUZZLE)
-	_dungeon.enter_room(index, &"DoorRight")
+	var index := _dungeon.treasure_index(RoomSpec.Treasure.PUZZLE)
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(2)
 	var room := _dungeon.current_room as RunePuzzleRoom
-	_check(room != null and room.state == Room.State.IDLE and room.can_exit() and _door(room, &"DoorRight").is_open(),
+	_check(room != null and room.state == Room.State.IDLE and room.can_exit() and _door(room, _exit(index)).is_open(),
 			"rune room: no combat, exit open")
 	var order := room.sequence
 	var a := order[0] if order.size() == 3 else "moon"
@@ -190,9 +194,9 @@ func _test_puzzle() -> void:
 	_check(not room.activate(a) and room.progress == 1 and room.mistakes == 2, "touching a lit rune again is ignored")
 
 	# Progress persists when leaving mid-sequence.
-	await _try_exit(room, &"DoorRight", &"move_right")
-	_check(_dungeon.current_index == _dungeon.index_at(PUZZLE_ENTRY), "Mage can leave the unsolved rune room")
-	_dungeon.enter_room(index, &"DoorRight")
+	await _try_exit(room, _exit(index), ACTIONS[_exit(index)])
+	_check(_dungeon.current_index == _entry_of(_dungeon.treasure_index(RoomSpec.Treasure.PUZZLE)), "Mage can leave the unsolved rune room")
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(2)
 	_check(_dungeon.current_room == room and room.progress == 1 and room.get_rune(a).lit, "partial progress kept on revisit")
 
@@ -214,27 +218,27 @@ func _test_puzzle() -> void:
 	_check(_items_text().contains("Rune Sigil"), "HUD lists the Rune Sigil (%s)" % _items_text())
 	_check(not room.chest.interact() and is_equal_approx(_run.spell_cooldown_multiplier(), cooldown - 0.1), "sigil cannot be claimed twice")
 
-	await _try_exit(room, &"DoorRight", &"move_right")
-	_dungeon.enter_room(index, &"DoorRight")
+	await _try_exit(room, _exit(index), ACTIONS[_exit(index)])
+	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(2)
 	_check(room.is_solved() and room.chest.is_claimed() and is_equal_approx(_run.spell_cooldown_multiplier(), cooldown - 0.1)
 			and _hud_text() == "Treasure claimed", "revisit: puzzle stays solved, no duplicate reward")
 	var summary := _dungeon.run_summary()
-	_check(summary["treasures"] == [&"survivor_cache", &"rune_sigil"] and summary["rooms_total"] == 25,
-			"run summary lists both treasures; room count stays 25 main rooms")
+	_check(summary["treasures"] == [&"survivor_cache", &"rune_sigil"] and summary["rooms_total"] == 23,
+			"run summary lists both treasures; room count is the 23 main rooms")
 
 
 func _test_restart() -> void:
 	await _restart()
-	_check(_run.treasures.is_empty() and not _dungeon.is_visited(_dungeon.index_at(SURVIVAL))
-			and not _dungeon.is_visited(_dungeon.index_at(PUZZLE)), "Restart resets treasures and both rooms")
-	_dungeon.enter_room(_dungeon.index_at(PUZZLE), &"DoorRight")
+	_check(_run.treasures.is_empty() and not _dungeon.is_visited(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL))
+			and not _dungeon.is_visited(_dungeon.treasure_index(RoomSpec.Treasure.PUZZLE)), "Restart resets treasures and both rooms")
+	_dungeon.enter_room(_dungeon.treasure_index(RoomSpec.Treasure.PUZZLE), _dungeon.entry_door(_dungeon.treasure_index(RoomSpec.Treasure.PUZZLE)))
 	await _frames(2)
 	var puzzle := _dungeon.current_room as RunePuzzleRoom
 	_check(puzzle.progress == 0 and not puzzle.is_solved() and not puzzle.chest.is_claimed() and not puzzle.chest.can_interact(),
 			"Restart: puzzle unsolved, chest sealed")
 	_run.add_rewards(_run.xp_to_next_level(), 0)
-	_dungeon.enter_room(_dungeon.index_at(SURVIVAL), &"DoorLeft")
+	_dungeon.enter_room(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL), _dungeon.entry_door(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)))
 	await _frames(2)
 	var survival := _dungeon.current_room as SurvivalRoom
 	_check(survival.state == Room.State.IDLE and survival.waves_spawned == 0 and not survival.chest.is_claimed(),
@@ -253,7 +257,7 @@ func _test_restart() -> void:
 	await _frames(3)
 	_check(_mage.is_dead() and survival.state == Room.State.COMBAT, "Mage death during the trial: room stays locked (Game Over)")
 	await _restart()
-	_dungeon.enter_room(_dungeon.index_at(SURVIVAL), &"DoorLeft")
+	_dungeon.enter_room(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL), _dungeon.entry_door(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL)))
 	await _frames(2)
 	var fresh := _dungeon.current_room as SurvivalRoom
 	_check(fresh != survival and fresh.state == Room.State.IDLE and _enemies(fresh).is_empty(), "Restart after dying mid-trial gives a fresh room")
@@ -270,12 +274,17 @@ func _test_not_required_for_anvil() -> void:
 			await _frames(1)
 			_dungeon.current_room.start_encounter()
 			await _kill_all(_dungeon.current_room)
-	_check(_dungeon.all_rooms_cleared() and _dungeon.final_anvil != null and not _dungeon.is_visited(_dungeon.index_at(SURVIVAL))
-			and not _dungeon.is_visited(_dungeon.index_at(PUZZLE)), "pre-boss anvil appears without the treasure rooms")
+	_check(_dungeon.all_rooms_cleared() and _dungeon.final_anvil != null and not _dungeon.is_visited(_dungeon.treasure_index(RoomSpec.Treasure.SURVIVAL))
+			and not _dungeon.is_visited(_dungeon.treasure_index(RoomSpec.Treasure.PUZZLE)), "pre-boss anvil appears without the treasure rooms")
 	_check(boss >= 0 and not _dungeon.is_visited(boss), "boss room untouched")
 
 
 # --- helpers ---
+
+## The only door of treasure room `index` (towards its main room).
+func _exit(index: int) -> StringName:
+	return _dungeon.door_to(index, _entry_of(index))
+
 
 func _press_interact() -> void:
 	var event := InputEventAction.new()
@@ -373,3 +382,9 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## The room a treasure room is linked to (its only neighbour; seeded layout, Issue #45).
+func _entry_of(index: int) -> int:
+	var links := _dungeon.get_neighbours(index)
+	return links[0] if links.size() == 1 else -1
