@@ -125,8 +125,10 @@ func _test_gates() -> void:
 	_check(_dungeon.current_index == l2_index, "Level 2 door leads to the Level 2 room")
 	await _frames(2)
 	var spec := _dungeon.rooms[l2_index]
-	_check(l2_room.state == Room.State.COMBAT and l2_room.enemies_remaining == spec.enemies.size()
-			and _all_locked(l2_room) and _active_enemies(l2_room) == spec.enemies.size(),
+	# A seeded miniboss room holds only its miniboss instead of the line-up (Issue #43).
+	var expected := 1 if _dungeon.miniboss_scene(l2_index) else spec.enemies.size()
+	_check(l2_room.state == Room.State.COMBAT and l2_room.enemies_remaining == expected
+			and _all_locked(l2_room) and _active_enemies(l2_room) == expected,
 			"Level 2 encounter starts on arrival with its spawned enemies (%d)" % l2_room.enemies_remaining)
 	var xp_before := _run.xp
 	await _kill_all(l2_room)
@@ -147,6 +149,8 @@ func _test_gates() -> void:
 			and not _dungeon.is_visited(_dungeon.index_at(BOSS)), "visited rooms tracked for the minimap")
 
 	# --- Boss gate ---
+	# The level gate is checked here; the Ancient Seal half is covered by test_seals.gd.
+	_grant_seals()
 	var ante_index := _dungeon.index_at(ANTECHAMBER)
 	_dungeon.enter_room(ante_index, &"DoorLeft")
 	await _frames(2)
@@ -290,6 +294,12 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Ancient Seals (Issue #43): the boss gate also needs this level's seals; collect them all.
+func _grant_seals() -> void:
+	for i: int in _dungeon.seal_rooms():
+		_run.collect_seal(_dungeon.seal_id(i))
 
 
 ## Scene changes are deferred: waits until a new, ready scene (not `old_id`) is current.

@@ -5,7 +5,8 @@ extends CanvasLayer
 ## (and lasting treasure bonuses) with their effects below it. show_message() briefly shows a centred
 ## announcement (e.g. level-up unlocks). The top-right status block shows the
 ## run's dungeon level / biome, timers, difficulty, Pact (benefit / drawback)
-## and active synergies.
+## and active synergies. Below the level line, the objective line shows the
+## level's Ancient Seal progress and what still keeps the boss gate shut.
 
 ## Seconds a message stays fully visible before fading out.
 @export var message_duration: float = 3.0
@@ -14,6 +15,7 @@ extends CanvasLayer
 @onready var _message: Label = %MessageLabel
 @onready var _items: Label = %ItemsLabel
 @onready var _status: Label = %StatusLabel
+@onready var _objective: Label = %ObjectiveLabel
 
 var _run_state: RunState
 var _message_tween: Tween
@@ -52,6 +54,16 @@ static func status_text(run_state: RunState) -> String:
 ".join(lines)
 
 
+## Objective line: Ancient Seals x/3 and what the boss gate still needs.
+static func objective_text(run_state: RunState) -> String:
+	var seals := "Ancient Seals %d/%d" % [run_state.seals_collected(), RunState.SEALS_REQUIRED]
+	if not run_state.seals_complete():
+		return "%s - break them to open the Warden's gate" % seals
+	if not run_state.is_max_level():
+		return "%s - reach Lv %d to open the Warden's gate" % [seals, run_state.max_level()]
+	return "%s - the Warden's gate is open" % seals
+
+
 ## " x2" for stacks of two or more, "" for a single copy.
 static func _stack_text(count: int) -> String:
 	return " x%d" % count if count > 1 else ""
@@ -60,6 +72,7 @@ static func _stack_text(count: int) -> String:
 func _refresh() -> void:
 	_shown_second = int(_run_state.run_time)
 	_status.text = status_text(_run_state)
+	_objective.text = objective_text(_run_state)
 	var item_lines: Array[String] = []
 	for id: StringName in _run_state.collected:
 		item_lines.append("%s%s (%s)" % [RunState.ITEMS[id]["name"], _stack_text(_run_state.collected[id]), RunState.ITEMS[id]["effect"]])

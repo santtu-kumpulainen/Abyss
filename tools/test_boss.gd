@@ -39,6 +39,7 @@ func _run_tests() -> void:
 
 func _test_boss_fight() -> void:
 	_run.add_rewards(150, 0)
+	_grant_seals()
 	_check(_run.level == 3, "setup: Lv 3")
 	var boss_index := _dungeon.index_at(BOSS)
 	_dungeon.enter_room(boss_index, &"DoorBottom")
@@ -165,6 +166,7 @@ func _test_boss_fight() -> void:
 func _test_boss_mage_death_and_restart() -> void:
 	await _restart()
 	_run.add_rewards(150, 0)
+	_grant_seals()
 	var boss_index := _dungeon.index_at(BOSS)
 	_check(not _dungeon.is_visited(boss_index) and not _run.boss_defeated, "Restart resets the boss room and boss flag")
 	_dungeon.enter_room(boss_index, &"DoorBottom")
@@ -397,3 +399,9 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Ancient Seals (Issue #43): the boss gate also needs this level's seals; collect them all.
+func _grant_seals() -> void:
+	for i: int in _dungeon.seal_rooms():
+		_run.collect_seal(_dungeon.seal_id(i))

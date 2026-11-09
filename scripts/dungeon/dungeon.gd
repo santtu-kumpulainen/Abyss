@@ -53,6 +53,27 @@ extends Node2D
 ## the difficulty, and Biomes picks the theme / enemy pool per level. Run
 ## progress (highest level, best run) is saved through Progression.record_run()
 ## on every level start, boss kill and death, except in replay runs.
+## Encounter variation: the run gets a seed (RunState.run_seed, random unless
+## RunState.seed_override is set; printed and in run_summary()). On every level
+## start EncounterPlanner varies the combat rooms' RoomSpec.enemies from
+## RunState.level_seed() (equal-XP swaps, shuffled spawn order); rooms are built
+## from room_lineup(), so the same seed always gives the same encounters. The
+## treasure rooms are seeded too when built: the rune puzzle order (and its
+## plaque) and the survival waves (per-wave equal-XP swaps and order).
+## Ancient Seals: every level plans at least EncounterPlanner.MIN_SEAL_SOURCES
+## seal rooms (seal_rooms()): both treasure rooms, `miniboss_rooms` seeded
+## tier-2 combat rooms and, if that is not enough, extra "champion" rooms. Each
+## gets an AncientSeal (`ancient_seal_scene`) that appears once the room is
+## cleared and is registered with RunState (set_seal_sources). The boss room
+## needs RunState.SEALS_REQUIRED seals as well as its Mage level gate
+## (can_enter()); its door label shows what is missing.
+## Miniboss rooms: the seeded miniboss seal rooms get one of `miniboss_scenes`
+## (EncounterPlanner.assign_minibosses) instead of their planned line-up. The
+## miniboss is given that line-up's XP (so the XP budget is unchanged) and its
+## gold plus `miniboss_bonus_gold`; such rooms get no extra enemies. Clearing
+## one reveals its seal and a pick-1-of-2 choice of RunState miniboss items
+## (ItemPickups sharing a choice_group). Champion rooms keep their line-up and
+## get a ChampionPack (the champion wards its pack until it dies).
 
 signal room_changed(room: Room, index: int)
 ## Something the map shows changed (room entered or cleared, level gates).
@@ -85,6 +106,21 @@ const DOOR_BY_DIRECTION := {
 @export var final_anvil_cell := Vector2i(2, 1)
 ## Its position in room coordinates (clear of doors and spawn points).
 @export var final_anvil_position := Vector2(760, 150)
+## Scene for Ancient Seal pickups (root must be an AncientSeal).
+@export var ancient_seal_scene: PackedScene
+## Seal rooms per level chosen as miniboss rooms (1-3). Champion rooms fill up
+## to EncounterPlanner.MIN_SEAL_SOURCES seal sources.
+@export_range(1, 3) var miniboss_rooms: int = 2
+## Seal pickup position in combat seal rooms (room coordinates, clear of doors).
+@export var seal_position := Vector2(576, 324)
+## Seal pickup offset from a treasure room's TreasureChest.
+@export var treasure_seal_offset := Vector2(120, 0)
+## Miniboss scenes (roots must be Minibosses) dealt to the miniboss rooms.
+@export var miniboss_scenes: Array[PackedScene] = []
+## Gold added to a miniboss's reward (on top of the replaced encounter's gold).
+@export var miniboss_bonus_gold: int = 40
+## Reward choice pickup offsets from `seal_position`, one per option.
+@export var reward_offsets := PackedVector2Array([Vector2(-130, 80), Vector2(130, 80)])
 ## Seconds between the boss's death and the victory screen.
 @export var victory_delay: float = 1.2
 
@@ -109,6 +145,13 @@ var _victory_recorded := false
 var _run_id := 0
 ## Run time when the current dungeon level was entered.
 var _reach_time := 0.0
+## Room index -> planned encounter line-up of the current level (EncounterPlanner).
+var _lineups := {}
+## Room index -> seal room kind (&"treasure", &"miniboss" or &"champion") of the current level.
+var _seal_rooms := {}
+## Room index -> miniboss scene / reward choice item ids of the current level.
+var _minibosses := {}
+var _reward_choices := {}
 
 @onready var mage: Mage = $Mage
 @onready var _hud: RoomHud = $RoomHud
@@ -124,6 +167,9 @@ func _ready() -> void:
 	run_state.configure(progression.selected_difficulty, progression.selected_pact,
 			clampi(progression.selected_start_level, 1, progression.highest_level))
 	_run_id = int(Time.get_unix_time_from_system() * 1000.0) ^ randi()
+	run_state.run_seed = RunState.seed_override if RunState.seed_override != 0 else (randi() | 1)
+	print("Abyss run seed: %d" % run_state.run_seed)
+	_plan_level()
 	run_state.unlocked_permanent = progression.unlocked_upgrades.duplicate()
 	mage.health.scale_max_health(run_state.max_health_multiplier())
 	# A practice run starts at a higher Mage level: grant those level-ups' max HP.
@@ -137,6 +183,7 @@ func _ready() -> void:
 	run_state.item_collected.connect(_on_item_collected)
 	run_state.relic_chosen.connect(_on_relic_chosen)
 	run_state.treasure_claimed.connect(_on_treasure_claimed)
+	run_state.seal_collected.connect(_on_seal_collected)
 	run_state.changed.connect(_apply_spell_modifiers)
 	_apply_spell_modifiers()
 	mage.died.connect(_on_mage_died)
@@ -145,6 +192,7 @@ func _ready() -> void:
 		_map.set_dungeon(self)
 	_record_progress()
 	enter_room(start_room)
+	_run_hud.show_message("Find %d Ancient Seals to unseal the Abyss Warden's gate" % RunState.SEALS_REQUIRED)
 
 
 func _process(delta: float) -> void:
@@ -238,7 +286,16 @@ func run_summary() -> Dictionary:
 		"biome": Biomes.biome_name(run_state.dungeon_level),
 		"run_time": run_state.run_time,
 		"replay": run_state.is_replay,
+		"seed": run_state.run_seed,
 	}
+
+
+## Planned encounter enemies of room `index` on the current level (its
+## RoomSpec.enemies as varied by EncounterPlanner, before biome mapping).
+func room_lineup(index: int) -> Array[PackedScene]:
+	var lineup: Array[PackedScene] = []
+	lineup.assign(_lineups.get(index, rooms[index].enemies))
+	return lineup
 
 
 ## Heals the Mage through the run's healing modifier (Blood Pact: -50%);
@@ -263,9 +320,47 @@ func gate_level(index: int) -> int:
 	return run_state.room_gate(rooms[index].required_level, rooms[index].is_boss)
 
 
-## True if the Mage's level allows entering room `index`.
+## True if room `index` can be entered: the Mage's level reaches its gate and,
+## for the boss room, this level's Ancient Seals are complete.
 func can_enter(index: int) -> bool:
-	return run_state.level >= gate_level(index)
+	return run_state.level >= gate_level(index) and (not rooms[index].is_boss or run_state.seals_complete())
+
+
+## Room index -> seal room kind (&"treasure", &"miniboss", &"champion") on this level.
+func seal_rooms() -> Dictionary:
+	return _seal_rooms.duplicate()
+
+
+## RunState seal id of room `index` (unique per cell).
+func seal_id(index: int) -> StringName:
+	return StringName("seal_%d_%d" % [rooms[index].cell.x, rooms[index].cell.y])
+
+
+## Miniboss scene planned for room `index` on this level (null if none).
+func miniboss_scene(index: int) -> PackedScene:
+	return _minibosses.get(index, null)
+
+
+## Item ids offered (pick one) after the miniboss of room `index` on this level.
+func reward_choices(index: int) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	ids.assign(_reward_choices.get(index, []))
+	return ids
+
+
+## True if room `index` is a seal source whose seal was collected on this level.
+func is_seal_collected(index: int) -> bool:
+	return _seal_rooms.has(index) and run_state.is_seal_collected(seal_id(index))
+
+
+## Door label of the boss gate: what is still missing ("" once it is open).
+func boss_gate_label(index: int) -> String:
+	var gate := gate_level(index)
+	var level_ok := run_state.level >= gate
+	if run_state.seals_complete():
+		return "" if level_ok else "BOSS Lv %d" % gate
+	var seals := "SEALS %d/%d" % [run_state.seals_collected(), RunState.SEALS_REQUIRED]
+	return seals if level_ok else "%s  Lv %d" % [seals, gate]
 
 
 ## Indexes of the rooms linked to room `index`.
@@ -318,9 +413,12 @@ func _get_room(index: int) -> Room:
 		# The player-output HP modifier is snapshotted here, when the room is first created
 		# (just before the Mage enters), and also covers enemies registered later (waves).
 		room.enemy_registered.connect(_scale_enemy.bind(spec.is_treasure(), run_state.output_hp_modifier()))
-		if not spec.enemies.is_empty():
+		var lineup := room_lineup(index)
+		if _minibosses.has(index):
+			_add_miniboss(room, index, lineup)
+		elif not lineup.is_empty():
 			var pool: Array[PackedScene] = []
-			for scene in spec.enemies:
+			for scene in lineup:
 				pool.append(Biomes.map_scene(scene, level, "enemy_map"))
 			room.add_encounter_enemies(pool)
 			if not spec.is_boss and not spec.is_treasure():
@@ -329,11 +427,31 @@ func _get_room(index: int) -> Room:
 		if room is SurvivalRoom:
 			var trial := room as SurvivalRoom
 			trial.extra_per_wave = run_state.extra_wave_enemies()
+			# Seeded waves: same sizes and XP per wave, varied types and order.
+			trial.wave_enemies = EncounterPlanner.vary_waves(trial.wave_enemies, trial.wave_sizes, hash([run_state.level_seed(), index]))
+		elif room is RunePuzzleRoom:
+			var puzzle := room as RunePuzzleRoom
+			puzzle.sequence = EncounterPlanner.rune_order(puzzle.sequence, hash([run_state.level_seed(), index]))
 		if not spec.item.is_empty() and item_pickup_scene:
 			var pickup := item_pickup_scene.instantiate() as ItemPickup
 			pickup.item_id = spec.item
 			pickup.position = spec.item_position
 			room.get_node(^"Decor").add_child(pickup, true)
+		if _seal_rooms.has(index) and ancient_seal_scene:
+			var seal := ancient_seal_scene.instantiate() as AncientSeal
+			seal.name = &"AncientSeal"
+			seal.seal_id = seal_id(index)
+			var chest := room.get_node_or_null(^"Decor/TreasureChest") as Node2D
+			seal.position = chest.position + treasure_seal_offset if chest else seal_position
+			room.get_node(^"Decor").add_child(seal, true)
+		if _seal_rooms.get(index) == &"champion":
+			var pack := ChampionPack.new()
+			pack.name = &"ChampionPack"
+			pack.ward_broken.connect(func() -> void: _run_hud.show_message("The champion falls - the ward breaks!"))
+			room.add_child(pack)
+			room.state_changed.connect(func(state: Room.State) -> void:
+				if state == Room.State.COMBAT:
+					_run_hud.show_message("Champion pack! Slay the crowned champion to break its ward."))
 		# get_doors() needs the room to be ready; read the Doors node directly.
 		for door: Door in room.get_node(^"Doors").get_children():
 			door.sealed = not _link_map.has(_key(index, door.name))
@@ -347,6 +465,8 @@ func _get_room(index: int) -> Room:
 				(node as ItemPickup).run_state = run_state
 			elif node is TreasureChest:
 				(node as TreasureChest).run_state = run_state
+			elif node is AncientSeal:
+				(node as AncientSeal).run_state = run_state
 			elif node is Boss:
 				var boss := node as Boss
 				boss.phase_changed.connect(func(p: int) -> void:
@@ -396,7 +516,9 @@ func _scale_enemy(enemy: Enemy, treasure_room: bool, output_modifier: float = 1.
 func _on_enemy_defeated(enemy: Enemy) -> void:
 	run_state.enemies_defeated += 1
 	var gold := run_state.grant_enemy_rewards(enemy.xp_reward, enemy.currency_reward)
-	heal_mage(run_state.kill_heal(), true)
+	# Summons (miniboss adds) grant nothing, not even Blood Pact's kill heal.
+	if not enemy.summoned:
+		heal_mage(run_state.kill_heal(), true)
 	if enemy is Boss and not run_state.boss_defeated:
 		run_state.boss_defeated = true
 		_run_hud.show_message("%s defeated! +%d gold. Victory!" % [(enemy as Boss).display_name, gold])
@@ -456,6 +578,7 @@ func advance_level() -> bool:
 	mage.health.increase_max_health(0.0, mage.health.max_health)
 	_reach_time = run_state.run_time
 	_record_progress()
+	_plan_level()
 	enter_room(start_room)
 	var level := run_state.dungeon_level
 	var text := "Level %d" % level
@@ -465,6 +588,116 @@ func advance_level() -> bool:
 	_level_changing = false
 	level_started.emit(level)
 	return true
+
+
+## Puts room `index`'s miniboss into the encounter in place of `lineup`, with
+## that line-up's XP and gold (+ miniboss_bonus_gold), and its reward choices.
+func _add_miniboss(room: Room, index: int, lineup: Array[PackedScene]) -> void:
+	var boss := (_minibosses[index] as PackedScene).instantiate() as Miniboss
+	boss.xp_reward = EncounterPlanner.lineup_xp(lineup)
+	boss.currency_reward = EncounterPlanner.lineup_gold(lineup) + miniboss_bonus_gold
+	var points := room.get_node(^"SpawnPoints")
+	boss.position = (points.get_child(0) as Node2D).position if points.get_child_count() > 0 else seal_position
+	boss.detection_radius = room.spawn_detection_radius
+	room.get_node(^"Enemies").add_child(boss, true)
+	room.state_changed.connect(func(state: Room.State) -> void:
+		if state == Room.State.COMBAT:
+			_run_hud.show_message("%s guards an Ancient Seal!" % boss.display_name))
+	var ids := _collectable_choices(index)
+	if item_pickup_scene == null:
+		return
+	for k in mini(ids.size(), reward_offsets.size()):
+		var pickup := item_pickup_scene.instantiate() as ItemPickup
+		pickup.item_id = ids[k]
+		pickup.choice_group = &"miniboss_reward"
+		pickup.position = seal_position + reward_offsets[k]
+		room.get_node(^"Decor").add_child(pickup, true)
+
+
+## The reward choices of room `index` that can still be collected when the room
+## is built. A planned id at its stack cap (or already taken this level) is
+## replaced from the miniboss pool, preferring ids no other miniboss room offers,
+## so the choice keeps two options while the pool allows it.
+func _collectable_choices(index: int) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for id in reward_choices(index):
+		if run_state.can_collect(id) and not ids.has(id):
+			ids.append(id)
+	var offered := {}
+	for other: int in _reward_choices:
+		if other != index:
+			for id: StringName in _reward_choices[other]:
+				offered[id] = true
+	for allow_offered in [false, true]:
+		for id in RunState.miniboss_reward_pool():
+			if ids.size() >= reward_offsets.size():
+				return ids
+			if not ids.has(id) and run_state.can_collect(id) and (allow_offered or not offered.has(id)):
+				ids.append(id)
+	return ids
+
+
+## Plans the current dungeon level's encounters and Ancient Seal rooms (rooms
+## not built yet use it) and registers the seal sources with RunState.
+func _plan_level() -> void:
+	var level_seed := run_state.level_seed()
+	_lineups = EncounterPlanner.plan(rooms, level_seed)
+	_seal_rooms.clear()
+	for i in rooms.size():
+		if rooms[i].is_treasure():
+			_seal_rooms[i] = &"treasure"
+	var bosses := clampi(miniboss_rooms, 1, 3)
+	var champions := maxi(EncounterPlanner.MIN_SEAL_SOURCES - bosses - _seal_rooms.size(), 0)
+	var picked := EncounterPlanner.pick_seal_rooms(rooms, _seal_room_candidates(), bosses + champions, level_seed)
+	var boss_rooms: Array[int] = []
+	for k in picked.size():
+		_seal_rooms[picked[k]] = &"miniboss" if k < bosses else &"champion"
+		if k < bosses:
+			boss_rooms.append(picked[k])
+	_minibosses = EncounterPlanner.assign_minibosses(boss_rooms, miniboss_scenes, level_seed)
+	_reward_choices = EncounterPlanner.assign_rewards(boss_rooms, RunState.miniboss_reward_pool(), reward_offsets.size(), level_seed)
+	if _seal_rooms.size() < EncounterPlanner.MIN_SEAL_SOURCES:
+		push_error("Dungeon: only %d Ancient Seal sources (need %d)" % [_seal_rooms.size(), EncounterPlanner.MIN_SEAL_SOURCES])
+	var ids: Array[StringName] = []
+	for i: int in _seal_rooms:
+		ids.append(seal_id(i))
+	run_state.set_seal_sources(ids)
+
+
+## Combat rooms that may hold a seal: tier 2 (Mage level gate above 1), with an
+## encounter and no item pickup, not the boss / treasure / pre-boss anvil room,
+## and reachable from `start_room` without passing the boss room.
+func _seal_room_candidates() -> Array[int]:
+	var reachable := {start_room: true}
+	var queue: Array[int] = [start_room]
+	while not queue.is_empty():
+		var i: int = queue.pop_front()
+		for j: int in get_neighbours(i):
+			if not reachable.has(j) and not rooms[j].is_boss:
+				reachable[j] = true
+				queue.append(j)
+	var result: Array[int] = []
+	for i in rooms.size():
+		var spec := rooms[i]
+		if reachable.has(i) and spec.required_level >= 2 and not spec.is_boss and not spec.is_treasure() \
+				and spec.item.is_empty() and spec.cell != final_anvil_cell and not spec.enemies.is_empty():
+			result.append(i)
+	return result
+
+
+## Refreshes the boss gate and announces the seal count.
+func _on_seal_collected(_id: StringName) -> void:
+	if current_index >= 0:
+		_update_level_gates(current_index)
+	map_changed.emit()
+	var count := run_state.seals_collected()
+	if not run_state.seals_complete():
+		_run_hud.show_message("Ancient Seal %d/%d claimed! %d more to unseal the Warden's gate."
+				% [count, RunState.SEALS_REQUIRED, RunState.SEALS_REQUIRED - count])
+	elif run_state.is_max_level():
+		_run_hud.show_message("All Ancient Seals claimed! The Warden's gate is open.")
+	else:
+		_run_hud.show_message("All Ancient Seals claimed! Reach Lv %d to open the Warden's gate." % run_state.max_level())
 
 
 ## Saves run progress (highest level, best run); replay runs save nothing.
@@ -493,7 +726,11 @@ func _on_leveled_up(new_level: int) -> void:
 	map_changed.emit()
 	var unlocked := rooms.filter(func(r: RoomSpec) -> bool: return run_state.room_gate(r.required_level, r.is_boss) == new_level)
 	if unlocked.any(func(r: RoomSpec) -> bool: return r.is_boss):
-		_run_hud.show_message("Level %d! The boss gate is open." % new_level)
+		if run_state.seals_complete():
+			_run_hud.show_message("Level %d! The boss gate is open." % new_level)
+		else:
+			_run_hud.show_message("Level %d! The boss gate still needs Ancient Seals (%d/%d)."
+					% [new_level, run_state.seals_collected(), RunState.SEALS_REQUIRED])
 	elif not unlocked.is_empty():
 		_run_hud.show_message("Level %d! Deeper rooms unlocked." % new_level)
 	else:
@@ -507,10 +744,10 @@ func _update_level_gates(index: int) -> void:
 		var key := _key(index, door.name)
 		if not _link_map.has(key):
 			continue
-		var target: RoomSpec = rooms[_link_map[key][0]]
-		var gate := run_state.room_gate(target.required_level, target.is_boss)
-		door.level_locked = run_state.level < gate
-		door.lock_label = ("BOSS Lv %d" if target.is_boss else "Lv %d") % gate
+		var target_index: int = _link_map[key][0]
+		var target: RoomSpec = rooms[target_index]
+		door.level_locked = not can_enter(target_index)
+		door.lock_label = boss_gate_label(target_index) if target.is_boss else "Lv %d" % gate_level(target_index)
 
 
 func _on_upgrade_purchased(id: StringName) -> void:

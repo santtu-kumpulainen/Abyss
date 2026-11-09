@@ -58,6 +58,7 @@ func _test_victory_and_summary() -> void:
 	_check(_run.purchase(&"vitality"), "setup: Vitality purchased")
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
+	_grant_seals()
 
 	var victories := [0]
 	_dungeon.victory_started.connect(func() -> void: victories[0] += 1)
@@ -178,6 +179,7 @@ func _test_wind_relic_and_menu() -> void:
 func _test_no_victory_after_mage_death() -> void:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
+	_grant_seals()
 	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
 	await _frames(2)
 	var boss := _boss(_dungeon.current_room)
@@ -193,6 +195,7 @@ func _test_no_victory_after_mage_death() -> void:
 func _win_fast() -> void:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
+	_grant_seals()
 	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
 	await _frames(2)
 	_boss(_dungeon.current_room).take_damage(99999.0)
@@ -298,3 +301,9 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Ancient Seals (Issue #43): the boss gate also needs this level's seals; collect them all.
+func _grant_seals() -> void:
+	for i: int in _dungeon.seal_rooms():
+		_run.collect_seal(_dungeon.seal_id(i))

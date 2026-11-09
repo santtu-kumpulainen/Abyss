@@ -133,7 +133,7 @@ func _test_normal_baseline() -> void:
 	var spec := _dungeon.rooms[index]
 	_check(_enemies(room).size() == spec.enemies.size(), "Normal: no extra enemies")
 	var enemy := _enemies(room)[0] as Enemy
-	var base := _base_stats(spec.enemies[0])
+	var base := _base_stats(load(enemy.scene_file_path))
 	_check(enemy.scaled and is_equal_approx(enemy.health.max_health, base["hp"]) and is_equal_approx(enemy.contact_damage, base["damage"] * RunState.ENEMY_DAMAGE_FACTOR),
 			"Normal: enemies keep baseline stats")
 	var gold := _run.currency
@@ -158,7 +158,7 @@ func _test_hard_scaling() -> void:
 	var spec := _dungeon.rooms[lv1]
 	_check(_enemies(room).size() == spec.enemies.size(), "Hard: no extra enemies in Lv 1 rooms")
 	var enemy := _enemies(room)[0] as Enemy
-	var base := _base_stats(spec.enemies[0])
+	var base := _base_stats(load(enemy.scene_file_path))
 	_check(is_equal_approx(enemy.health.max_health, base["hp"] * 1.35) and is_equal_approx(enemy.health.current, base["hp"] * 1.35)
 			and is_equal_approx(enemy.contact_damage, base["damage"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR) and is_equal_approx(enemy.speed, base["speed"] * 1.1)
 			and is_equal_approx(enemy.attack_cooldown, base["cooldown"] / 1.1), "Hard melee: HP x1.35, damage x1.25, pace x1.1")
@@ -219,7 +219,7 @@ func _test_abyssal_pressure() -> void:
 	var spec := _dungeon.rooms[lv2]
 	var expected := mini(spec.enemies.size() + 2, room.get_node(^"SpawnPoints").get_child_count())
 	_check(_enemies(room).size() == expected, "Abyssal: +2 enemies in Lv 2 rooms (%d)" % _enemies(room).size())
-	var base := _base_stats(spec.enemies[0])
+	var base := _base_stats(load((_enemies(room)[0] as Enemy).scene_file_path))
 	_check(is_equal_approx((_enemies(room)[0] as Enemy).health.max_health, base["hp"] * 1.75), "Abyssal: enemy HP x1.75")
 	var positions := _enemies(room).map(func(e: Enemy) -> Vector2: return e.position)
 	var unique := {}
@@ -304,7 +304,7 @@ func _test_pacts() -> void:
 	var index := _first_combat_room(1)
 	var room := await _enter(index)
 	var enemy := _enemies(room)[0] as Enemy
-	var base := _base_stats(_dungeon.rooms[index].enemies[0])
+	var base := _base_stats(load(enemy.scene_file_path))
 	_check(is_equal_approx(enemy.health.max_health, base["hp"] * 1.2), "Avarice: enemies +20% HP")
 	room.start_encounter()
 	var reward := enemy.currency_reward
@@ -366,7 +366,7 @@ func _test_pacts() -> void:
 	await _start_run(NORMAL, &"treasure_seeker")
 	index = _first_combat_room(1)
 	room = await _enter(index)
-	base = _base_stats(_dungeon.rooms[index].enemies[0])
+	base = _base_stats(load((_enemies(room)[0] as Enemy).scene_file_path))
 	_check(is_equal_approx((_enemies(room)[0] as Enemy).health.max_health, base["hp"]), "Treasure Seeker: normal rooms unaffected")
 	var trial := await _enter(_dungeon.index_at(SURVIVAL)) as SurvivalRoom
 	_check(is_equal_approx(trial.duration, 120.0), "Treasure Seeker: survival timer unchanged (display only)")
@@ -515,7 +515,8 @@ func _enter(index: int) -> Room:
 func _first_combat_room(level: int) -> int:
 	for i in _dungeon.rooms.size():
 		var spec := _dungeon.rooms[i]
-		if not spec.enemies.is_empty() and not spec.is_boss and not spec.is_treasure() and spec.required_level == level:
+		# Miniboss rooms replace their line-up and get no extras (test_minibosses.gd).
+		if not spec.enemies.is_empty() and not spec.is_boss and not spec.is_treasure() and spec.required_level == level and _dungeon.miniboss_scene(i) == null:
 			return i
 	return -1
 
@@ -549,6 +550,7 @@ func _elite_and_normal() -> Array:
 func _boss_room() -> Boss:
 	while _run.level < _run.max_level():
 		_run.add_rewards(_run.xp_to_next_level(), 0)
+	_grant_seals()
 	_dungeon.enter_room(_dungeon.index_at(BOSS), &"DoorBottom")
 	await _frames(2)
 	for e in _enemies(_dungeon.current_room):
@@ -624,3 +626,9 @@ func _check(condition: bool, label: String) -> void:
 	print("%s: %s" % ["PASS" if condition else "FAIL", label])
 	if not condition:
 		_failures += 1
+
+
+## Ancient Seals (Issue #43): the boss gate also needs this level's seals; collect them all.
+func _grant_seals() -> void:
+	for i: int in _dungeon.seal_rooms():
+		_run.collect_seal(_dungeon.seal_id(i))

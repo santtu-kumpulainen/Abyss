@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="1_enemy"]
+[ext_resource type="Script" path="res://scripts/enemies/brood_mother.gd" id="2_script"]
+[ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/blood_monster.tres" id="3_frames"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/demon.tscn" id="4_demon"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_feet"]
+radius = 18.0
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_body"]
+radius = 24.0
+height = 80.0
+
+[node name="BroodMother" instance=ExtResource("1_enemy")]
+script = ExtResource("2_script")
+display_name = "Brood Mother"
+summon_scene = ExtResource("4_demon")
+speed = 70.0
+detection_radius = 900.0
+attack_range = 44.0
+contact_damage = 14.0
+attack_cooldown = 1.2
+xp_reward = 0
+currency_reward = 0
+elite = true
+sprite_frames = ExtResource("3_frames")
+sprite_scale = 4.2
+side_view = true
+
+[node name="AnimatedSprite2D" parent="." index="0"]
+self_modulate = Color(0.7, 1, 0.55, 1)
+texture_filter = 1
+scale = Vector2(4.2, 4.2)
+sprite_frames = ExtResource("3_frames")
+animation = &"idle"
+offset = Vector2(0, -10)
+
+[node name="CollisionShape2D" parent="." index="1"]
+shape = SubResource("CircleShape2D_feet")
+
+[node name="CollisionShape2D" parent="Hurtbox" index="0"]
+position = Vector2(0, -40)
+shape = SubResource("CapsuleShape2D_body")
+
+[node name="Health" parent="." index="3"]
+max_health = 300.0
+
+[node name="HealthBar" parent="." index="4"]
+offset_left = -40.0
+offset_top = -112.0
+offset_right = 40.0
+offset_bottom = -105.0
+
+[node name="NameLabel" type="Label" parent="." index="5"]
+offset_left = -80.0
+offset_top = -134.0
+offset_right = 80.0
+offset_bottom = -114.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.75, 1, 0.6, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 13
+horizontal_alignment = 1

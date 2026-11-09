@@ -1,0 +1,589 @@
+extends SceneTree
+## Headless check of Issue #43 stage 3: FloorHazard (telegraph timing,
+## eruption / lingering damage, cleanup), the Brood Mother (punish window,
+## telegraphed summons with 0-XP Demons, locked charge lane), the Hexcaller
+## (fan telegraph, hex zones, blink), miniboss placement over many seeds,
+## miniboss XP / gold (= the replaced encounter), the pick-1-of-2 reward and
+## its duplication rules, the seal drop, and champion rooms (1 miniboss).
+##
+## Usage (after importing):
+##   godot --headless --path . --script res://tools/test_minibosses.gd
+##
+## Prints PASS/FAIL per check and exits with code 1 if any check failed.
+
+const SCENE := "res://scenes/dungeon/dungeon.tscn"
+const SEED := 31337
+const SEEDS := 200
+
+
+class Dummy extends Node2D:
+	var taken := 0.0
+
+	func take_damage(amount: float) -> void:
+		taken += amount
+
+
+var _failures := 0
+var _dungeon: Dungeon
+var _mage: Mage
+var _run: RunState
+var _prog: ProgressionStore
+
+
+func _initialize() -> void:
+	_run_tests.call_deferred()
+
+
+func _run_tests() -> void:
+	_prog = ProgressionStore.instance(self)
+	if _prog:
+		_prog.clear_progress()
+	await _test_floor_hazard()
+	RunState.seed_override = SEED
+	await _load()
+	if _dungeon == null:
+		_check(false, "dungeon scene loaded")
+	else:
+		_test_placement()
+		await _load()
+		await _test_brood_mother()
+		await _load()
+		await _test_hexcaller()
+		await _load()
+		await _test_rewards_and_seal()
+		await _test_reward_fallback()
+		await _load()
+		await _test_champion_room()
+	RunState.seed_override = 0
+	if _prog:
+		_prog.clear_progress()
+	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
+	quit(1 if _failures > 0 else 0)
+
+
+# --- FloorHazard -------------------------------------------------------------------
+
+func _test_floor_hazard() -> void:
+	var arena := Node2D.new()
+	root.add_child(arena)
+	var inside := Dummy.new()
+	var outside := Dummy.new()
+	for d in [inside, outside]:
+		d.add_to_group(&"player")
+		arena.add_child(d)
+	inside.global_position = Vector2(100, 100)
+	outside.global_position = Vector2(100 + 61, 100)
+	var hits := [-1]
+	var hazard := FloorHazard.spawn(arena, Vector2(100, 100), 60.0, 0.5, 12.0)
+	hazard.erupted.connect(func(n: int) -> void: hits[0] = n)
+	await _physics(0.4)
+	_check(inside.taken == 0.0 and hazard.phase == FloorHazard.Phase.TELEGRAPH and hazard.time_to_erupt() > 0.0,
+			"telegraph: harmless before its delay")
+	await _physics(0.2)
+	_check(inside.taken == 12.0 and outside.taken == 0.0 and hits[0] == 1, "eruption: damages only targets inside the radius, once")
+	await _frames(1)
+	_check(not is_instance_valid(hazard), "a hazard without lifetime frees itself after erupting")
+
+	# Lingering zone: pulses while the target stays, nothing once it steps out.
+	inside.taken = 0.0
+	var zone := FloorHazard.spawn(arena, Vector2(100, 100), 60.0, 0.2, 5.0, 2.1)
+	zone.pulse_interval = 0.5
+	await _physics(0.3)
+	_check(inside.taken == 5.0 and zone.phase == FloorHazard.Phase.LINGER, "lingering zone: eruption damage, then it stays")
+	await _physics(0.55)
+	_check(inside.taken == 10.0, "lingering zone: pulses damage a target standing inside (%.0f)" % inside.taken)
+	inside.global_position = Vector2(400, 100)
+	await _physics(1.0)
+	_check(inside.taken == 10.0, "lingering zone: stepping out avoids further pulses")
+	await _physics(0.8)
+	_check(not is_instance_valid(zone), "lingering zone frees itself after its lifetime")
+
+	# Damage 0 (summon circle): never hurts, still erupts.
+	inside.global_position = Vector2(100, 100)
+	inside.taken = 0.0
+	var erupted := [false]
+	var circle := FloorHazard.spawn(arena, Vector2(100, 100), 40.0, 0.1, 0.0)
+	circle.erupted.connect(func(_n: int) -> void: erupted[0] = true)
+	await _physics(0.2)
+	_check(erupted[0] and inside.taken == 0.0, "a 0-damage hazard erupts without damage")
+
+	# Cleanup: the source dying / leaving, and the room being unloaded.
+	var source := Node2D.new()
+	source.add_user_signal(&"died")
+	arena.add_child(source)
+	var a := FloorHazard.spawn(arena, Vector2.ZERO, 40.0, 5.0, 1.0, 0.0, source)
+	var b := FloorHazard.spawn(arena, Vector2.ZERO, 40.0, 5.0, 1.0, 0.0, source)
+	source.emit_signal(&"died")
+	await _frames(1)
+	_check(not is_instance_valid(a) and not is_instance_valid(b), "hazards are removed when their source dies")
+	var room := Node2D.new()
+	arena.add_child(room)
+	var c := FloorHazard.spawn(room, Vector2.ZERO, 40.0, 5.0, 1.0, 2.0)
+	arena.remove_child(room)
+	await _frames(1)
+	_check(not is_instance_valid(c), "hazards are removed when their room leaves the tree")
+	room.free()
+	arena.queue_free()
+	await _frames(1)
+
+
+# --- Placement ---------------------------------------------------------------------
+
+func _test_placement() -> void:
+	var anvil := _dungeon.index_at(_dungeon.final_anvil_cell)
+	var pool := RunState.miniboss_reward_pool()
+	_check(pool.size() >= 4 and pool.all(func(id: StringName) -> bool: return RunState.ITEMS.has(id)),
+			"miniboss rewards come from RunState.ITEMS (%d items)" % pool.size())
+	var placed_items := _dungeon.rooms.filter(func(r: RoomSpec) -> bool: return not r.item.is_empty()) \
+			.map(func(r: RoomSpec) -> StringName: return r.item)
+	_check(not pool.any(func(id: StringName) -> bool: return placed_items.has(id)), "miniboss rewards never clash with room item pickups")
+	for count in [1, 2, 3]:
+		_dungeon.miniboss_rooms = count
+		var ok := true
+		var both := true
+		var rewards_ok := true
+		var distinct_rooms := {}
+		for s in SEEDS:
+			_run.run_seed = s + 1
+			_dungeon._plan_level()
+			var seals := _dungeon.seal_rooms()
+			var bosses := seals.keys().filter(func(i: int) -> bool: return seals[i] == &"miniboss")
+			distinct_rooms[str(bosses)] = true
+			ok = ok and bosses.size() == count and seals.size() >= EncounterPlanner.MIN_SEAL_SOURCES
+			var kinds := {}
+			for i: int in bosses:
+				ok = ok and _dungeon.miniboss_scene(i) != null and i != anvil and not _dungeon.rooms[i].is_boss
+				kinds[_dungeon.miniboss_scene(i).resource_path] = true
+				var ids := _dungeon.reward_choices(i)
+				rewards_ok = rewards_ok and ids.size() == 2 and ids[0] != ids[1] and ids.all(func(id: StringName) -> bool: return pool.has(id))
+			for i in _dungeon.rooms.size():
+				ok = ok and (_dungeon.miniboss_scene(i) != null) == bosses.has(i)
+			both = both and kinds.size() == mini(count, 2)
+			if count == 2:
+				var all_ids := _dungeon.reward_choices(bosses[0]) + _dungeon.reward_choices(bosses[1])
+				var unique := {}
+				for id in all_ids:
+					unique[id] = true
+				rewards_ok = rewards_ok and unique.size() == 4
+			if count == 2:
+				ok = ok and not _adjacent(bosses[0], bosses[1])
+		_check(ok, "%d miniboss room(s): exactly the miniboss seal rooms, never boss/anvil (%d seeds)%s"
+				% [count, SEEDS, " and never adjacent" if count == 2 else ""])
+		_check(both, "%d miniboss room(s): %s" % [count, "both minibosses appear" if count >= 2 else "one miniboss"])
+		_check(rewards_ok, "%d miniboss room(s): two different reward items each%s" % [count, ", all four different" if count == 2 else ""])
+		_check(distinct_rooms.size() > 5, "%d miniboss room(s): placement varies by seed (%d layouts)" % [count, distinct_rooms.size()])
+	_dungeon.miniboss_rooms = 2
+	_run.run_seed = SEED
+	_dungeon._plan_level()
+	var first := _miniboss_map()
+	_dungeon._plan_level()
+	_check(first == _miniboss_map(), "same seed -> same miniboss rooms, scenes and rewards")
+
+
+# --- Brood Mother ------------------------------------------------------------------
+
+func _test_brood_mother() -> void:
+	var index := _miniboss_room(BroodMother)
+	var mother := await _enter_miniboss(index) as BroodMother
+	_check(mother != null, "setup: Brood Mother room built")
+	if mother == null:
+		return
+	var lineup := _dungeon.room_lineup(index)
+	_check(mother.xp_reward == EncounterPlanner.lineup_xp(lineup) and mother.xp_reward > 0
+			and mother.currency_reward == EncounterPlanner.lineup_gold(lineup) + _dungeon.miniboss_bonus_gold,
+			"Brood Mother: XP = replaced encounter (%d), gold = encounter + bonus" % mother.xp_reward)
+	_check(_enemies(_dungeon.current_room).size() == 1, "miniboss room: no other encounter enemies")
+	var room := _dungeon.current_room
+	_park_mage(mother, Vector2(260, 0))
+
+	# Summon: punish window and telegraphed circles.
+	var hp := mother.health.current
+	_check(mother.begin_summon() and mother.state == Miniboss.State.WINDUP and mother.is_vulnerable(), "summon: channel starts as a punish window")
+	mother.take_damage(10.0)
+	var expected := 10.0 * mother.damage_taken_multiplier * mother.punish_multiplier
+	_check(is_equal_approx(hp - mother.health.current, expected), "summon: she takes x%.1f damage while channelling (%.1f)" % [mother.punish_multiplier, hp - mother.health.current])
+	var circles := _hazards_of(mother)
+	_check(circles.size() == mother.summon_count and circles.all(func(h: FloorHazard) -> bool: return (h.damage == 0.0
+			and is_equal_approx(h.delay, mother.summon_windup))), "summon: %d harmless circles telegraph the spawns" % mother.summon_count)
+	var before := _enemies(room).size()
+	await _wait_until(func() -> bool: return mother.state != Miniboss.State.WINDUP, 400)
+	await _frames(2)
+	var demons := mother.alive_summons()
+	_check(demons.size() == mother.summon_count and _enemies(room).size() == before + mother.summon_count
+			and demons.all(func(d: Enemy) -> bool: return d.xp_reward == 0 and d.currency_reward == 0 and d.scaled),
+			"summon: Demons crawl out with 0 XP / 0 gold, scaled and counted for the clear")
+	_check(not mother.is_vulnerable(), "summon: the punish window closes")
+	var xp := _run.xp
+	var gold := _run.currency
+	# Blood Pact's kill heal must not come from summons either.
+	_run.pact = &"blood_pact"
+	_mage.health.take_damage(30.0)
+	var hurt := _mage.health.current
+	for d in demons:
+		d.take_damage(99999.0)
+	await _frames(2)
+	_check(_run.xp == xp and _run.currency == gold and demons.all(func(d) -> bool: return not is_instance_valid(d) or d.summoned),
+			"summoned Demons grant no XP and no gold")
+	_check(is_equal_approx(_mage.health.current, hurt), "summoned Demons grant no kill heal (Blood Pact)")
+	await _wait_until(func() -> bool: return mother.state == Miniboss.State.CHASE, 200)
+
+	# Charge: locked lane, dodge by sidestepping.
+	mother.set_physics_process(false)
+	_park_mage(mother, Vector2(300, 0))
+	mother.set_physics_process(true)
+	_check(mother.begin_charge() and mother.charge_aim().is_equal_approx(Vector2.RIGHT), "charge: the aim locks on the Mage")
+	_mage.global_position = mother.global_position + Vector2(300, 180)
+	var mage_hp := _mage.health.current
+	await _wait_until(func() -> bool: return mother.state == Miniboss.State.RECOVER, 300)
+	_check(mother.charge_aim().is_equal_approx(Vector2.RIGHT) and is_equal_approx(_mage.health.current, mage_hp),
+			"charge: the lane does not follow the Mage; a sidestep dodges it")
+	await _wait_until(func() -> bool: return mother.state == Miniboss.State.CHASE, 200)
+	mother.set_physics_process(false)
+	_park_mage(mother, Vector2(-250, 0))
+	mother.set_physics_process(true)
+	mage_hp = _mage.health.current
+	mother.begin_charge()
+	await _wait_until(func() -> bool: return mother.state == Miniboss.State.RECOVER, 300)
+	_check(is_equal_approx(mage_hp - _mage.health.current, mother.charge_damage * _mage.damage_taken_multiplier),
+			"charge: a Mage left in the lane takes the charge damage once (%.1f)" % (mage_hp - _mage.health.current))
+
+	# Summon circles stay inside the floor even when she channels in a corner.
+	await _wait_until(func() -> bool: return mother.state == Miniboss.State.CHASE, 200)
+	var floor_rect := (room.get_node(^"Visuals") as RoomVisuals).floor_rect.grow(-mother.floor_margin + 1.0)
+	mother.global_position = room.to_global(floor_rect.position + Vector2(10, 10))
+	_park_mage(mother, Vector2(300, 200))
+	mother.begin_summon()
+	var cornered := _hazards_of(mother)
+	_check(not cornered.is_empty() and cornered.all(func(h: FloorHazard) -> bool: return floor_rect.has_point(room.to_local(h.global_position))),
+			"summon circles are kept inside the room floor (away from walls and corner decor)")
+	await _wait_until(func() -> bool: return mother.state == Miniboss.State.CHASE, 400)
+	for d in mother.alive_summons():
+		d.take_damage(99999.0)
+	await _frames(2)
+
+	# Death during a summon: circles vanish, nothing spawns, summons crumble.
+	_park_mage(mother, Vector2(300, 0))
+	mother.begin_summon()
+	var pending := _hazards_of(mother)
+	_mage.health.take_damage(10.0)
+	var before_kill := _mage.health.current
+	mother.take_damage(999999.0)
+	await _frames(2)
+	_check(pending.all(func(h) -> bool: return not is_instance_valid(h)) and _enemies(room).is_empty(),
+			"death mid-summon: circles removed, no Demons spawn")
+	_check(_mage.health.current > before_kill, "the miniboss itself still grants the Blood Pact kill heal")
+	await _wait_until(func() -> bool: return room.state == Room.State.CLEARED)
+	_check(room.state == Room.State.CLEARED, "the Brood Mother room clears")
+	_dungeon.enter_room(_dungeon.start_room)
+	await _frames(1)
+	_dungeon.enter_room(index)
+	await _frames(2)
+	_check(_dungeon.current_room == room and room.state == Room.State.CLEARED and _enemies(room).is_empty()
+			and room.get_children().filter(func(n) -> bool: return n is FloorHazard).is_empty() and room.can_exit(),
+			"revisiting the cleared miniboss room: no boss, summons or hazards")
+
+
+# --- Hexcaller ---------------------------------------------------------------------
+
+func _test_hexcaller() -> void:
+	var index := _miniboss_room(Hexcaller)
+	var hex := await _enter_miniboss(index) as Hexcaller
+	_check(hex != null, "setup: Hexcaller room built")
+	if hex == null:
+		return
+	_check(hex.xp_reward == EncounterPlanner.lineup_xp(_dungeon.room_lineup(index)), "Hexcaller: XP = replaced encounter (%d)" % hex.xp_reward)
+	hex.set_physics_process(false)
+	_park_mage(hex, Vector2(300, 0))
+	hex.set_physics_process(true)
+
+	# Fan.
+	_check(hex.begin_fan() and hex.state == Miniboss.State.WINDUP, "fan: telegraph starts")
+	var dirs := hex.fan_directions()
+	var spread := deg_to_rad(hex.fan_spread_degrees)
+	_check(dirs.size() == 3 and is_equal_approx(dirs[0].angle_to(dirs[1]), spread) and is_equal_approx(dirs[1].angle_to(dirs[2]), spread),
+			"fan: three aim lines, evenly spread")
+	_mage.global_position += Vector2(0, 200)
+	await _wait_until(func() -> bool: return hex.state != Miniboss.State.WINDUP, 200)
+	var bolts := _bolts_of(hex)
+	_check(bolts.size() == 3 and bolts.all(func(p: Projectile) -> bool: return dirs.any(func(d: Vector2) -> bool: return p.direction.is_equal_approx(d))),
+			"fan: three bolts fly along the telegraphed (locked) lines")
+	for b in bolts:
+		b.queue_free()
+	await _wait_until(func() -> bool: return hex.state == Miniboss.State.CHASE, 200)
+
+	# Hex zones.
+	hex.set_physics_process(false)
+	_park_mage(hex, Vector2(300, 0))
+	hex.set_physics_process(true)
+	var at := _mage.global_position
+	_check(hex.begin_hex(), "hex: cast starts")
+	await _wait_until(func() -> bool: return hex.state != Miniboss.State.WINDUP, 200)
+	var zones := _hazards_of(hex)
+	_check(zones.size() == hex.hex_count and zones.any(func(z: FloorHazard) -> bool: return z.global_position.distance_to(at) < 1.0)
+			and zones.all(func(z: FloorHazard) -> bool: return z.damage > 0.0 and z.lifetime > 0.0 and is_equal_approx(z.delay, hex.hex_delay)),
+			"hex: %d lingering zones, one on the Mage, telegraphed for %.1fs" % [hex.hex_count, hex.hex_delay])
+	var mage_hp := _mage.health.current
+	hex.set_physics_process(false)
+	await _physics(hex.hex_delay + 0.1)
+	_check(is_equal_approx(mage_hp - _mage.health.current, hex.hex_damage * _mage.damage_taken_multiplier),
+			"hex: standing in a zone takes its eruption damage")
+	_mage.global_position = at + Vector2(0, 400)
+	mage_hp = _mage.health.current
+	await _physics(hex.hex_pulse * 1.5)
+	_check(is_equal_approx(_mage.health.current, mage_hp), "hex: leaving the zone avoids its pulses")
+	hex.set_physics_process(true)
+	await _wait_until(func() -> bool: return hex.state == Miniboss.State.CHASE, 200)
+
+	# Blink: triggered by staying close, telegraphed, lands far away.
+	hex._hex_left = 999.0
+	hex._fan_left = 999.0
+	hex._blink_left = 0.0
+	hex.set_physics_process(false)
+	_park_mage(hex, Vector2(60, 0))
+	hex.set_physics_process(true)
+	var started := [&"", Vector2.ZERO]
+	hex.attack_started.connect(func(a: StringName) -> void:
+		started[0] = a
+		started[1] = hex.global_position)
+	await _wait_until(func() -> bool: return started[0] == &"blink", 200)
+	var dest := hex.blink_destination()
+	await _physics(hex.blink_windup * 0.5)
+	_check(started[0] == &"blink" and hex.state == Miniboss.State.WINDUP and hex.global_position.is_equal_approx(started[1])
+			and dest.distance_to(_mage.global_position) > 300.0,
+			"blink: staying close starts a telegraphed blink (stands still) to a far spot")
+	await _wait_until(func() -> bool: return hex.state != Miniboss.State.WINDUP, 200)
+	_check(hex.global_position.is_equal_approx(dest) and is_equal_approx(hex.modulate.a, 1.0), "blink: lands on the marked destination")
+
+	# Death cleanup.
+	await _wait_until(func() -> bool: return hex.state == Miniboss.State.CHASE, 200)
+	hex._hex_left = 0.0
+	hex.begin_hex()
+	await _wait_until(func() -> bool: return hex.state != Miniboss.State.WINDUP, 200)
+	var left := _hazards_of(hex)
+	hex._fan_left = 0.0
+	await _wait_until(func() -> bool: return hex.state == Miniboss.State.CHASE, 200)
+	hex.begin_fan()
+	await _wait_until(func() -> bool: return hex.state != Miniboss.State.WINDUP, 200)
+	var bolts_left := _bolts_of(hex)
+	var had_both := not left.is_empty() and not bolts_left.is_empty()
+	left.append_array(bolts_left)
+	hex.take_damage(999999.0)
+	await _frames(2)
+	_check(had_both and left.all(func(z) -> bool: return not is_instance_valid(z)),
+			"Hexcaller death removes its zones and bolts")
+
+
+# --- Rewards and seal ----------------------------------------------------------------
+
+func _test_rewards_and_seal() -> void:
+	var index := _miniboss_room(BroodMother)
+	var boss := await _enter_miniboss(index)
+	if boss == null:
+		_check(false, "setup: miniboss room built")
+		return
+	var room := _dungeon.current_room
+	var ids := _dungeon.reward_choices(index)
+	var pickups := _pickups(room)
+	_check(pickups.size() == 2 and pickups.all(func(p: ItemPickup) -> bool: return (not p.visible and ids.has(p.item_id)
+			and p.choice_group == &"miniboss_reward")), "two reward choices wait hidden in the miniboss room")
+	_run.xp_multiplier_override = 1.0
+	var gold := _run.currency
+	var xp := _run.xp + _run.level * 1000
+	var boss_gold := boss.currency_reward
+	boss.take_damage(999999.0)
+	await _wait_until(func() -> bool: return room.state == Room.State.CLEARED)
+	await _frames(1)
+	_check(_run.currency - gold == roundi(boss_gold * _run.gold_multiplier()), "miniboss kill pays its gold (%d)" % (_run.currency - gold))
+	_check(_run.xp + _run.level * 1000 > xp or _run.is_max_level(), "miniboss kill grants its XP")
+	_run.xp_multiplier_override = 0.0
+	var seal := room.get_node_or_null(^"Decor/AncientSeal") as AncientSeal
+	_check(seal != null and seal.visible and pickups.all(func(p: ItemPickup) -> bool: return p.visible),
+			"clearing the miniboss reveals its seal and both reward choices")
+	var choice: ItemPickup = pickups[0]
+	var choice_id: StringName = choice.item_id
+	var other: ItemPickup = pickups[1]
+	var other_id: StringName = other.item_id
+	_check(choice.collect() and _run.collected.get(choice_id, 0) == 1, "picking one reward collects it through RunState.collect_item")
+	_check(not other.is_active() and not other.collect(), "the other choice cannot be taken in the same frame")
+	await _frames(1)
+	_check(not is_instance_valid(other) and _run.collected.get(other_id, 0) == 0, "the other choice disappears (pick 1 of 2)")
+	_check(seal.collect() and _run.seals_collected() == 1, "the miniboss seal is collected separately")
+	_dungeon.enter_room(_dungeon.start_room)
+	await _frames(1)
+	_dungeon.enter_room(index)
+	await _frames(2)
+	_check(_pickups(_dungeon.current_room).is_empty() and _dungeon.current_room.get_node_or_null(^"Decor/AncientSeal") == null
+			and not _run.collect_item(choice_id) and _run.seals_collected() == 1,
+			"revisiting: no second reward, no second seal")
+
+
+## A planned reward at its stack cap is replaced when the room is built.
+func _test_reward_fallback() -> void:
+	var index := _miniboss_room(Hexcaller)
+	var planned := _dungeon.reward_choices(index)
+	_check(planned.size() == 2 and not _dungeon.is_visited(index), "setup: unbuilt Hexcaller room with two planned rewards")
+	var capped := planned[0]
+	_run.collected[capped] = RunState.MAX_STACKS
+	var boss := await _enter_miniboss(index)
+	var pickups := _pickups(_dungeon.current_room)
+	var ids := pickups.map(func(p: ItemPickup) -> StringName: return p.item_id)
+	_check(pickups.size() == 2 and not ids.has(capped) and ids[0] != ids[1] and ids.all(func(id: StringName) -> bool: return _run.can_collect(id)),
+			"a capped reward is replaced, keeping two different options (%s)" % [ids])
+	if boss:
+		boss.take_damage(999999.0)
+		await _frames(2)
+
+
+# --- Champion rooms ------------------------------------------------------------------
+
+func _test_champion_room() -> void:
+	_dungeon.miniboss_rooms = 1
+	_dungeon._plan_level()
+	var seals := _dungeon.seal_rooms()
+	var index := -1
+	for i: int in seals:
+		if seals[i] == &"champion":
+			index = i
+	_check(index >= 0 and seals.size() == EncounterPlanner.MIN_SEAL_SOURCES, "1 miniboss: a champion room keeps 4 seal sources")
+	if index < 0:
+		return
+	_dungeon.enter_room(index)
+	await _frames(2)
+	var room := _dungeon.current_room
+	var pack := room.get_node_or_null(^"ChampionPack") as ChampionPack
+	_check(pack != null and _miniboss_in(room) == null, "champion room: ordinary pack with a ChampionPack rule")
+	if pack == null:
+		return
+	room.start_encounter()
+	await _frames(1)
+	_check(pack.active and pack.champion != null and pack.warded.size() == _enemies(room).size() - 1, "champion: leader chosen, the rest warded")
+	var champ_xp := pack.champion.xp_reward
+	_check(_enemies(room).all(func(e: Enemy) -> bool: return e.xp_reward <= champ_xp), "champion: the strongest enemy leads")
+	var member := pack.warded[0]
+	var hp := member.health.current
+	member.take_damage(10.0)
+	var warded_hit := hp - member.health.current
+	pack.champion.take_damage(999999.0)
+	await _frames(2)
+	hp = member.health.current
+	member.take_damage(10.0)
+	var open_hit := hp - member.health.current
+	_check(not pack.active and is_equal_approx(warded_hit, open_hit * pack.ward_multiplier) and _message().contains("ward breaks"),
+			"champion: the ward cuts damage to x%.2f until the champion dies (%.1f -> %.1f)" % [pack.ward_multiplier, warded_hit, open_hit])
+	for e in _enemies(room):
+		(e as Enemy).take_damage(999999.0)
+	await _wait_until(func() -> bool: return room.state == Room.State.CLEARED)
+	var seal := room.get_node_or_null(^"Decor/AncientSeal") as AncientSeal
+	_check(seal != null and seal.visible, "champion room: clearing it reveals the seal")
+
+
+# --- Helpers -----------------------------------------------------------------------
+
+func _miniboss_room(type: Variant) -> int:
+	for i in _dungeon.rooms.size():
+		var scene := _dungeon.miniboss_scene(i)
+		if scene == null:
+			continue
+		var inst := scene.instantiate()
+		var match_type := is_instance_of(inst, type)
+		inst.free()
+		if match_type:
+			return i
+	return -1
+
+
+func _enter_miniboss(index: int) -> Miniboss:
+	if index < 0:
+		return null
+	_dungeon.enter_room(index)
+	await _frames(2)
+	_dungeon.current_room.start_encounter()
+	await _frames(1)
+	return _miniboss_in(_dungeon.current_room)
+
+
+func _miniboss_in(room: Room) -> Miniboss:
+	for e in _enemies(room):
+		if e is Miniboss:
+			return e
+	return null
+
+
+## Puts the Mage at `offset` from `boss` and lets physics settle.
+func _park_mage(boss: Node2D, offset: Vector2) -> void:
+	_mage.global_position = boss.global_position + offset
+	_mage.velocity = Vector2.ZERO
+
+
+func _hazards_of(source: Node) -> Array:
+	return get_nodes_in_group(&"floor_hazards").filter(func(h: FloorHazard) -> bool:
+		return h.source == source and not h.is_queued_for_deletion())
+
+
+func _bolts_of(source: Node) -> Array:
+	return current_scene.get_children().filter(func(n: Node) -> bool:
+		return n is Projectile and (n as Projectile).source == source and not n.is_queued_for_deletion())
+
+
+func _pickups(room: Room) -> Array:
+	return room.get_node(^"Decor").get_children().filter(func(n: Node) -> bool: return n is ItemPickup and not n.is_queued_for_deletion())
+
+
+func _enemies(room: Room) -> Array:
+	return room.get_node(^"Enemies").get_children().filter(func(n: Node) -> bool:
+		return n is Enemy and not n.is_queued_for_deletion())
+
+
+func _miniboss_map() -> String:
+	var parts: Array[String] = []
+	for i in _dungeon.rooms.size():
+		if _dungeon.miniboss_scene(i):
+			parts.append("%d:%s:%s" % [i, _dungeon.miniboss_scene(i).resource_path, _dungeon.reward_choices(i)])
+	return "|".join(parts)
+
+
+func _adjacent(a: int, b: int) -> bool:
+	var d := _dungeon.rooms[a].cell - _dungeon.rooms[b].cell
+	return absi(d.x) + absi(d.y) == 1
+
+
+func _message() -> String:
+	return (current_scene.get_node(^"RunHud/MessageLabel") as Label).text
+
+
+func _load() -> void:
+	paused = false
+	var old_id := current_scene.get_instance_id() if current_scene else 0
+	change_scene_to_file(SCENE)
+	await _wait_until(func() -> bool:
+		return current_scene != null and current_scene.get_instance_id() != old_id and current_scene.is_node_ready(), 600)
+	await _frames(2)
+	_dungeon = current_scene as Dungeon
+	if _dungeon:
+		_mage = _dungeon.mage
+		_run = _dungeon.run_state
+
+
+func _physics(seconds: float) -> void:
+	var elapsed := 0.0
+	while elapsed < seconds:
+		await physics_frame
+		elapsed += 1.0 / Engine.physics_ticks_per_second
+
+
+func _wait_until(condition: Callable, max_frames: int = 300) -> void:
+	for i in max_frames:
+		if condition.call():
+			return
+		await process_frame
+
+
+func _frames(count: int) -> void:
+	for i in count:
+		await process_frame
+
+
+func _check(condition: bool, label: String) -> void:
+	print("%s: %s" % ["PASS" if condition else "FAIL", label])
+	if not condition:
+		_failures += 1
