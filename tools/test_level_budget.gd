@@ -190,8 +190,8 @@ func _next_level(run: RunState) -> void:
 func _test_stacking_rules() -> void:
 	var run := RunState.new()
 	run.configure(NORMAL)
-	_check(run.collect_item(&"swift_boots") and run.collected[&"swift_boots"] == 1 and is_equal_approx(run.move_speed_multiplier(), 1.15),
-			"first Swift Boots: x1, +15% speed")
+	_check(run.collect_item(&"swift_boots") and run.collected[&"swift_boots"] == 1 and is_equal_approx(run.move_speed_multiplier(), 1.08),
+			"first Swift Boots: x1, +8% speed")
 	_check(not run.collect_item(&"swift_boots") and not run.can_collect(&"swift_boots"), "not collectible twice on the same level")
 	_next_level(run)
 	_check(run.can_collect(&"swift_boots") and not run.is_collected(&"swift_boots"), "the pickup refreshes on the next level")
@@ -199,8 +199,8 @@ func _test_stacking_rules() -> void:
 	var speed := run.move_speed_multiplier()
 	run.changed.emit()
 	run.changed.emit()
-	_check(is_equal_approx(speed, 1.0 + 0.1 + 0.15 * 2) and is_equal_approx(run.move_speed_multiplier(), speed),
-			"bonus = count x effect, computed once (x%.2f incl. +10%% Wind Relic)" % speed)
+	_check(is_equal_approx(speed, 1.0 + 0.05 + 0.08 * 2) and is_equal_approx(run.move_speed_multiplier(), speed),
+			"bonus = count x effect, computed once (x%.2f incl. +5%% Wind Relic)" % speed)
 	_next_level(run)
 	_check(run.collect_item(&"swift_boots") and run.collected[&"swift_boots"] == 3, "third level: stack x3")
 	_next_level(run)
@@ -269,7 +269,7 @@ func _test_gates_and_refresh() -> void:
 			"level 2: the Swift Boots pickup is back and stacks to x2")
 	var label := (_dungeon.get_node(^"RunHud") as RunHud).get_node(^"%ItemsLabel") as Label
 	_check(label.text.contains("Swift Boots x2") and label.text.contains("Rune Sigil"), "HUD shows the stack count (%s)" % label.text.replace("\n", " | "))
-	_check(is_equal_approx(_mage.speed_multiplier, 1.0 + 0.15 * 2), "stacked speed bonus is applied once (x%.2f)" % _mage.speed_multiplier)
+	_check(is_equal_approx(_mage.speed_multiplier, 1.0 + 0.08 * 2), "stacked speed bonus is applied once (x%.2f)" % _mage.speed_multiplier)
 	var puzzle := await _enter(_dungeon.treasure_index(RoomSpec.Treasure.PUZZLE))
 	var chest := puzzle.get_node(^"Decor/TreasureChest") as TreasureChest
 	_check(chest.run_state == _run and not chest.is_claimed() and chest.prompt_text() != "Empty chest", "level 2: the puzzle chest is not empty")

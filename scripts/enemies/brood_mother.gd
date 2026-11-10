@@ -11,6 +11,7 @@ extends Miniboss
 ##   `charge_speed` up to `charge_distance` (stops at walls). The first time the
 ##   Mage is within `charge_hit_radius` of her during the dash it takes
 ##   `charge_damage`. The lane is fixed at the windup start, so a sidestep dodges it.
+##   The dash itself is the shared LaneCharge helper (also used by the Blood Monster).
 ## Otherwise she lumbers after the Mage with contact damage.
 
 @export_group("Summon")
@@ -39,9 +40,7 @@ extends Miniboss
 
 var _summon_left := 0.0
 var _charge_left := 0.0
-var _aim := Vector2.RIGHT
-var _charge_travelled := 0.0
-var _charge_hit := false
+var _charge := LaneCharge.new()
 var _summon_points: Array[Vector2] = []
 
 
@@ -89,19 +88,15 @@ func begin_charge() -> bool:
 	if target == null:
 		return false
 	_charge_left = charge_cooldown
-	_aim = (target.global_position - global_position).normalized()
-	if _aim == Vector2.ZERO:
-		_aim = Vector2.RIGHT
-	_charge_travelled = 0.0
-	_charge_hit = false
-	facing = direction_name(_aim)
+	_charge.begin(global_position, target.global_position, charge_speed, charge_distance, charge_hit_radius, charge_damage)
+	facing = direction_name(_charge.aim)
 	_begin(&"charge", charge_windup)
 	return true
 
 
 ## Locked charge direction (unit vector).
 func charge_aim() -> Vector2:
-	return _aim
+	return _charge.aim
 
 
 func _tick(delta: float) -> void:
@@ -127,17 +122,7 @@ func _windup_finished(attack: StringName) -> void:
 
 
 func _action(delta: float) -> bool:
-	if _charge_travelled > 0.0 and is_on_wall():
-		_end_attack(charge_recover)
-		return false
-	var step := charge_speed * delta
-	velocity = _aim * charge_speed
-	_charge_travelled += step
-	var victim := _find_target()
-	if not _charge_hit and victim and global_position.distance_to(victim.global_position) <= charge_hit_radius:
-		_charge_hit = true
-		victim.take_damage(charge_damage)
-	if _charge_travelled >= charge_distance:
+	if _charge.step(self, delta, _find_target()):
 		_end_attack(charge_recover)
 	return false
 
@@ -153,10 +138,4 @@ func _draw() -> void:
 		var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 90.0)
 		draw_arc(Vector2(0, -30), 52.0 + 6.0 * pulse, 0.0, TAU, 40, Color(1.0, 0.95, 0.3, 0.6 + 0.3 * pulse), 3.0)
 	if state == State.WINDUP and current_attack == &"charge":
-		var progress := windup_progress()
-		var length := charge_distance
-		var side := _aim.orthogonal() * charge_hit_radius
-		var lane := PackedVector2Array([side, _aim * length + side, _aim * length - side, -side])
-		draw_colored_polygon(lane, Color(1.0, 0.3, 0.2, 0.12 + 0.18 * progress))
-		draw_line(Vector2.ZERO, _aim * length * progress, Color(1.0, 0.4, 0.2, 0.8), 3.0)
-		draw_polyline(lane + PackedVector2Array([lane[0]]), Color(1.0, 0.45, 0.25, 0.9), 2.0)
+		_charge.draw_lane(self, windup_progress())

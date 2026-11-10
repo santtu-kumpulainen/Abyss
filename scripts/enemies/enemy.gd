@@ -11,6 +11,10 @@ signal died
 
 ## Movement speed in pixels per second.
 @export var speed: float = 95.0
+## Most walking speed run scaling may give this enemy (0 = LevelScaling.MAX_PURSUER_SPEED,
+## which is below the Mage's base speed). Only enemies meant to out-run the Mage
+## (the Demon) set their own cap.
+@export var speed_cap: float = 0.0
 ## Distance at which the enemy notices a target.
 @export var detection_radius: float = 260.0
 ## Distance (between origins) at which the enemy stops and attacks.
@@ -80,29 +84,38 @@ func _physics_process(delta: float) -> void:
 	velocity = Vector2.ZERO
 
 	if target:
-		var to_target := target.global_position - global_position
-		facing = direction_name(to_target)
-		if to_target.length() > attack_range:
-			velocity = to_target.normalized() * speed
-		elif _attack_cooldown_left <= 0.0:
-			_attack_cooldown_left = attack_cooldown
-			target.take_damage(contact_damage)
+		_pursue()
 
 	move_and_slide()
 	_play(&"walk" if velocity != Vector2.ZERO else &"idle")
 
 
+## Faces and walks towards `target`, dealing contact damage on cooldown once
+## within attack_range (the basic melee behaviour; subclasses reuse it).
+func _pursue() -> void:
+	var to_target := target.global_position - global_position
+	facing = direction_name(to_target)
+	if to_target.length() > attack_range:
+		velocity = to_target.normalized() * speed
+	elif _attack_cooldown_left <= 0.0:
+		_attack_cooldown_left = attack_cooldown
+		target.take_damage(contact_damage)
+
+
 ## Applies run scaling once (call after _ready, before the enemy is damaged):
-## max/current HP x `health_mult`, every damage source x `damage_mult`, move
-## speed and attack rate x `pace_mult`, damage taken x `vulnerability`.
+## max/current HP x `health_mult`, every damage source x `damage_mult`, attack
+## rate x `pace_mult`, move speed x `move_mult` (defaults to `pace_mult`; capped
+## at `speed_cap`, by default LevelScaling.MAX_PURSUER_SPEED), damage taken x `vulnerability`.
 ## Returns false (and changes nothing) if this enemy was already scaled.
-func apply_scaling(health_mult: float, damage_mult: float, pace_mult: float = 1.0, vulnerability: float = 1.0) -> bool:
+func apply_scaling(health_mult: float, damage_mult: float, pace_mult: float = 1.0, vulnerability: float = 1.0,
+		move_mult: float = -1.0) -> bool:
 	if scaled:
 		return false
 	scaled = true
 	health.scale_max_health(health_mult)
 	damage_taken_multiplier = vulnerability
-	speed *= pace_mult
+	var cap := speed_cap if speed_cap > 0.0 else LevelScaling.MAX_PURSUER_SPEED
+	speed = minf(speed * (pace_mult if move_mult < 0.0 else move_mult), maxf(speed, cap))
 	attack_cooldown /= maxf(pace_mult, 0.01)
 	_scale_attacks(damage_mult, pace_mult)
 	return true

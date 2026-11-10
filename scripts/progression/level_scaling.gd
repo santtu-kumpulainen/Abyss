@@ -9,9 +9,25 @@ extends RefCounted
 const HEALTH_PER_LEVEL := 0.25
 ## Enemy damage gained per level above 1.
 const DAMAGE_PER_LEVEL := 0.06
-## Enemy move speed / attack rate gained per level above 1, capped by PACE_CAP.
+## Enemy attack rate (cooldowns, projectile speed) gained per level above 1, capped by PACE_CAP.
 const PACE_PER_LEVEL := 0.02
 const PACE_CAP := 0.3
+## Enemy move speed gained per level above 1, capped by MOVE_PACE_CAP (Issue #47:
+## split from the attack pace so pursuers stay outrunnable).
+const MOVE_PACE_PER_LEVEL := 0.015
+const MOVE_PACE_CAP := 0.15
+## Bounded catch-up on enemy move speed from the Mage's speed bonus:
+## 1 + min(CATCHUP_WEIGHT * (mage multiplier - 1), CATCHUP_CAP).
+const CATCHUP_WEIGHT := 0.5
+const CATCHUP_CAP := 0.1
+## Goblin attack cycle: first dungeon level of each bracket; the swing count per
+## bracket comes from the difficulty tier (Difficulty "goblin_swings").
+const GOBLIN_SWING_BRACKETS: Array[int] = [1, 3, 5]
+## Hard limit on an enemy's scaled walking speed (dashes / charges are separate)
+## unless the enemy sets its own Enemy.speed_cap (only the Demon, which is meant to
+## catch a Mage that only runs). Kept below the Mage's base speed (150) so the
+## other pursuers can always be outrun.
+const MAX_PURSUER_SPEED := 140.0
 ## Extra enemies: +1 per dungeon level above 1 in every combat room (and per
 ## survival wave). From EXTRA_BONUS_FROM_LEVEL, tier-2 combat rooms with at
 ## least EXTRA_BONUS_MIN_POINTS free safe spawn points get one more. The caller
@@ -41,8 +57,28 @@ static func enemy_damage(level: int) -> float:
 	return 1.0 + DAMAGE_PER_LEVEL * _steps(level)
 
 
+## Attack-rate multiplier for dungeon level `level`.
 static func enemy_pace(level: int) -> float:
 	return 1.0 + minf(PACE_PER_LEVEL * _steps(level), PACE_CAP)
+
+
+## Move-speed multiplier for dungeon level `level`.
+static func enemy_move_pace(level: int) -> float:
+	return 1.0 + minf(MOVE_PACE_PER_LEVEL * _steps(level), MOVE_PACE_CAP)
+
+
+## Index into Difficulty's "goblin_swings" for dungeon level `level`.
+static func goblin_swing_bracket(level: int) -> int:
+	var bracket := 0
+	for i in GOBLIN_SWING_BRACKETS.size():
+		if level >= GOBLIN_SWING_BRACKETS[i]:
+			bracket = i
+	return bracket
+
+
+## Enemy move-speed catch-up for a Mage speed multiplier `mage_speed_mult` (never below 1, capped).
+static func player_catchup(mage_speed_mult: float) -> float:
+	return 1.0 + clampf(CATCHUP_WEIGHT * (mage_speed_mult - 1.0), 0.0, CATCHUP_CAP)
 
 
 ## Reference player output for dungeon level `level` (1.25 / 1.875 / 2.8125 ...).

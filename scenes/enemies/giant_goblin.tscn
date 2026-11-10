@@ -2,8 +2,12 @@
 
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="1_enemy"]
 [ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/giant_goblin.tres" id="2_frames"]
+[ext_resource type="Script" path="res://scripts/enemies/goblin.gd" id="3_script"]
 
 [node name="GiantGoblin" instance=ExtResource("1_enemy")]
+script = ExtResource("3_script")
+special_max_range = 180.0
+speed = 100.0
 sprite_frames = ExtResource("2_frames")
 
 [node name="AnimatedSprite2D" parent="." index="0"]

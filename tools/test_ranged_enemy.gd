@@ -111,7 +111,8 @@ func _test_projectiles_and_ai() -> void:
 	# --- AI: holds position in range and cooldown limits firing ---
 	goblin.global_position = Vector2(200, 200)
 	mage.global_position = Vector2(LANE_X, 320)
-	caster.global_position = Vector2(LANE_X, 150)
+	# Inside the caster's preferred band (retreat_distance .. attack_range).
+	caster.global_position = Vector2(LANE_X, 320 - (caster.retreat_distance + caster.attack_range) / 2.0)
 	_reset_cooldown(caster)
 	var shots: Array[Projectile] = []
 	caster.fired.connect(func(p: Projectile) -> void: shots.append(p))

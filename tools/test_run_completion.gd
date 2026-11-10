@@ -110,7 +110,7 @@ func _test_victory_and_summary() -> void:
 	_check(_run.level == 4 and _run.collected.has(&"swift_boots") and _run.purchased.has(&"vitality") and _run.enemies_defeated == kills
 			and _run.currency > 0, "build kept: XP level, items, upgrades, gold, kills")
 	var expected_damage := _base_damage * (1.0 + 0.05 * 3 + 0.2)
-	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, expected_damage) and is_equal_approx(_mage.speed_multiplier, 1.15),
+	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, expected_damage) and is_equal_approx(_mage.speed_multiplier, 1.08),
 			"relic, item and level bonuses persist (damage %.2f)" % _mage.caster.get_cast_spell().damage)
 	_run.changed.emit()
 	_run.changed.emit()
@@ -160,7 +160,7 @@ func _test_vital_relic() -> void:
 ## Run C: Wind Relic speed, then Game Over -> Main Menu -> Start Run gives a clean run.
 func _test_wind_relic_and_menu() -> void:
 	await _win_fast()
-	_check(_overlay().choose_relic(&"wind_relic") and is_equal_approx(_mage.speed_multiplier, 1.1), "Wind Relic: +10%% move speed (%.2f)" % _mage.speed_multiplier)
+	_check(_overlay().choose_relic(&"wind_relic") and is_equal_approx(_mage.speed_multiplier, 1.05), "Wind Relic: +5%% move speed (%.2f)" % _mage.speed_multiplier)
 	var old_id := current_scene.get_instance_id()
 	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).main_menu()
 	await _wait_until(func() -> bool: return current_scene != null and current_scene.get_instance_id() != old_id and current_scene.is_node_ready(), 600)

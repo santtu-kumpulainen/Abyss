@@ -208,12 +208,12 @@ func _test_items() -> void:
 	_mage.global_position = pickup.global_position
 	await _frames(3)
 	_check(_run.is_collected(&"swift_boots") and not is_instance_valid(pickup), "touching the pickup collects it and removes it")
-	_check(is_equal_approx(_mage.speed_multiplier, 1.15), "Swift Boots: +15%% move speed (%.2f)" % _mage.speed_multiplier)
+	_check(is_equal_approx(_mage.speed_multiplier, 1.08), "Swift Boots: +8%% move speed (%.2f)" % _mage.speed_multiplier)
 	_check(not _run.collect_item(&"swift_boots"), "an item cannot be collected twice")
 	_run.changed.emit()
 	_run.changed.emit()
-	_check(is_equal_approx(_mage.speed_multiplier, 1.15), "repeated recalculation does not stack the bonus")
-	_check(_items_label().visible and _items_label().text.contains("Swift Boots (+15% move speed)"), "HUD lists the item (%s)" % _items_label().text)
+	_check(is_equal_approx(_mage.speed_multiplier, 1.08), "repeated recalculation does not stack the bonus")
+	_check(_items_label().visible and _items_label().text.contains("Swift Boots (+8% move speed)"), "HUD lists the item (%s)" % _items_label().text)
 
 	# --- Heart Crystal and Ember Shard ---
 	_dungeon.enter_room(_dungeon.item_room_index(&"heart_crystal"), _dungeon.entry_door(_dungeon.item_room_index(&"heart_crystal")))
@@ -235,7 +235,7 @@ func _test_items() -> void:
 	# --- Persistence and no farming ---
 	_dungeon.enter_room(boots_index, _dungeon.entry_door(boots_index))
 	await _frames(3)
-	_check(_pickup(_dungeon.current_room) == null and is_equal_approx(_mage.speed_multiplier, 1.15)
+	_check(_pickup(_dungeon.current_room) == null and is_equal_approx(_mage.speed_multiplier, 1.08)
 			and _mage.health.max_health >= base_hp + 25.0 and _run.collected.size() == 3,
 			"items persist between rooms; revisiting gives no new pickup")
 
