@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EffectSheet" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_sheet.gd" id="1_qlnce"]
+[ext_resource type="Texture2D" path="res://assets/effects/Super Pixel Effects Gigapack (Free Version)/spritesheet/Smoke Bursts/directional_smoke_burst_001/directional_smoke_burst_001_large_white/spritesheet.png" id="2_dsy81"]
+
+[resource]
+script = ExtResource("1_qlnce")
+texture = ExtResource("2_dsy81")
+columns = 21
+frame_count = 21
+fps = 15.0
+scale = 0.6
+frame_size = Vector2i(64, 64)
