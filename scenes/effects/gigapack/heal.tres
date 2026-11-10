@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EffectSheet" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_sheet.gd" id="1_1me5m"]
+[ext_resource type="Texture2D" path="res://assets/effects/Super Pixel Effects Gigapack (Free Version)/spritesheet/Fantasy Spells/spell_heal_001/spell_heal_001_large_red/spritesheet.png" id="2_lliin"]
+
+[resource]
+script = ExtResource("1_1me5m")
+texture = ExtResource("2_lliin")
+columns = 16
+frame_count = 16
+fps = 15.0
+scale = 0.6
+frame_size = Vector2i(128, 128)
