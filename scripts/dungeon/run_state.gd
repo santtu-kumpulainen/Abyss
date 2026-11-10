@@ -58,7 +58,8 @@ const SEALS_REQUIRED := 3
 
 ## Most copies of one item / treasure that stack (counts persist across levels).
 const MAX_STACKS := 3
-## Twin Cast (permanent anvil upgrade): projectiles per cast and damage factor of each.
+## Twin Cast (single-stack anvil upgrade, owned for the rest of the run once bought):
+## projectiles per cast and damage factor of each.
 const TWIN_CAST_COUNT := 2
 const TWIN_CAST_DAMAGE_FACTOR := 0.7
 ## Flat multiplier on all enemy damage (regular enemies and bosses), on top of
@@ -66,15 +67,18 @@ const TWIN_CAST_DAMAGE_FACTOR := 0.7
 const ENEMY_DAMAGE_FACTOR := 1.10
 ## Most extra enemies added to one room or survival wave by scaling.
 const MAX_EXTRA_ENEMIES := 4
+## Upper limit of move_speed_multiplier() (Issue #47): stacked speed items,
+## Bloodstones and endless-mode Wind Relics never push the Mage past this.
+const MAX_MOVE_SPEED_MULTIPLIER := 1.4
 
 ## Anvil upgrades, in display order. Each stack applies its effect keys once.
 ## "prices" is the cost of the 1st, 2nd, ... stack, "max_stacks" the stack cap and
 ## "level" the Mage level needed on dungeon level 1 (RunState.upgrade_level()
 ## adds MageLevels.offset()). "min_dungeon_level" is the first dungeon level the
-## upgrade is sold on; "permanent" upgrades are bought once EVER: the Dungeon saves the unlock in the
-## Progression save, it applies to every later run and is never restocked
-## (max_stacks 1, no effect keys: the flag is read by has_twin_cast()). Effect keys: max_health (flat), damage
-## (multiplier bonus), cooldown (multiplier reduction), speed (multiplier bonus).
+## upgrade is sold on. Every upgrade lasts for the current run only (RunState.reset()
+## clears it). Twin Cast has no effect keys: its stack is read by has_twin_cast().
+## Effect keys: max_health (flat), damage (multiplier bonus), cooldown (multiplier
+## reduction), speed (multiplier bonus).
 const UPGRADES := {
 	&"vitality": {"name": "Vitality", "prices": [100, 150, 200], "max_stacks": 3, "level": 1,
 			"effect": "+20 max HP per stack", "max_health": 20.0},
@@ -83,12 +87,12 @@ const UPGRADES := {
 	&"ember_core": {"name": "Ember Core", "prices": [300, 450, 600], "max_stacks": 3, "level": 3,
 			"effect": "+25% spell damage per stack", "damage": 0.25},
 	&"twin_cast": {"name": "Twin Cast", "prices": [4000], "max_stacks": 1, "level": 1, "min_dungeon_level": 3,
-			"permanent": true, "effect": "2 projectiles per cast, 70% damage each"},
+			"effect": "2 projectiles per cast, 70% damage each (this run)"},
 }
 
 ## Collectible run items (same effect keys as UPGRADES), placed in rooms by RoomSpec.item.
 const ITEMS := {
-	&"swift_boots": {"name": "Swift Boots", "effect": "+15% move speed", "speed": 0.15, "color": Color(0.45, 0.9, 1.0)},
+	&"swift_boots": {"name": "Swift Boots", "effect": "+8% move speed", "speed": 0.08, "color": Color(0.45, 0.9, 1.0)},
 	&"ember_shard": {"name": "Ember Shard", "effect": "+15% Fire Ball damage", "damage": 0.15, "color": Color(1.0, 0.5, 0.2)},
 	&"heart_crystal": {"name": "Heart Crystal", "effect": "+25 max HP", "max_health": 25.0, "color": Color(1.0, 0.3, 0.45)},
 	# Miniboss reward pool ("miniboss": true): offered two at a time after a
@@ -99,13 +103,13 @@ const ITEMS := {
 			"color": Color(0.6, 1.0, 0.6), "miniboss": true},
 	&"fury_idol": {"name": "Fury Idol", "effect": "+12% spell damage", "damage": 0.12,
 			"color": Color(1.0, 0.35, 0.25), "miniboss": true},
-	&"bloodstone": {"name": "Bloodstone", "effect": "+15 max HP, +5% move speed", "max_health": 15.0, "speed": 0.05,
+	&"bloodstone": {"name": "Bloodstone", "effect": "+15 max HP, +3% move speed", "max_health": 15.0, "speed": 0.03,
 			"color": Color(0.85, 0.2, 0.5), "miniboss": true},
 }
 
 ## Post-boss relics (same effect keys); exactly one can be chosen per run.
 const RELICS := {
-	&"wind_relic": {"name": "Wind Relic", "effect": "+10% move speed", "speed": 0.1},
+	&"wind_relic": {"name": "Wind Relic", "effect": "+5% move speed", "speed": 0.05},
 	&"ember_relic": {"name": "Ember Relic", "effect": "+20% Fire Ball damage", "damage": 0.2},
 	&"vital_relic": {"name": "Vital Relic", "effect": "+30 max HP, heal 30", "max_health": 30.0},
 }
@@ -134,9 +138,6 @@ var level: int = 1
 ## XP towards the next level (always 0 at MAX_LEVEL).
 var xp: int = 0
 var currency: int = 0
-## Permanent upgrades unlocked in an earlier run (id -> true; set by the Dungeon
-## from the Progression save). They count as owned (1 stack) from the start.
-var unlocked_permanent := {}
 ## Owned anvil upgrade ids (id -> stack count). Counts persist across dungeon
 ## levels; `_level_purchased` remembers what was bought on the current level.
 var purchased := {}
@@ -340,7 +341,7 @@ func is_purchased(id: StringName) -> bool:
 
 ## Stacks of upgrade `id` owned this run.
 func upgrade_stacks(id: StringName) -> int:
-	return maxi(purchased.get(id, 0), 1 if unlocked_permanent.has(id) else 0)
+	return purchased.get(id, 0)
 
 
 func upgrade_max_stacks(id: StringName) -> int:
@@ -365,11 +366,7 @@ func upgrade_min_dungeon_level(id: StringName) -> int:
 	return UPGRADES[id].get("min_dungeon_level", 1) if UPGRADES.has(id) else 1
 
 
-func is_permanent_upgrade(id: StringName) -> bool:
-	return UPGRADES.has(id) and UPGRADES[id].get("permanent", false)
-
-
-## True once the permanent Twin Cast upgrade was bought this run.
+## True once Twin Cast was bought this run.
 func has_twin_cast() -> bool:
 	return upgrade_stacks(&"twin_cast") > 0
 
@@ -507,9 +504,10 @@ func spell_cooldown_multiplier() -> float:
 	return maxf(1.0 - _bonus_sum(&"cooldown"), 0.1)
 
 
-## Mage movement speed multiplier from upgrades/items (1.0 = base).
+## Mage movement speed multiplier from upgrades/items (1.0 = base), capped at
+## MAX_MOVE_SPEED_MULTIPLIER.
 func move_speed_multiplier() -> float:
-	return 1.0 + _bonus_sum(&"speed")
+	return clampf(1.0 + _bonus_sum(&"speed"), 0.1, MAX_MOVE_SPEED_MULTIPLIER)
 
 
 ## Mage max HP multiplier (applies to base max HP and every max HP gain).
@@ -577,9 +575,23 @@ func enemy_damage_multiplier(elite: bool = false, treasure_room: bool = false) -
 	return result
 
 
-## Enemy move speed and attack rate multiplier.
+## Enemy attack rate multiplier (cooldowns, projectile speed).
 func enemy_pace_multiplier() -> float:
 	return Difficulty.data(difficulty)["enemy_pace"] * LevelScaling.enemy_pace(dungeon_level)
+
+
+## Normal Goblin swings before its special attack (1-3): fewer on harder
+## difficulties and deeper dungeon levels (Difficulty "goblin_swings" x LevelScaling brackets).
+func goblin_swings_before_special() -> int:
+	var swings: Array = Difficulty.data(difficulty)["goblin_swings"]
+	return clampi(swings[mini(LevelScaling.goblin_swing_bracket(dungeon_level), swings.size() - 1)], 1, 3)
+
+
+## Enemy move speed multiplier: difficulty x level x bounded catch-up on the
+## Mage's speed bonus. Enemy.apply_scaling() also caps the result at
+## LevelScaling.MAX_PURSUER_SPEED.
+func enemy_move_pace_multiplier() -> float:
+	return Difficulty.data(difficulty)["enemy_move_pace"] * LevelScaling.enemy_move_pace(dungeon_level) 			* LevelScaling.player_catchup(move_speed_multiplier())
 
 
 ## Multiplier on damage an enemy takes from the Mage.

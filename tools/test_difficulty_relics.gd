@@ -117,7 +117,7 @@ func _test_menu() -> void:
 	menu.difficulty_button(HARD).pressed.emit()
 	menu.pact_button(&"avarice").pressed.emit()
 	info = (menu.get_node(^"%DifficultyInfo") as Label).text
-	_check(info.contains("+35% HP") and info.contains("+25% damage") and info.contains("+10% speed")
+	_check(info.contains("+35% HP") and info.contains("+25% damage") and info.contains("+5% speed") and info.contains("+10% attack rate")
 			and info.contains("+1 in Lv 2 rooms") and info.contains("+25% gold"), "Hard effects and reward bonus shown:\n%s" % info)
 	old_id = current_scene.get_instance_id()
 	(menu.get_node(^"%BeginButton") as Button).pressed.emit()
@@ -161,8 +161,8 @@ func _test_hard_scaling() -> void:
 	var enemy := _enemies(room)[0] as Enemy
 	var base := _base_stats(load(enemy.scene_file_path))
 	_check(is_equal_approx(enemy.health.max_health, base["hp"] * 1.35) and is_equal_approx(enemy.health.current, base["hp"] * 1.35)
-			and is_equal_approx(enemy.contact_damage, base["damage"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR) and is_equal_approx(enemy.speed, base["speed"] * 1.1)
-			and is_equal_approx(enemy.attack_cooldown, base["cooldown"] / 1.1), "Hard melee: HP x1.35, damage x1.25, pace x1.1")
+			and is_equal_approx(enemy.contact_damage, base["damage"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR) and is_equal_approx(enemy.speed, base["speed"] * 1.05)
+			and is_equal_approx(enemy.attack_cooldown, base["cooldown"] / 1.1), "Hard melee: HP x1.35, damage x1.25, move x1.05, attack rate x1.1")
 	_check(not enemy.apply_scaling(2.0, 2.0, 2.0) and is_equal_approx(enemy.health.max_health, base["hp"] * 1.35),
 			"scaling applies exactly once per enemy")
 	room.start_encounter()

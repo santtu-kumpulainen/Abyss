@@ -15,7 +15,7 @@ const DIRECTIONS: Array[StringName] = [
 ]
 
 ## Movement speed in pixels per second.
-@export var speed: float = 130.0
+@export var speed: float = 150.0
 
 ## Sprite scale. The feet stay at the node origin at any scale.
 @export var sprite_scale: float = 0.5:

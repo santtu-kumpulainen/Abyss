@@ -222,6 +222,11 @@ func _test_brood_mother() -> void:
 	_check(demons.size() == mother.summon_count and _enemies(room).size() == before + mother.summon_count
 			and demons.all(func(d: Enemy) -> bool: return d.xp_reward == 0 and d.currency_reward == 0 and d.scaled),
 			"summon: Demons crawl out with 0 XP / 0 gold, scaled and counted for the clear")
+	var demon_base := (load("res://scenes/enemies/demon.tscn") as PackedScene).instantiate() as Enemy
+	var expected_speed := minf(demon_base.speed * _run.enemy_move_pace_multiplier(), demon_base.speed_cap)
+	demon_base.free()
+	_check(demons.all(func(d: Enemy) -> bool: return is_equal_approx(d.speed, expected_speed) and d.speed > _mage.speed),
+			"summoned Demons get the run's Demon move speed (%.1f, faster than the Mage's %.0f)" % [expected_speed, _mage.speed])
 	_check(not mother.is_vulnerable(), "summon: the punish window closes")
 	var xp := _run.xp
 	var gold := _run.currency

@@ -32,8 +32,6 @@ var selected_start_level: int = 1
 var highest_level: int = 1
 ## Best run: {} or {level, time, reach_time, difficulty, biome, run_id}.
 var best_run := {}
-## Permanent anvil upgrades unlocked for every future run (id -> true), e.g. Twin Cast.
-var unlocked_upgrades := {}
 
 
 static var _fallback: ProgressionStore
@@ -116,21 +114,6 @@ func record_run(run_id: int, level: int, time: float, reach_time: float, tier: i
 	return changed
 
 
-func is_upgrade_unlocked(id: StringName) -> bool:
-	return unlocked_upgrades.has(id)
-
-
-## Unlocks permanent upgrade `id` for all future runs and saves. Returns false if
-## it is not a permanent upgrade or was already unlocked.
-func unlock_upgrade(id: StringName) -> bool:
-	if not RunState.UPGRADES.has(id) or not RunState.UPGRADES[id].get("permanent", false) or unlocked_upgrades.has(id):
-		return false
-	unlocked_upgrades[id] = true
-	save_progress()
-	unlocks_changed.emit()
-	return true
-
-
 ## "Level 5 - Cavern Depths - Hard - 12:34", or "No runs yet".
 func best_run_text() -> String:
 	if best_run.is_empty():
@@ -157,25 +140,21 @@ func save_progress() -> Error:
 	for tier: int in Difficulty.TIERS:
 		config.set_value("completions", Difficulty.display_name(tier).to_lower(), completion_count(tier))
 	config.set_value("records", "highest_level", highest_level)
-	for id: StringName in unlocked_upgrades:
-		config.set_value("unlocked_upgrades", String(id), true)
 	for key: String in best_run:
 		config.set_value("best_run", key, best_run[key] if key != "biome" else String(best_run[key]))
 	return config.save(save_path)
 
 
-## Loads `save_path` (missing file = fresh progression). Invalid values are ignored.
+## Loads `save_path` (missing file = fresh progression). Invalid values are ignored,
+## and so is the legacy "unlocked_upgrades" section (Twin Cast used to be a
+## permanent unlock; it is bought per run since Issue #47 and dropped on the next save).
 func load_progress() -> void:
 	completions.clear()
 	highest_level = 1
 	best_run = {}
-	unlocked_upgrades = {}
 	var config := ConfigFile.new()
 	if config.load(save_path) != OK:
 		return
-	for id: StringName in RunState.UPGRADES:
-		if RunState.UPGRADES[id].get("permanent", false) and config.get_value("unlocked_upgrades", String(id), false) == true:
-			unlocked_upgrades[id] = true
 	var highest = config.get_value("records", "highest_level", 1)
 	if highest is int and highest > 1:
 		highest_level = highest
@@ -205,7 +184,6 @@ func clear_progress() -> void:
 	completions.clear()
 	highest_level = 1
 	best_run = {}
-	unlocked_upgrades = {}
 	selected_start_level = 1
 	selected_difficulty = Difficulty.Tier.NORMAL
 	selected_pact = &""
