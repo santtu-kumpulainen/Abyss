@@ -2,9 +2,18 @@
 
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="1_enemy"]
 [ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/blood_monster.tres" id="2_frames"]
+[ext_resource type="Script" path="res://scripts/enemies/blood_monster.gd" id="3_script"]
 
 [node name="BloodMonster" instance=ExtResource("1_enemy")]
-speed = 60.0
+script = ExtResource("3_script")
+opening_delay = 1.5
+special_min_range = 90.0
+special_max_range = 300.0
+special_windup = 0.9
+special_recover = 0.9
+special_cooldown = 5.0
+special_damage = 16.0
+speed = 65.0
 contact_damage = 15.0
 attack_cooldown = 1.2
 xp_reward = 4

@@ -82,7 +82,7 @@ func purchase(id: StringName) -> bool:
 	if ok:
 		_message = "Bought %s!" % upgrade_name
 	elif run_state.upgrade_stacks(id) >= run_state.upgrade_max_stacks(id):
-		_message = ("%s is already unlocked." if run_state.is_permanent_upgrade(id) else "%s is at its maximum.") % upgrade_name
+		_message = "%s is at its maximum." % upgrade_name
 	elif run_state.dungeon_level < run_state.upgrade_min_dungeon_level(id):
 		_message = "%s is sold from dungeon level %d." % [upgrade_name, run_state.upgrade_min_dungeon_level(id)]
 	elif run_state.is_purchased(id):
@@ -127,7 +127,7 @@ func _refresh() -> void:
 		var stacks := run_state.upgrade_stacks(ids[i])
 		var max_stacks := run_state.upgrade_max_stacks(ids[i])
 		if stacks >= max_stacks:
-			status = "  [UNLOCKED]" if run_state.is_permanent_upgrade(ids[i]) else "  [MAX]"
+			status = "  [MAX]"
 		elif run_state.dungeon_level < run_state.upgrade_min_dungeon_level(ids[i]):
 			status = "  [from dungeon level %d]" % run_state.upgrade_min_dungeon_level(ids[i])
 		elif run_state.is_purchased(ids[i]):

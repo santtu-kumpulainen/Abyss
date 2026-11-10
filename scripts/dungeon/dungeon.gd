@@ -219,7 +219,6 @@ func _ready() -> void:
 	run_state.run_seed = RunState.seed_override if RunState.seed_override != 0 else (randi() | 1)
 	print("Abyss run seed: %d" % run_state.run_seed)
 	_plan_level()
-	run_state.unlocked_permanent = progression.unlocked_upgrades.duplicate()
 	mage.health.scale_max_health(run_state.max_health_multiplier())
 	# A practice run starts at a higher Mage level: grant those level-ups' max HP.
 	for i in run_state.level - 1:
@@ -630,7 +629,10 @@ func _scale_enemy(enemy: Enemy, treasure_room: bool, output_modifier: float = 1.
 	var elite := enemy.elite or enemy is Boss
 	enemy.apply_scaling(run_state.enemy_health_multiplier(treasure_room) * output_modifier,
 			run_state.enemy_damage_multiplier(elite, treasure_room),
-			run_state.enemy_pace_multiplier(), run_state.enemy_vulnerability_multiplier(elite))
+			run_state.enemy_pace_multiplier(), run_state.enemy_vulnerability_multiplier(elite),
+			run_state.enemy_move_pace_multiplier())
+	if enemy is Goblin:
+		(enemy as Goblin).swings_before_special = run_state.goblin_swings_before_special()
 
 
 func _on_enemy_defeated(enemy: Enemy) -> void:
@@ -957,9 +959,6 @@ func _update_level_gates(index: int) -> void:
 
 
 func _on_upgrade_purchased(id: StringName) -> void:
-	# Permanent upgrades (Twin Cast) are unlocked for all future runs, except by practice runs.
-	if RunState.UPGRADES[id].get("permanent", false) and not run_state.is_replay:
-		ProgressionStore.instance(get_tree()).unlock_upgrade(id)
 	var bonus: float = RunState.UPGRADES[id].get("max_health", 0.0)
 	if bonus > 0.0:
 		raise_max_health(bonus, bonus)

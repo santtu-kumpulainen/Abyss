@@ -1,7 +1,8 @@
 extends SceneTree
-## Headless check of the permanent Twin Cast anvil upgrade (4000 gold, sold from
-## dungeon level 3, bought once EVER: the unlock is saved and applies to every
-## later run; two projectiles of 70% damage per cast sharing one cooldown and
+## Headless check of the Twin Cast anvil upgrade (4000 gold, sold from dungeon
+## level 3, one stack bought per run: it lasts for the rest of that run and is
+## gone after death / retry / a new run, Issue #47; legacy save unlocks are
+## ignored; two projectiles of 70% damage per cast sharing one cooldown and
 ## one `cast` signal), of the flat x1.10 enemy damage factor and of boss bolts
 ## dealing 25% of the target's max HP.
 ##
@@ -44,7 +45,7 @@ func _run_tests() -> void:
 	_test_enemy_damage_unit()
 	await _test_casting()
 	await _test_enemy_damage_scene()
-	await _test_permanent_unlock()
+	await _test_per_run()
 	await _test_boss_bolts()
 	_prog.clear_progress()
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
@@ -72,8 +73,8 @@ func _next_level(run: RunState) -> void:
 
 func _test_eligibility() -> void:
 	var data: Dictionary = RunState.UPGRADES[&"twin_cast"]
-	_check(data["prices"] == [4000] and data["max_stacks"] == 1 and data["permanent"] and data["min_dungeon_level"] == 3,
-			"Twin Cast: 4000 gold, one stack, permanent, from dungeon level 3")
+	_check(data["prices"] == [4000] and data["max_stacks"] == 1 and not data.has("permanent") and data["min_dungeon_level"] == 3,
+			"Twin Cast: 4000 gold, one stack per run, from dungeon level 3")
 	var run := _new_run(1)
 	_check(not run.can_purchase(&"twin_cast") and not run.purchase(&"twin_cast") and run.currency == 100000, "not sold on dungeon level 1")
 	_next_level(run)
@@ -184,64 +185,85 @@ func _test_casting() -> void:
 	_check(is_equal_approx(cast_spell.cooldown, fire_ball.cooldown * (1.0 - 0.15)), "Quick Cast still applies once (cooldown %.4f)" % cast_spell.cooldown)
 
 
-# --- Permanent unlock ---------------------------------------------------------------------------------
+# --- Per-run ownership (Issue #47) ---------------------------------------------------------------------
 
-func _test_permanent_unlock() -> void:
-	_prog.clear_progress()
-	await _load_scene()
+func _test_per_run() -> void:
 	var twin := &"twin_cast"
-	_check(not _prog.is_upgrade_unlocked(twin) and not _run.has_twin_cast() and _mage.caster.projectile_count == 1, "a new save starts without Twin Cast")
-	_run.dungeon_level = 3
-	_run.level = 7
-	_run.currency = 5000
-	_check(_run.purchase(twin) and _run.currency == 1000, "first purchase: 4000 gold deducted")
-	_check(_prog.is_upgrade_unlocked(twin) and FileAccess.file_exists(ProgressionStore.TEST_SAVE_PATH), "the purchase unlocks it in the save")
-	_check(_mage.caster.projectile_count == 2, "it is active at once")
-	_run.boss_defeated = true
-	_run.choose_relic(&"wind_relic")
-	_run.begin_next_level()
-	_check(_run.dungeon_level == 4 and _run.has_twin_cast() and _mage.caster.projectile_count == 2, "it persists across dungeon levels")
-	# A new game session reads the save file.
-	var session := ProgressionStore.new()
-	session.save_path = ProgressionStore.TEST_SAVE_PATH
-	session.load_progress()
-	_check(session.is_upgrade_unlocked(twin), "a new game session loads the unlock from the save file")
-	session.free()
-	# A new run: unlocked, active, nothing to buy.
+	# A save from before Issue #47 that still holds the old permanent unlock.
+	var legacy := ConfigFile.new()
+	legacy.set_value("unlocked_upgrades", "twin_cast", true)
+	legacy.set_value("records", "highest_level", 3)
+	legacy.save(ProgressionStore.TEST_SAVE_PATH)
+	_prog.save_path = ProgressionStore.TEST_SAVE_PATH
+	_prog.load_progress()
 	await _load_scene()
-	_check(_run.dungeon_level == 1 and _run.has_twin_cast() and _mage.caster.projectile_count == 2 and is_equal_approx(_mage.caster.projectile_damage_factor, 0.7),
-			"a new run starts with Twin Cast already active")
+	_check(not _run.has_twin_cast() and _run.projectile_count() == 1 and _mage.caster.projectile_count == 1,
+			"a legacy save unlock does not grant Twin Cast")
+	_check(_prog.highest_level == 3, "the rest of the legacy save still loads")
+	_prog.save_progress()
+	var resaved := ConfigFile.new()
+	resaved.load(ProgressionStore.TEST_SAVE_PATH)
+	_check(not resaved.has_section("unlocked_upgrades"), "the legacy unlock is dropped on the next save")
+	_prog.clear_progress()
+	# Buying it: active at once and for the rest of the run.
+	await _load_scene()
+	_check(not _run.has_twin_cast() and _mage.caster.projectile_count == 1, "a fresh run starts without Twin Cast")
 	_run.dungeon_level = 3
 	_run.level = 7
-	_run.currency = 10000
-	_check(not _run.can_purchase(twin) and not _run.purchase(twin) and _run.currency == 10000 and _run.upgrade_stacks(twin) == 1,
-			"it cannot be bought (or charged) again")
+	_run.currency = 4500
+	_check(_run.purchase(twin) and _run.currency == 500 and _mage.caster.projectile_count == 2
+			and is_equal_approx(_mage.caster.projectile_damage_factor, 0.7), "buying it gives 2 projectiles at x0.7 at once")
+	_check(not FileAccess.file_exists(ProgressionStore.TEST_SAVE_PATH) or not _saved_unlock(), "the purchase is not saved")
 	var station := _dungeon.current_room.get_node_or_null(^"Decor/UpgradeStation") as UpgradeStation
 	_mage.global_position = station.global_position + Vector2(50, 0)
 	await _frames(3)
 	station.set_open(true)
-	_check(station._menu_label.text.contains("Twin Cast") and station._menu_label.text.contains("[UNLOCKED]"), "the Anvil shows [UNLOCKED]")
-	_check(not station.purchase(twin) and _run.currency == 10000, "the Anvil refuses another purchase")
+	_check(station._menu_label.text.contains("Twin Cast") and station._menu_label.text.contains("[MAX]")
+			and not station._menu_label.text.contains("UNLOCKED"), "the Anvil shows [MAX] for the owned Twin Cast")
+	_run.currency = 10000
+	_check(not station.purchase(twin) and _run.currency == 10000 and station._message.contains("maximum"), "the Anvil refuses a second purchase this run")
+	station.set_open(false)
 	_run.boss_defeated = true
 	_run.choose_relic(&"wind_relic")
 	_run.begin_next_level()
-	_check(not _run.can_purchase(twin) and _run.projectile_count() == 2, "it is not restocked on the next level")
-	# Before it is unlocked, it is still sold from level 3 on.
-	_prog.clear_progress()
-	await _load_scene()
-	_run.dungeon_level = 2
-	_run.level = 10
-	_run.currency = 5000
-	_check(not _run.can_purchase(twin), "not sold on level 2 in a run without the unlock")
+	_check(_run.dungeon_level == 4 and _run.has_twin_cast() and _mage.caster.projectile_count == 2 and not _run.can_purchase(twin),
+			"it persists across dungeon levels of the same run")
+	# Death -> Retry (reload_current_scene).
+	_mage.health.take_damage(_mage.health.max_health * 10.0)
+	await _frames(2)
+	var overlay := current_scene.get_node(^"GameOverOverlay")
+	var old_id := current_scene.get_instance_id()
+	overlay.restart()
+	await _wait_until(func() -> bool:
+		return current_scene != null and current_scene.get_instance_id() != old_id and current_scene.is_node_ready(), 600)
+	await _frames(2)
+	_dungeon = current_scene as Dungeon
+	_mage = _dungeon.mage
+	_run = _dungeon.run_state
+	_check(not _run.has_twin_cast() and _run.projectile_count() == 1 and _mage.caster.projectile_count == 1
+			and is_equal_approx(_mage.caster.projectile_damage_factor, 1.0), "Retry after death starts without Twin Cast")
 	_run.dungeon_level = 3
-	_check(_run.can_purchase(twin), "sold from level 3 in a run without the unlock")
-	# Practice runs may use an unlock but never create one.
+	_run.level = 7
+	_run.currency = 4500
+	_check(_run.can_purchase(twin) and _run.purchase(twin) and _run.has_twin_cast(), "it can be bought again in the new run")
+	# Main Menu -> Start Run is a new Dungeon scene as well.
+	await _load_scene()
+	_check(not _run.has_twin_cast() and _mage.caster.projectile_count == 1, "a new run from the menu starts without Twin Cast")
+	# Practice runs buy it for themselves only.
 	_prog.record_run(5, 3, 100.0, 60.0, NORMAL, &"dungeon")
 	_check(_prog.select(NORMAL, &"", 3), "setup: practice run from level 3")
 	await _load_scene()
 	_run.currency = 5000
-	_check(_run.is_replay and _run.purchase(twin) and _run.has_twin_cast() and not _prog.is_upgrade_unlocked(twin),
-			"a practice run can buy it for itself but does not unlock it for later runs")
+	_check(_run.is_replay and _run.purchase(twin) and _run.has_twin_cast(), "a practice run can buy it")
+	_prog.select(NORMAL, &"", 1)
+	await _load_scene()
+	_check(not _run.has_twin_cast() and _mage.caster.projectile_count == 1, "the next run starts without it")
+	_prog.clear_progress()
+
+
+func _saved_unlock() -> bool:
+	var config := ConfigFile.new()
+	return config.load(ProgressionStore.TEST_SAVE_PATH) == OK and config.has_section("unlocked_upgrades")
 
 
 # --- Boss bolts: 25% of max HP -------------------------------------------------------------------------
@@ -347,7 +369,7 @@ func _test_enemy_damage_unit() -> void:
 
 
 func _test_enemy_damage_scene() -> void:
-	_prog.clear_progress()  # an earlier test unlocked Twin Cast, which would add the output HP modifier
+	_prog.clear_progress()
 	await _load_scene()
 	var goblin := _stats("res://scenes/enemies/giant_goblin.tscn")
 	var room := await _enter(_dungeon.item_room_index(&"swift_boots"))
@@ -361,6 +383,8 @@ func _test_enemy_damage_scene() -> void:
 	_check(is_equal_approx(enemy.health.max_health, goblin["hp"]) and is_equal_approx(enemy.speed, goblin["speed"])
 			and is_equal_approx(enemy.attack_cooldown, goblin["cooldown"]) and enemy.xp_reward == goblin["xp"] and enemy.currency_reward == goblin["gold"],
 			"HP, speed, attack cooldown, XP and gold are unchanged")
+	_check(enemy is Goblin and (enemy as Goblin).swings_before_special == _run.goblin_swings_before_special(),
+			"the Dungeon sets the goblin's swings before its special from the run (%d)" % _run.goblin_swings_before_special())
 	var caster_base := (load("res://scenes/enemies/demon_caster.tscn") as PackedScene).instantiate() as RangedEnemy
 	var caster_damage := caster_base.projectile_damage
 	caster_base.free()

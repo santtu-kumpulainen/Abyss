@@ -4,7 +4,8 @@
 [ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/demon.tres" id="2_frames"]
 
 [node name="Demon" instance=ExtResource("1_enemy")]
-speed = 105.0
+speed = 160.0
+speed_cap = 168.0
 contact_damage = 8.0
 attack_cooldown = 0.8
 xp_reward = 2
