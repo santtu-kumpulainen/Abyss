@@ -7,6 +7,9 @@ extends Control
 ## rooms carry a diamond marker: orange for the survival trial, violet for
 ## the rune puzzle (dimmed once completed). Ancient Seal rooms are not marked
 ## (Issue #45): the player finds the seals by exploring; RunHud shows the count.
+## The starting room carries a house (Issue #49, the Home Teleport icon of the
+## ability bar): it reads Dungeon.start_room on every draw, so it follows each
+## level's layout and always marks where Home Teleport leads.
 
 @export var cell_size: float = 16.0
 @export var gap: float = 6.0
@@ -25,6 +28,8 @@ extends Control
 var _dungeon: Dungeon
 var _origin_cell := Vector2i.ZERO
 var _grid_size := Vector2i.ONE
+## Where the last draw put the home marker (empty if none), for tests.
+var _drawn_home := Rect2()
 
 
 func set_dungeon(dungeon: Dungeon) -> void:
@@ -44,11 +49,10 @@ func set_dungeon(dungeon: Dungeon) -> void:
 func _draw() -> void:
 	if _dungeon == null:
 		return
-	var pitch := cell_size + gap
-	var map_size := Vector2(_grid_size) * pitch - Vector2(gap, gap) + Vector2.ONE * padding * 2.0
+	var map_size := _map_size()
 	var top_left := Vector2(margin, size.y - margin - map_size.y)
 	draw_rect(Rect2(top_left, map_size), background_color)
-	var origin := top_left + Vector2.ONE * padding
+	var origin := _map_origin()
 
 	var known := {}
 	for i in _dungeon.rooms.size():
@@ -87,6 +91,36 @@ func _draw() -> void:
 			draw_colored_polygon(diamond, marker)
 			draw_polyline(diamond + PackedVector2Array([diamond[0]]), Color.BLACK, 1.0)
 
+	# Home marker last, above the cell fills (also on the current room).
+	_drawn_home = Rect2()
+	var home := home_index()
+	if home >= 0:
+		_drawn_home = home_marker_rect(home)
+		AbilityIcons.draw_icon(self, HomeTeleport.ITEM, _drawn_home, Color.WHITE)
+
+
+## Room that gets the home marker: the Dungeon's current start_room (the Home
+## Teleport destination), or -1 without a valid one. Never cached.
+func home_index() -> int:
+	if _dungeon == null or _dungeon.start_room < 0 or _dungeon.start_room >= _dungeon.rooms.size():
+		return -1
+	return _dungeon.start_room
+
+
+## Map rectangle of room `index`'s cell (local coordinates).
+func cell_rect(index: int) -> Rect2:
+	return Rect2(_cell_center(_map_origin(), index) - Vector2.ONE * cell_size / 2.0, Vector2.ONE * cell_size)
+
+
+## Rectangle the house is drawn in for room `index`: its cell, slightly inset.
+func home_marker_rect(index: int) -> Rect2:
+	return cell_rect(index).grow(-1.0)
+
+
+## Where the last draw put the house (empty Rect2 if it drew none).
+func drawn_home_rect() -> Rect2:
+	return _drawn_home
+
 
 ## Treasure-room marker colour for room `index` (transparent for other rooms).
 func marker_color(index: int) -> Color:
@@ -97,6 +131,15 @@ func marker_color(index: int) -> Color:
 		RoomSpec.Treasure.PUZZLE:
 			color = puzzle_color
 	return color.darkened(0.45) if color.a > 0.0 and _dungeon.is_cleared(index) else color
+
+
+func _map_size() -> Vector2:
+	return Vector2(_grid_size) * (cell_size + gap) - Vector2(gap, gap) + Vector2.ONE * padding * 2.0
+
+
+## Top-left of the first cell (inside the background's padding).
+func _map_origin() -> Vector2:
+	return Vector2(margin, size.y - margin - _map_size().y) + Vector2.ONE * padding
 
 
 func _gate_color(index: int) -> Color:

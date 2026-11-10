@@ -165,9 +165,16 @@ const DOOR_BY_DIRECTION := {
 @export var reward_offsets := PackedVector2Array([Vector2(-130, 80), Vector2(130, 80)])
 ## Seconds between the boss's death and the victory screen.
 @export var victory_delay: float = 1.2
+## Where the Home Teleport arrival effect plays, relative to the Mage's feet.
+@export var home_arrival_offset := Vector2(0, -45)
 
 var current_room: Room
 var current_index: int = -1
+## Home Teleport cast (Issue #49); created in _ready.
+var home_teleport: HomeTeleport
+## The Home Teleport arrival warp while it plays; removed when the Mage leaves
+## the room before it ends, so it never shows in another room.
+var _arrival_effect: PixelEffect
 ## The anvil added after the full clear (null until then).
 var final_anvil: UpgradeStation
 ## True once this level's boss is defeated (reset by advance_level()).
@@ -208,6 +215,7 @@ var _pool_start := 0
 @onready var _run_hud: RunHud = $RunHud
 @onready var _map: DungeonMap = get_node_or_null(^"DungeonMap/Map")
 @onready var _victory_overlay: VictoryOverlay = get_node_or_null(^"VictoryOverlay")
+@onready var _ability_bar: AbilityBar = get_node_or_null(^"AbilityBar")
 
 
 func _ready() -> void:
@@ -232,6 +240,7 @@ func _ready() -> void:
 	run_state.relic_chosen.connect(_on_relic_chosen)
 	run_state.treasure_claimed.connect(_on_treasure_claimed)
 	run_state.seal_collected.connect(_on_seal_collected)
+	run_state.speed_potion_expired.connect(func() -> void: _run_hud.show_message("Speed Potion has worn off"))
 	run_state.changed.connect(_apply_spell_modifiers)
 	_apply_spell_modifiers()
 	mage.died.connect(_on_mage_died)
@@ -239,6 +248,13 @@ func _ready() -> void:
 	if _map:
 		_map.set_dungeon(self)
 	_record_progress()
+	home_teleport = HomeTeleport.new()
+	home_teleport.name = "HomeTeleport"
+	add_child(home_teleport)
+	home_teleport.setup(self)
+	home_teleport.cast_cancelled.connect(_on_home_teleport_cancelled)
+	if _ability_bar:
+		_ability_bar.setup(self)
 	enter_room(start_room)
 	_run_hud.show_message("Find %d Ancient Seals to unseal the Abyss Warden's gate" % RunState.SEALS_REQUIRED)
 
@@ -249,6 +265,7 @@ func _process(delta: float) -> void:
 		return
 	run_state.run_time += delta
 	run_state.level_time += delta
+	run_state.advance_speed_potion(delta)
 
 
 ## Shows room `index`. With `from_door` (a door name in that room) the Mage
@@ -258,6 +275,9 @@ func enter_room(index: int, from_door: StringName = &"") -> void:
 	if current_room:
 		remove_child(current_room)
 	_clear_projectiles()
+	if _arrival_effect and is_instance_valid(_arrival_effect):
+		_arrival_effect.queue_free()
+	_arrival_effect = null
 	current_index = index
 	current_room = _get_room(index)
 	_update_level_gates(index)
@@ -273,6 +293,8 @@ func enter_room(index: int, from_door: StringName = &"") -> void:
 		mage.facing = Mage.direction_name(inward)
 		# Doors lock behind the Mage: an IDLE room's open doors lead nowhere yet.
 		current_room.start_encounter()
+	# A dash (and its visuals) never carries over into the next room.
+	mage.cancel_dash()
 	mage.velocity = Vector2.ZERO
 	_hud.set_room(current_room)
 	room_changed.emit(current_room, index)
@@ -354,6 +376,117 @@ func heal_mage(amount: float, kill_heal: bool = false) -> float:
 	var before := mage.health.current
 	mage.health.increase_max_health(0.0, amount * (1.0 if kill_heal else run_state.healing_multiplier()))
 	return mage.health.current - before
+
+
+## Drinks a Health Potion (Issue #49): heals its share of max HP through
+## heal_mage() (so Blood Pact halves it). Not spent at full HP, when dead or
+## after victory. Returns true if one was used.
+func use_health_potion() -> bool:
+	if run_state.consumable_count(&"health_potion") <= 0 or mage.is_dead() or victory:
+		return false
+	if mage.health.current >= mage.health.max_health:
+		_run_hud.show_message("HP is already full")
+		return false
+	run_state.use_consumable(&"health_potion")
+	var fraction: float = RunState.CONSUMABLES[&"health_potion"]["heal_fraction"]
+	var healed := heal_mage(mage.health.max_health * fraction)
+	EffectLibrary.spawn(&"heal", mage, mage.caster.global_position)
+	_run_hud.show_message("Health Potion: +%d HP" % roundi(healed))
+	return true
+
+
+## Drinks a Speed Potion (Issue #49) through RunState.use_speed_potion()
+## (refreshes the duration; not spent while it is still full). Not usable when
+## dead or after victory. Returns true if one was used.
+func use_speed_potion() -> bool:
+	if mage.is_dead() or victory or not run_state.use_speed_potion():
+		return false
+	EffectLibrary.spawn(&"haste", mage, mage.caster.global_position)
+	var factor: float = RunState.CONSUMABLES[&"speed_potion"]["speed_factor"]
+	_run_hud.show_message("Speed Potion: +%d%% move speed for %s" % [roundi((factor - 1.0) * 100.0),
+			RunState.format_time(run_state.speed_potion_remaining)])
+	return true
+
+
+## Uses consumable `id` (ability bar slot keys, Issue #49) through its own
+## use_* function. Returns true if it was used (or a teleport cast started).
+func use_item(id: StringName) -> bool:
+	match id:
+		&"health_potion":
+			return use_health_potion()
+		&"speed_potion":
+			return use_speed_potion()
+		&"home_teleport":
+			return use_home_teleport()
+	return false
+
+
+## Home Teleport key (Issue #49): starts the cast, or cancels a running one.
+## Shows the reason when it cannot start. Returns true if a cast started.
+func use_home_teleport() -> bool:
+	if home_teleport.is_casting():
+		home_teleport.cancel(&"manual")
+		return false
+	if home_teleport.try_start():
+		_run_hud.show_message("Home Teleport: stand still...")
+		return true
+	var reasons := {
+		&"none_owned": "No Home Teleport (buy one at the Anvil)",
+		&"start_room": "You are already in the starting room",
+		&"combat": "Cannot teleport during combat",
+	}
+	var reason := home_teleport.start_refusal()
+	if reasons.has(reason):
+		_run_hud.show_message(reasons[reason])
+	return false
+
+
+## True while a door transition, a teleport or a level change is under way.
+func is_transitioning() -> bool:
+	return _transitioning or _level_changing
+
+
+## Moves the Mage to the current `start_room` (read now, so it follows the
+## level's layout) through enter_room(), deferred like a door transition, and
+## spends one Home Teleport only once the Mage has arrived. `on_finished`
+## (optional) gets true after the teleport, or false if it was dropped
+## because the Mage died, the run ended or a level change began meanwhile.
+## Returns false (changing nothing) if it cannot start now.
+func teleport_home(on_finished: Callable = Callable()) -> bool:
+	# Only the cast's completion may teleport: never during a running cast.
+	if (is_transitioning() or victory or mage.is_dead() or current_index == start_room
+			or run_state.consumable_count(HomeTeleport.ITEM) <= 0 or home_teleport.is_casting()):
+		return false
+	_transitioning = true
+	_teleport_home.call_deferred(on_finished)
+	return true
+
+
+func _teleport_home(on_finished: Callable) -> void:
+	# No teleport out of a room that entered combat meanwhile (e.g. a trial).
+	var ok := (not mage.is_dead() and not victory and not _level_changing
+			and not (current_room and current_room.state == Room.State.COMBAT))
+	if ok:
+		enter_room(start_room)
+		run_state.use_consumable(HomeTeleport.ITEM)
+		# The beam's ground splash sits near the bottom of its cell: lift it to the feet.
+		_arrival_effect = EffectLibrary.spawn(&"teleport_arrive", self, mage.global_position + home_arrival_offset)
+		_run_hud.show_message("Teleported to the starting room")
+	if on_finished.is_valid():
+		on_finished.call(ok)
+	# Let physics settle in the new room before checking doors again.
+	await get_tree().physics_frame
+	_transitioning = false
+
+
+## The arrival warp still playing in the current room, or null.
+func arrival_effect() -> PixelEffect:
+	return _arrival_effect if _arrival_effect and is_instance_valid(_arrival_effect) and not _arrival_effect.is_queued_for_deletion() else null
+
+
+func _on_home_teleport_cancelled(reason: StringName) -> void:
+	if reason not in [&"death", &"victory", &"level_change", &"failed"]:
+		_run_hud.show_message("Home Teleport cancelled")
 
 
 ## Raises the Mage's max HP by `amount` x the run's max HP multiplier, then
@@ -686,6 +819,7 @@ func advance_level() -> bool:
 		return false
 	_level_changing = true
 	_transitioning = false
+	home_teleport.cancel(&"level_change")
 	if current_room:
 		remove_child(current_room)
 	for room: Room in _room_cache.values():
@@ -986,7 +1120,7 @@ func _on_item_collected(id: StringName) -> void:
 func _apply_spell_modifiers() -> void:
 	mage.caster.set_modifiers(run_state.spell_damage_multiplier(), run_state.spell_cooldown_multiplier())
 	mage.caster.set_projectiles(run_state.projectile_count(), run_state.projectile_damage_factor())
-	mage.speed_multiplier = run_state.move_speed_multiplier()
+	mage.speed_multiplier = run_state.effective_move_speed_multiplier()
 	mage.damage_taken_multiplier = run_state.damage_taken_multiplier()
 	mage.caster.momentum = run_state.cast_momentum()
 

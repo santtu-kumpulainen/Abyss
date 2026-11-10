@@ -39,6 +39,13 @@ extends Node
 ## source ids with set_seal_sources(); collect_seal() takes each one once.
 ## seals_complete() (SEALS_REQUIRED seals) is needed, besides the Mage level
 ## cap, to enter the boss room. begin_next_level() clears seals and sources.
+##
+## Consumables (Issue #49, CONSUMABLES): bought at the anvil with gold up to
+## each item's inventory cap (buy_consumable(); no once-per-level rule) and
+## spent with use_consumable(). The inventory and the Speed Potion timer last
+## for the run (kept between dungeon levels, cleared by reset() and by the
+## scene reload on death / restart / new run). The Speed Potion is a separate
+## factor on top of move_speed_multiplier(): effective_move_speed_multiplier().
 
 signal changed
 signal leveled_up(level: int)
@@ -50,6 +57,11 @@ signal treasure_claimed(id: StringName)
 signal synergy_activated(id: StringName)
 ## Emitted once per Ancient Seal collected on the current dungeon level.
 signal seal_collected(id: StringName)
+## Emitted after a consumable was bought / one was spent.
+signal consumable_bought(id: StringName)
+signal consumable_used(id: StringName)
+## Emitted when the Speed Potion effect runs out.
+signal speed_potion_expired
 
 ## Ancient Seals needed on every dungeon level to unseal the boss gate (on top
 ## of the Mage level cap). The Dungeon registers one more source than this
@@ -70,6 +82,22 @@ const MAX_EXTRA_ENEMIES := 4
 ## Upper limit of move_speed_multiplier() (Issue #47): stacked speed items,
 ## Bloodstones and endless-mode Wind Relics never push the Mage past this.
 const MAX_MOVE_SPEED_MULTIPLIER := 1.4
+## Upper limit of effective_move_speed_multiplier() while a Speed Potion is active.
+const MAX_MOVE_SPEED_WITH_POTION := 1.6
+
+## Anvil consumables (Issue #49), in shop order. "price" in gold, "max" the
+## inventory cap. Health Potion: "heal_fraction" of max HP (through the
+## Dungeon's healing, so Blood Pact halves it). Speed Potion: "speed_factor"
+## for "duration" seconds of active play (re-use refreshes, never stacks).
+## Home Teleport: "cast_time" seconds, consumed only when the teleport succeeds.
+const CONSUMABLES := {
+	&"health_potion": {"name": "Health Potion", "price": 120, "max": 3,
+			"effect": "restore 25% max HP", "heal_fraction": 0.25},
+	&"speed_potion": {"name": "Speed Potion", "price": 150, "max": 3,
+			"effect": "+25% move speed for 3:00", "speed_factor": 1.25, "duration": 180.0},
+	&"home_teleport": {"name": "Home Teleport", "price": 200, "max": 1,
+			"effect": "1.5 s cast: return to the start room", "cast_time": 1.5},
+}
 
 ## Anvil upgrades, in display order. Each stack applies its effect keys once.
 ## "prices" is the cost of the 1st, 2nd, ... stack, "max_stacks" the stack cap and
@@ -173,6 +201,11 @@ var pact: StringName = &""
 var gold_earned: int = 0
 var difficulty_bonus_gold: int = 0
 var modifier_bonus_gold: int = 0
+## Owned consumables (id -> count, at most CONSUMABLES[id]["max"]).
+var consumables := {}
+## Seconds of Speed Potion effect left (0 = inactive); advanced by the Dungeon
+## with active play time through advance_speed_potion().
+var speed_potion_remaining: float = 0.0
 
 ## Run seed for EncounterPlanner (set once by the Dungeon when the run starts;
 ## kept by reset()). Each dungeon level is planned from level_seed().
@@ -248,7 +281,8 @@ func configure(p_difficulty: int, p_pact: StringName = &"", p_start_level: int =
 
 ## Moves to the next dungeon level once its boss is beaten and the relic was
 ## chosen. Only level state resets (boss flag, relic choice, level timer);
-## the build (upgrades, items, relics, treasures, gold, XP) is kept.
+## the build (upgrades, items, relics, treasures, gold, XP, consumables and
+## the Speed Potion timer) is kept.
 ## Returns false if the boss is alive or no relic was chosen yet.
 func begin_next_level() -> bool:
 	if not boss_defeated or not _relic_claimed:
@@ -402,6 +436,82 @@ func purchase(id: StringName) -> bool:
 	return true
 
 
+func consumable_count(id: StringName) -> int:
+	return consumables.get(id, 0)
+
+
+func consumable_max(id: StringName) -> int:
+	return CONSUMABLES[id]["max"] if CONSUMABLES.has(id) else 0
+
+
+func consumable_price(id: StringName) -> int:
+	return CONSUMABLES[id]["price"] if CONSUMABLES.has(id) else 0
+
+
+## True if `id` exists, its inventory is below the cap and it is affordable.
+func can_buy_consumable(id: StringName) -> bool:
+	return CONSUMABLES.has(id) and consumable_count(id) < consumable_max(id) and currency >= consumable_price(id)
+
+
+## Buys one `id`, deducting its price. Returns false (and changes nothing)
+## if it is unknown, the inventory is full or the gold is too low.
+func buy_consumable(id: StringName) -> bool:
+	if not can_buy_consumable(id):
+		return false
+	currency -= consumable_price(id)
+	consumables[id] = consumable_count(id) + 1
+	_notify()
+	consumable_bought.emit(id)
+	return true
+
+
+## Spends one `id`. Returns false (and changes nothing) if none is owned.
+## The effect is applied by the caller (or by use_speed_potion()).
+func use_consumable(id: StringName) -> bool:
+	if consumable_count(id) <= 0:
+		return false
+	consumables[id] = consumable_count(id) - 1
+	if consumables[id] == 0:
+		consumables.erase(id)
+	_notify()
+	consumable_used.emit(id)
+	return true
+
+
+func speed_potion_duration() -> float:
+	return CONSUMABLES[&"speed_potion"]["duration"]
+
+
+func is_speed_potion_active() -> bool:
+	return speed_potion_remaining > 0.0
+
+
+## True if a Speed Potion is owned and drinking it would add time (it is not
+## spent while the effect is still at its full duration).
+func can_use_speed_potion() -> bool:
+	return consumable_count(&"speed_potion") > 0 and speed_potion_remaining < speed_potion_duration()
+
+
+## Drinks a Speed Potion: spends one and sets the effect to its full duration
+## (refresh, never stacking). Returns false if none is owned or it is already full.
+func use_speed_potion() -> bool:
+	if not can_use_speed_potion():
+		return false
+	speed_potion_remaining = speed_potion_duration()
+	return use_consumable(&"speed_potion")
+
+
+## Advances the Speed Potion effect by `delta` seconds of active play; emits
+## `changed` and speed_potion_expired when it runs out.
+func advance_speed_potion(delta: float) -> void:
+	if speed_potion_remaining <= 0.0 or delta <= 0.0:
+		return
+	speed_potion_remaining = maxf(speed_potion_remaining - delta, 0.0)
+	if speed_potion_remaining == 0.0:
+		_notify()
+		speed_potion_expired.emit()
+
+
 ## True if item `id` was picked up on the current dungeon level.
 func is_collected(id: StringName) -> bool:
 	return _level_collected.has(id)
@@ -508,6 +618,16 @@ func spell_cooldown_multiplier() -> float:
 ## MAX_MOVE_SPEED_MULTIPLIER.
 func move_speed_multiplier() -> float:
 	return clampf(1.0 + _bonus_sum(&"speed"), 0.1, MAX_MOVE_SPEED_MULTIPLIER)
+
+
+## The Mage's actual movement multiplier: move_speed_multiplier() times the
+## Speed Potion factor while it is active, capped at MAX_MOVE_SPEED_WITH_POTION.
+## Enemy catch-up pacing keeps using move_speed_multiplier() (no potion).
+func effective_move_speed_multiplier() -> float:
+	var multiplier := move_speed_multiplier()
+	if not is_speed_potion_active():
+		return multiplier
+	return minf(multiplier * float(CONSUMABLES[&"speed_potion"]["speed_factor"]), MAX_MOVE_SPEED_WITH_POTION)
 
 
 ## Mage max HP multiplier (applies to base max HP and every max HP gain).
@@ -672,6 +792,8 @@ func reset() -> void:
 	gold_earned = 0
 	difficulty_bonus_gold = 0
 	modifier_bonus_gold = 0
+	consumables.clear()
+	speed_potion_remaining = 0.0
 	_active_synergies.clear()
 	_notify()
 

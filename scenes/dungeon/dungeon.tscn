@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/run_hud.tscn" id="9_run_hud"]
 [ext_resource type="Script" uid="uid://ggxxf2yodh7t" path="res://scripts/dungeon/room_spec.gd" id="10_room_spec"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dungeon_map.tscn" id="11_map"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ability_bar.tscn" id="20_ability_bar"]
 [ext_resource type="PackedScene" path="res://scenes/items/item_pickup.tscn" id="12_item_pickup"]
 [ext_resource type="PackedScene" path="res://scenes/items/ancient_seal.tscn" id="17_seal"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/brood_mother.tscn" id="18_brood"]
@@ -213,6 +214,8 @@ script = ExtResource("8_run_state")
 [node name="RunHud" parent="." unique_id=809262209 instance=ExtResource("9_run_hud")]
 
 [node name="DungeonMap" parent="." unique_id=1788453517 instance=ExtResource("11_map")]
+
+[node name="AbilityBar" parent="." instance=ExtResource("20_ability_bar")]
 
 [node name="GameOverOverlay" parent="." unique_id=1815817430 node_paths=PackedStringArray("player") instance=ExtResource("7_game_over")]
 player = NodePath("../Mage")
