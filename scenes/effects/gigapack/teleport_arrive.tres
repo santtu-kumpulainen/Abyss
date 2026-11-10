@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EffectSheet" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_sheet.gd" id="1_mt8un"]
+[ext_resource type="Texture2D" path="res://assets/effects/Super Pixel Effects Gigapack (Free Version)/spritesheet/Sci-fi/scifi_warp_003/scifi_warp_003_large_blue/spritesheet.png" id="2_7lxgj"]
+
+[resource]
+script = ExtResource("1_mt8un")
+texture = ExtResource("2_7lxgj")
+columns = 12
+frame_count = 12
+fps = 15.0
+scale = 0.9
+frame_size = Vector2i(128, 128)

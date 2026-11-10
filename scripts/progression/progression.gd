@@ -13,6 +13,8 @@ extends Node
 ## which bounds the start level a replay run may select. Replay runs never
 ## record anything. In headless runs (the test suites) progression starts fresh and
 ## saves to TEST_SAVE_PATH, so tests never touch the player's real file.
+## Preferences: the ability bar's slot order (Issue #49, `ability_slots`) is
+## saved with the progression; invalid saved orders fall back to the default.
 
 signal unlocks_changed
 
@@ -32,6 +34,9 @@ var selected_start_level: int = 1
 var highest_level: int = 1
 ## Best run: {} or {level, time, reach_time, difficulty, biome, run_id}.
 var best_run := {}
+## Ability bar slot order: the consumable id in slot 1, 2 and 3 (keys follow
+## the slots). Change it with set_ability_slots(). Quantities are never saved.
+var ability_slots: Array[StringName] = default_ability_slots()
 
 
 static var _fallback: ProgressionStore
@@ -140,6 +145,7 @@ func save_progress() -> Error:
 	for tier: int in Difficulty.TIERS:
 		config.set_value("completions", Difficulty.display_name(tier).to_lower(), completion_count(tier))
 	config.set_value("records", "highest_level", highest_level)
+	config.set_value("preferences", "ability_slots", PackedStringArray(ability_slots))
 	for key: String in best_run:
 		config.set_value("best_run", key, best_run[key] if key != "biome" else String(best_run[key]))
 	return config.save(save_path)
@@ -152,12 +158,15 @@ func load_progress() -> void:
 	completions.clear()
 	highest_level = 1
 	best_run = {}
+	ability_slots = default_ability_slots()
 	var config := ConfigFile.new()
 	if config.load(save_path) != OK:
 		return
 	var highest = config.get_value("records", "highest_level", 1)
 	if highest is int and highest > 1:
 		highest_level = highest
+	if config.has_section_key("preferences", "ability_slots"):
+		ability_slots = parse_ability_slots(config.get_value("preferences", "ability_slots"))
 	_load_best_run(config)
 	for tier: int in Difficulty.TIERS:
 		var count = config.get_value("completions", Difficulty.display_name(tier).to_lower(), 0)
@@ -184,7 +193,53 @@ func clear_progress() -> void:
 	completions.clear()
 	highest_level = 1
 	best_run = {}
+	ability_slots = default_ability_slots()
 	selected_start_level = 1
 	selected_difficulty = Difficulty.Tier.NORMAL
 	selected_pact = &""
 	unlocks_changed.emit()
+
+
+## Default ability bar order: RunState.CONSUMABLES in catalog order
+## (Health Potion, Speed Potion, Home Teleport).
+static func default_ability_slots() -> Array[StringName]:
+	var ids: Array[StringName] = []
+	ids.assign(RunState.CONSUMABLES.keys())
+	return ids
+
+
+## True if `value` is an array holding every consumable id exactly once (as
+## strings): no missing, unknown, duplicate or outdated ids, no other types.
+static func is_valid_ability_slots(value: Variant) -> bool:
+	var defaults := default_ability_slots()
+	if not (value is Array or value is PackedStringArray) or value.size() != defaults.size():
+		return false
+	var seen: Array[StringName] = []
+	for entry: Variant in value:
+		if not (entry is String or entry is StringName):
+			return false
+		var id := StringName(entry)
+		if not defaults.has(id) or seen.has(id):
+			return false
+		seen.append(id)
+	return true
+
+
+## `value` as a slot order if is_valid_ability_slots(), otherwise the default order.
+static func parse_ability_slots(value: Variant) -> Array[StringName]:
+	if not is_valid_ability_slots(value):
+		return default_ability_slots()
+	var order: Array[StringName] = []
+	for entry: Variant in value:
+		order.append(StringName(entry))
+	return order
+
+
+## Sets and saves the ability bar order. Returns false (changing nothing) if
+## `order` is not valid (see is_valid_ability_slots()).
+func set_ability_slots(order: Array) -> bool:
+	if not is_valid_ability_slots(order):
+		return false
+	ability_slots = parse_ability_slots(order)
+	save_progress()
+	return true

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EffectSheet" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_sheet.gd" id="1_gxi85"]
+[ext_resource type="Texture2D" path="res://assets/effects/Super Pixel Effects Gigapack (Free Version)/spritesheet/Magic Bursts/directional_coin_burst_001/directional_coin_burst_001_large_yellow/spritesheet.png" id="2_qh0y7"]
+
+[resource]
+script = ExtResource("1_gxi85")
+texture = ExtResource("2_qh0y7")
+columns = 31
+frame_count = 31
+fps = 15.0
+scale = 0.45
+frame_size = Vector2i(128, 128)

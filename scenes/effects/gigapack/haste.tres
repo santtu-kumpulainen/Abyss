@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EffectSheet" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_sheet.gd" id="1_vqrcm"]
+[ext_resource type="Texture2D" path="res://assets/effects/Super Pixel Effects Gigapack (Free Version)/spritesheet/Fantasy Spells/spell_haste_001/spell_haste_001_large_green/spritesheet.png" id="2_tywa5"]
+
+[resource]
+script = ExtResource("1_vqrcm")
+texture = ExtResource("2_tywa5")
+columns = 29
+frame_count = 29
+fps = 15.0
+scale = 0.6
+frame_size = Vector2i(128, 128)
