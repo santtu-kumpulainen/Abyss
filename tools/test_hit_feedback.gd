@@ -28,6 +28,7 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
+	await _test_flash_render()
 	await _test_mage_knockback()
 	await _test_mage_wall()
 	await _test_mage_dash()
@@ -261,6 +262,83 @@ func _test_enemy_flash() -> void:
 			and not HitFeedback.is_flashing(sprite),
 			"12 overlapping hits: peak %.3fx, then exactly the original scale and no tint left" % peak)
 	enemy.free()
+
+
+## Issue #51 Stage 4 fix: enemies stayed darker after their first hit. The
+## flash shader multiplied the texture into COLOR a second time (in a
+## canvas_item fragment COLOR already holds texture x modulate), and the
+## material stays on the sprite after the flash. Static check always; the pixel
+## check needs a renderer (run windowed: --path . --resolution 1152x648 --script
+## res://tools/test_hit_feedback.gd) and prints SKIP when headless.
+func _test_flash_render() -> void:
+	var code := HitFeedback.SHADER.code
+	_check(not code.contains("texture(TEXTURE"), "hit flash shader uses COLOR as is (no second texture sample)")
+	if DisplayServer.get_name() == "headless":
+		print("SKIP: rendered colour check (headless renders nothing; run windowed)")
+		return
+	# A champion-tinted Demon and two tinted minibosses, frozen on one frame.
+	var enemies: Array[Enemy] = []
+	var spots := {DEMON: Vector2(250, 400), "res://scenes/enemies/brood_mother.tscn": Vector2(560, 450),
+			"res://scenes/enemies/water_caster_boss.tscn": Vector2(880, 450)}
+	for path: String in spots:
+		var e := await _spawn(path, spots[path]) as Enemy
+		e.set_physics_process(false)
+		e.set_process(false)
+		(e.get_node(^"AnimatedSprite2D") as AnimatedSprite2D).pause()
+		enemies.append(e)
+	var demon_sprite := enemies[0].get_node(^"AnimatedSprite2D") as AnimatedSprite2D
+	demon_sprite.self_modulate = Color(1.0, 0.7, 0.4)  # champion tint
+	var tints: Array[Color] = []
+	for e in enemies:
+		tints.append((e.get_node(^"AnimatedSprite2D") as CanvasItem).self_modulate)
+	var before := await _capture(enemies)
+	for e in enemies:
+		e.take_damage(1.0)
+	var during := await _capture(enemies)
+	_check(_mean(during) > _mean(before) + 0.002, "rendered: the white hit flash is visible (mean %.4f -> %.4f)" % [_mean(before), _mean(during)])
+	for i in 2:
+		for e in enemies:
+			e.take_damage(1.0)
+		await _physics(6)
+	await _seconds(0.4)
+	var after := await _capture(enemies)
+	var diff := _max_diff(before, after)
+	_check(diff <= 2.0 / 255.0, "rendered: after 3 hits every enemy has exactly its original colours (max pixel difference %.4f)" % diff)
+	var tints_ok := true
+	for i in enemies.size():
+		var sprite := enemies[i].get_node(^"AnimatedSprite2D") as AnimatedSprite2D
+		tints_ok = tints_ok and sprite.self_modulate == tints[i] and sprite.modulate == Color.WHITE 				and sprite.scale.is_equal_approx(Vector2.ONE * enemies[i].sprite_scale)
+	_check(tints_ok, "champion and miniboss tints and scales untouched after the hits")
+	for e in enemies:
+		e.free()
+
+
+## Viewport image with the enemies' health bars hidden (they appear on damage).
+func _capture(enemies: Array[Enemy]) -> Image:
+	for e in enemies:
+		(e.get_node(^"HealthBar") as CanvasItem).visible = false
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	return root.get_texture().get_image()
+
+
+func _mean(img: Image) -> float:
+	var sum := 0.0
+	for y in range(0, img.get_height(), 2):
+		for x in range(0, img.get_width(), 2):
+			var c := img.get_pixel(x, y)
+			sum += c.r + c.g + c.b
+	return sum / (img.get_width() * img.get_height() / 4.0 * 3.0)
+
+
+func _max_diff(a: Image, b: Image) -> float:
+	var worst := 0.0
+	for y in a.get_height():
+		for x in a.get_width():
+			var p := a.get_pixel(x, y)
+			var q := b.get_pixel(x, y)
+			worst = maxf(worst, maxf(absf(p.r - q.r), maxf(absf(p.g - q.g), absf(p.b - q.b))))
+	return worst
 
 
 func _test_mage_flash() -> void:

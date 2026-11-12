@@ -36,6 +36,10 @@ const EFFECTS := {
 	&"coin_burst": {"sheet": "Magic Bursts/directional_coin_burst_001/directional_coin_burst_001_large_yellow", "scale": 0.45},
 	# Water Caster miniboss: big water bolt impact (Issue #51; same imported sheet as teleport_ring, all frames).
 	&"water_impact": {"sheet": "Impacts/symmetrical_impact_002/symmetrical_impact_002_large_blue", "scale": 2.0},
+	# Giant Goblin death: green splatter (Issue #51 Stage 4).
+	&"green_splatter": {"sheet": "Splatters/burst_splatter_003/burst_splatter_003_large_green", "scale": 1.0},
+	# Demon death: stylized skull smoke (Issue #51 Stage 4).
+	&"skull_smoke": {"sheet": "Smoke Bursts/stylized_skull_smoke_burst_001/stylized_skull_smoke_burst_001_large_white", "scale": 1.25},
 }
 
 

@@ -6,7 +6,8 @@ extends SceneTree
 ##   godot --headless --path . --script res://tools/build_tiny_rpg_sprite_frames.gd -- "<res:// strip folder>" "<Name>" <output_name>
 ##
 ## Output: res://scenes/enemies/sprite_frames/<output_name>.tres
-## Animations: "idle" and "walk", facing right (Enemy.side_view mirrors them).
+## Animations: "idle", "walk" and the one-shot "death" (Issue #51, played by
+## EnemyCorpse), facing right (Enemy.side_view mirrors them).
 
 const OUTPUT_PATH := "res://scenes/enemies/sprite_frames/%s.tres"
 const FRAME_SIZE := Vector2(100, 100)
@@ -15,6 +16,7 @@ const FRAME_SIZE := Vector2(100, 100)
 const ACTIONS := {
 	"idle": ["Idle", 8.0, true],
 	"walk": ["Walk", 10.0, true],
+	"death": ["Death", 8.0, false],
 }
 
 

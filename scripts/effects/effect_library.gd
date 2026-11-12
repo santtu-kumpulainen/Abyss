@@ -24,6 +24,10 @@ const SHEETS := {
 	&"coin_burst": preload("res://scenes/effects/gigapack/coin_burst.tres"),
 	## Water Caster miniboss: big water bolt impact (Issue #51).
 	&"water_impact": preload("res://scenes/effects/gigapack/water_impact.tres"),
+	## Giant Goblin death splatter (Issue #51).
+	&"green_splatter": preload("res://scenes/effects/gigapack/green_splatter.tres"),
+	## Demon death skull smoke (Issue #51).
+	&"skull_smoke": preload("res://scenes/effects/gigapack/skull_smoke.tres"),
 }
 
 
