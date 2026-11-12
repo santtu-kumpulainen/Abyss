@@ -61,6 +61,17 @@ func attacks_unlocked() -> bool:
 	return _opening_left <= 0.0
 
 
+## Minibosses are never displaced by hits (their state machines own movement).
+func can_be_knocked_back() -> bool:
+	return false
+
+
+## Hit feedback: the white flash only - no scale pop, since some minibosses
+## animate their sprite scale (e.g. the Water Caster's cast pose).
+func _hit_pop() -> float:
+	return 1.0
+
+
 ## True during a punish window.
 func is_vulnerable() -> bool:
 	return _vulnerable
@@ -203,6 +214,7 @@ func _chase_and_hit() -> void:
 	elif _attack_cooldown_left <= 0.0 and attacks_unlocked():
 		_attack_cooldown_left = attack_cooldown
 		target.take_damage(contact_damage)
+		HitFeedback.knock(target, to_target)
 
 
 # --- Subclass hooks ----------------------------------------------------------------

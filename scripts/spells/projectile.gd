@@ -151,6 +151,7 @@ func _on_body_entered(body: Node) -> void:
 		PixelEffect.spawn(spell.impact_effect, get_parent(), global_position)
 	if body.has_method(&"take_damage"):
 		body.take_damage(_damage_for(body))
+		HitFeedback.knock(body, direction)
 		hit.emit(body)
 	set_deferred(&"monitoring", false)
 	queue_free()

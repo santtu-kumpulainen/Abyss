@@ -75,6 +75,20 @@ var invulnerable := false
 ## Tint of the sprite while slowed (apply_slow()).
 var slow_tint := Color(0.6, 0.8, 1.0)
 
+@export_group("Hit feedback")
+## Knockback when damaged (Issue #51 Stage 3): starts at `knockback_speed` along
+## the hit direction and fades linearly to 0 over `knockback_duration` s
+## (220 px/s x 0.12 s -> about 13 px), added to the walking velocity, so walls
+## stop it (move_and_slide). Never during the dash or its invulnerability.
+@export var knockback_speed: float = 220.0
+@export var knockback_duration: float = 0.12
+## Red impact flash: colour, strength (0..1) and fade time (sprite shader;
+## modulate and the slow tint stay untouched).
+@export var hit_flash_color := Color(1.0, 0.2, 0.15)
+@export var hit_flash_strength: float = 0.6
+@export var hit_flash_time: float = 0.18
+@export_group("")
+
 var _dash_direction := Vector2.ZERO
 ## Seconds left of the dash movement (> 0 while dashing).
 var _dash_time_left := 0.0
@@ -90,6 +104,8 @@ var _dash_requested := false
 var _dash_trail: DashTrail
 ## Visual nodes of the current/last dash (afterimages, puff), freed on cancel.
 var _dash_effects: Array[Node] = []
+var _knock_velocity := Vector2.ZERO
+var _knock_left := 0.0
 
 @onready var caster: SpellCaster = $SpellCaster
 @onready var health: Health = $Health
@@ -115,11 +131,12 @@ func _physics_process(delta: float) -> void:
 		_dash_requested = false
 		try_dash(input)
 	if is_dashing():
-		# No walking or casting during the burst.
+		# No walking or casting during the burst; a dash ends any knockback.
+		_knock_left = 0.0
 		_dash_step(delta)
 		return
 
-	velocity = input * speed * speed_multiplier * slow_multiplier()
+	velocity = input * speed * speed_multiplier * slow_multiplier() + _knockback_velocity(delta)
 	move_and_slide()
 
 	if input != Vector2.ZERO:
@@ -144,8 +161,36 @@ func take_damage(amount: float) -> void:
 		return
 	health.take_damage(amount * damage_taken_multiplier)
 	if not health.is_dead():
-		_sprite.modulate = Color(1.0, 0.4, 0.4)
-		create_tween().tween_property(_sprite, ^"modulate", Color.WHITE, 0.15)
+		HitFeedback.flash(_sprite, hit_flash_color, hit_flash_strength, hit_flash_time)
+
+
+## Starts a knockback along `direction` (see knockback_speed). Ignored while
+## dashing, dash-invulnerable, invulnerable (end_run) or dead, i.e. whenever
+## take_damage() would not have hurt. A new hit restarts it. Returns true if started.
+func apply_knockback(direction: Vector2) -> bool:
+	if direction == Vector2.ZERO or knockback_speed <= 0.0 or knockback_duration <= 0.0 \
+			or invulnerable or is_dashing() or is_dash_invulnerable() or is_dead():
+		return false
+	_knock_velocity = direction.normalized() * knockback_speed
+	_knock_left = knockback_duration
+	return true
+
+
+## True while a knockback is pushing the Mage.
+func is_knocked_back() -> bool:
+	return _knock_left > 0.0
+
+
+## Knockback part of this frame's velocity (linear fade), counting its time down.
+func _knockback_velocity(delta: float) -> Vector2:
+	if _knock_left <= 0.0:
+		return Vector2.ZERO
+	var fade := _knock_left / knockback_duration
+	var step := minf(delta, _knock_left)
+	_knock_left -= delta
+	# Average speed over this frame's share of the remaining time (exact for a linear fade).
+	var next_fade := maxf(_knock_left, 0.0) / knockback_duration
+	return _knock_velocity * (fade + next_fade) * 0.5 * (step / maxf(delta, 0.0001))
 
 
 func is_dead() -> bool:
@@ -273,8 +318,10 @@ func dash_direction() -> Vector2:
 
 
 ## Stops a running dash and its invulnerability at once and removes its
-## visuals (room/level change, death, end_run()). The cooldown keeps running.
+## visuals (room/level change, death, end_run()); any knockback stops too, so
+## it never carries into the next room. The cooldown keeps running.
 func cancel_dash() -> void:
+	_knock_left = 0.0
 	_dash_requested = false
 	_dash_invulnerable_left = 0.0
 	var was_dashing := is_dashing()

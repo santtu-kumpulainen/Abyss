@@ -57,6 +57,22 @@ var target: Node2D
 ## Played where this enemy dies (optional).
 @export var death_effect: EffectSheet
 
+@export_group("Hit feedback")
+## Knockback when damaged (Issue #51 Stage 3): speed along the hit direction for
+## `knockback_duration` s. `knockback_falloff` 0 keeps the speed constant
+## (80 px/s x 0.10 s = 8 px), 1 fades it linearly to 0. Collides with walls,
+## obstacles and other bodies (move_and_collide). Never while
+## can_be_knocked_back() is false (committed attack phases, minibosses, boss).
+@export var knockback_speed: float = 80.0
+@export var knockback_duration: float = 0.10
+@export_range(0.0, 1.0) var knockback_falloff: float = 0.0
+## White hit flash strength (0..1) and its fade time.
+@export var hit_flash_strength: float = 0.85
+@export var hit_flash_time: float = 0.12
+## Sprite scale pop on a hit (1 = none); eases back to sprite_scale.
+@export var hit_pop_scale: float = 1.12
+@export_group("")
+
 ## True once apply_scaling() has run (it only works once per instance).
 var scaled := false
 ## Multiplier on damage taken (set by apply_scaling()).
@@ -65,6 +81,8 @@ var damage_taken_multiplier := 1.0
 var summoned := false
 
 var _attack_cooldown_left := 0.0
+var _knock_velocity := Vector2.ZERO
+var _knock_left := 0.0
 
 @onready var health: Health = $Health
 @onready var _sprite: AnimatedSprite2D = $AnimatedSprite2D
@@ -87,6 +105,7 @@ func _physics_process(delta: float) -> void:
 		_pursue()
 
 	move_and_slide()
+	_knockback_step(delta)
 	_play(&"walk" if velocity != Vector2.ZERO else &"idle")
 
 
@@ -100,6 +119,7 @@ func _pursue() -> void:
 	elif _attack_cooldown_left <= 0.0:
 		_attack_cooldown_left = attack_cooldown
 		target.take_damage(contact_damage)
+		HitFeedback.knock(target, to_target)
 
 
 ## Applies run scaling once (call after _ready, before the enemy is damaged):
@@ -130,6 +150,45 @@ func take_damage(amount: float) -> void:
 	health.take_damage(amount * damage_taken_multiplier)
 	if not health.is_dead():
 		_flash()
+
+
+## Starts a knockback along `direction` (see knockback_speed). Ignored while
+## dead or while can_be_knocked_back() is false; a new hit restarts it.
+## Returns true if the knockback started.
+func apply_knockback(direction: Vector2) -> bool:
+	if direction == Vector2.ZERO or knockback_speed <= 0.0 or knockback_duration <= 0.0 \
+			or health.is_dead() or not can_be_knocked_back():
+		return false
+	_knock_velocity = direction.normalized() * knockback_speed
+	_knock_left = knockback_duration
+	return true
+
+
+## False while this enemy must not be displaced: subclasses return false during
+## committed attack phases (telegraphs, strikes, aiming); minibosses and the
+## boss never move from hits.
+func can_be_knocked_back() -> bool:
+	return true
+
+
+## True while a knockback is moving this enemy.
+func is_knocked_back() -> bool:
+	return _knock_left > 0.0
+
+
+## One physics frame of the knockback (call after the frame's move_and_slide()).
+## Stops at a collision and as soon as the enemy becomes protected.
+func _knockback_step(delta: float) -> void:
+	if _knock_left <= 0.0:
+		return
+	if not can_be_knocked_back():
+		_knock_left = 0.0
+		return
+	var elapsed := 1.0 - _knock_left / knockback_duration
+	var step := minf(delta, _knock_left)
+	_knock_left -= delta
+	if move_and_collide(_knock_velocity * (1.0 - knockback_falloff * elapsed) * step):
+		_knock_left = 0.0
 
 
 ## Maps a vector to "left"/"right"/"up"/"down" using the dominant axis;
@@ -169,9 +228,15 @@ func _play(action: StringName) -> void:
 		push_warning("Enemy animation not found: %s" % anim)
 
 
+## Hit feedback: a brief white flash and a scale pop (HitFeedback.flash; never
+## accumulates, always eases back to sprite_scale).
 func _flash() -> void:
-	_sprite.modulate = Color(1.0, 0.4, 0.4)
-	create_tween().tween_property(_sprite, ^"modulate", Color.WHITE, 0.15)
+	HitFeedback.flash(_sprite, Color.WHITE, hit_flash_strength, hit_flash_time, Vector2.ONE * sprite_scale, _hit_pop())
+
+
+## Scale pop of a hit (subclasses whose sprite scale is animated return 1).
+func _hit_pop() -> float:
+	return hit_pop_scale
 
 
 func _on_died() -> void:

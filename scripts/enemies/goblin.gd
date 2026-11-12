@@ -160,6 +160,11 @@ func is_aim_locked() -> bool:
 	return phase != Phase.CHASE and _track_left <= TIME_EPSILON
 
 
+## No knockback during the swing telegraph either (besides the special's phases).
+func can_be_knocked_back() -> bool:
+	return super.can_be_knocked_back() and swing_phase != Swing.WINDUP
+
+
 ## True during the anticipation: the last `special_anticipation` s of the windup.
 func is_anticipating() -> bool:
 	return phase == Phase.WINDUP and is_aim_locked() and _phase_left <= special_anticipation
@@ -264,6 +269,7 @@ func _resolve_swing() -> void:
 	if _swing_hit:
 		_swing_hit_pos = victim.global_position - global_position
 		victim.take_damage(contact_damage)
+		HitFeedback.knock(victim, victim.global_position - global_position)
 	swings_done += 1
 	swings_total += 1
 	swing_phase = Swing.RECOVER
@@ -289,6 +295,7 @@ func _special_active(delta: float) -> bool:
 		if victim and in_strike_area(victim.global_position):
 			_struck = true
 			victim.take_damage(special_damage)
+			HitFeedback.knock(victim, aim)
 	_active_left -= delta
 	return _active_left <= 0.0
 

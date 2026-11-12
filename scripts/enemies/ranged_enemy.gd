@@ -74,7 +74,13 @@ func _physics_process(delta: float) -> void:
 		_telegraph_left = 0.0
 
 	move_and_slide()
+	_knockback_step(delta)
 	_play(&"walk" if velocity != Vector2.ZERO else &"idle")
+
+
+## No knockback while aiming (the telegraph before a shot).
+func can_be_knocked_back() -> bool:
+	return _telegraph_left <= 0.0
 
 
 ## Fires one projectile toward a global position, ignoring range. Returns null
