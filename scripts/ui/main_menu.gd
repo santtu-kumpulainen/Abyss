@@ -41,6 +41,8 @@ func _ready() -> void:
 	# A previous run may have ended paused (victory screen).
 	get_tree().paused = false
 	_progression = ProgressionStore.instance(get_tree())
+	# Normal gameplay music (Issue #53); keeps playing into the run without a restart.
+	AudioManager.instance(get_tree()).play_music(SoundLibrary.MUSIC_NORMAL)
 	selected_difficulty = _progression.selected_difficulty
 	selected_pact = _progression.selected_pact
 	selected_start_level = clampi(_progression.selected_start_level, 1, _progression.highest_level)
