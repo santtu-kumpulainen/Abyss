@@ -109,7 +109,13 @@ func _physics_process(delta: float) -> void:
 			if _phase_left <= 0.0:
 				phase = Phase.CHASE
 	move_and_slide()
+	_knockback_step(delta)
 	_play(&"walk" if velocity != Vector2.ZERO else &"idle")
+
+
+## No knockback during the special's windup (telegraph) and strike.
+func can_be_knocked_back() -> bool:
+	return phase != Phase.WINDUP and phase != Phase.ACTIVE
 	queue_redraw()
 
 

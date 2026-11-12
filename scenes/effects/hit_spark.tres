@@ -10,5 +10,5 @@ columns = 7
 first_frame = 1
 frame_count = 40
 fps = 100.0
-scale = 0.45
+scale = 0.8
 tint = Color(1, 1, 1, 1)

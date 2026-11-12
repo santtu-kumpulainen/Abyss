@@ -138,6 +138,7 @@ func _hit() -> int:
 			continue
 		if contains(target):
 			target.take_damage(damage)
+			HitFeedback.knock(target, target.global_position - global_position)
 			hits += 1
 	return hits
 
