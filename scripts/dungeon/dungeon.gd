@@ -187,6 +187,8 @@ var current_room: Room
 var current_index: int = -1
 ## Home Teleport cast (Issue #49); created in _ready.
 var home_teleport: HomeTeleport
+## Normal / battle music from the room state (Issue #53); created in _ready.
+var music: DungeonMusic
 ## The Home Teleport arrival warp while it plays; removed when the Mage leaves
 ## the room before it ends, so it never shows in another room.
 var _arrival_effect: PixelEffect
@@ -274,6 +276,10 @@ func _ready() -> void:
 	home_teleport.cast_cancelled.connect(_on_home_teleport_cancelled)
 	if _ability_bar:
 		_ability_bar.setup(self)
+	music = DungeonMusic.new()
+	music.name = "DungeonMusic"
+	add_child(music)
+	music.setup(self)
 	enter_room(start_room)
 	_run_hud.show_message("Find %d Ancient Seals to unseal the Abyss Warden's gate" % RunState.SEALS_REQUIRED)
 
