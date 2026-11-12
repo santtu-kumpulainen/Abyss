@@ -117,6 +117,12 @@ func _scale_attacks(damage_mult: float, pace_mult: float) -> void:
 	volley_speed *= pace_mult
 	volley_cooldown /= maxf(pace_mult, 0.01)
 	slam_cooldown /= maxf(pace_mult, 0.01)
+
+
+## The pause after each attack (wind-ups are never scaled).
+func _scale_recovery(mult: float) -> void:
+	super._scale_recovery(mult)
+	recover_time /= mult
 	if _spell:
 		_spell.damage = volley_damage
 		_spell.speed = volley_speed
@@ -216,6 +222,18 @@ func _chase() -> void:
 	elif _attack_cooldown_left <= 0.0:
 		_attack_cooldown_left = attack_cooldown
 		target.take_damage(contact_damage)
+		HitFeedback.knock(target, to_target)
+
+
+## The boss is never displaced by hits (its attack state machine owns movement).
+func can_be_knocked_back() -> bool:
+	return false
+
+
+## Hit feedback: the white flash only (its sprite modulate carries the attack
+## and phase tints, which the shader flash leaves alone); no scale pop.
+func _hit_pop() -> float:
+	return 1.0
 
 
 func _resolve_attack() -> void:
@@ -227,6 +245,7 @@ func _resolve_attack() -> void:
 			var victim := _find_target()
 			if victim and global_position.distance_to(victim.global_position) <= slam_radius:
 				victim.take_damage(slam_damage)
+				HitFeedback.knock(victim, victim.global_position - global_position)
 				hit = true
 		&"ring":
 			var step := TAU / maxi(ring_count, 1)

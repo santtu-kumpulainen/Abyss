@@ -177,9 +177,10 @@ func _choose(delta: float, can_attack: bool) -> void:
 		velocity = to_target.normalized() * speed
 	elif dist < preferred_min:
 		velocity = -to_target.normalized() * speed
-		if dist <= attack_range and _attack_cooldown_left <= 0.0:
+		if dist <= attack_range and _attack_cooldown_left <= 0.0 and can_attack:
 			_attack_cooldown_left = attack_cooldown
 			target.take_damage(contact_damage)
+			HitFeedback.knock(target, to_target)
 
 
 func _windup_finished(attack: StringName) -> void:

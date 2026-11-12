@@ -2,10 +2,12 @@
 
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="1_enemy"]
 [ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/demon.tres" id="2_frames"]
+[ext_resource type="Resource" path="res://scenes/effects/gigapack/skull_smoke.tres" id="20_death_fx"]
 
 [node name="Demon" instance=ExtResource("1_enemy")]
 speed = 160.0
-speed_cap = 168.0
+speed_cap = 210.0
+player_speed_ratio = 0.9
 contact_damage = 8.0
 attack_cooldown = 0.8
 xp_reward = 2
@@ -13,6 +15,8 @@ currency_reward = 8
 sprite_frames = ExtResource("2_frames")
 sprite_scale = 2.5
 side_view = true
+death_effect = ExtResource("20_death_fx")
+death_effect_offset = Vector2(0, -26)
 
 [node name="AnimatedSprite2D" parent="." index="0"]
 texture_filter = 1

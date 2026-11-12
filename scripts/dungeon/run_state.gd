@@ -695,9 +695,16 @@ func enemy_damage_multiplier(elite: bool = false, treasure_room: bool = false) -
 	return result
 
 
-## Enemy attack rate multiplier (cooldowns, projectile speed).
+## Enemy attack rate multiplier (cooldowns, projectile speed): difficulty x
+## level x the global Tempo.ENEMY_ATTACK (Issue #51).
 func enemy_pace_multiplier() -> float:
-	return Difficulty.data(difficulty)["enemy_pace"] * LevelScaling.enemy_pace(dungeon_level)
+	return Difficulty.data(difficulty)["enemy_pace"] * LevelScaling.enemy_pace(dungeon_level) * Tempo.ENEMY_ATTACK
+
+
+## Divisor of enemy post-attack recovery pauses: the fixed Tempo.ENEMY_RECOVERY,
+## never compounded with difficulty or level pace (Issue #51 Stage 5).
+func enemy_recovery_multiplier() -> float:
+	return Tempo.ENEMY_RECOVERY
 
 
 ## Normal Goblin swings before its special attack (1-3): fewer on harder
@@ -708,10 +715,10 @@ func goblin_swings_before_special() -> int:
 
 
 ## Enemy move speed multiplier: difficulty x level x bounded catch-up on the
-## Mage's speed bonus. Enemy.apply_scaling() also caps the result at
-## LevelScaling.MAX_PURSUER_SPEED.
+## Mage's speed bonus x the global Tempo.ENEMY_MOVE (Issue #51).
+## Enemy.apply_scaling() also caps the result at LevelScaling.MAX_PURSUER_SPEED.
 func enemy_move_pace_multiplier() -> float:
-	return Difficulty.data(difficulty)["enemy_move_pace"] * LevelScaling.enemy_move_pace(dungeon_level) 			* LevelScaling.player_catchup(move_speed_multiplier())
+	return Difficulty.data(difficulty)["enemy_move_pace"] * LevelScaling.enemy_move_pace(dungeon_level) 			* LevelScaling.player_catchup(move_speed_multiplier()) * Tempo.ENEMY_MOVE
 
 
 ## Multiplier on damage an enemy takes from the Mage.

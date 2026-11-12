@@ -25,9 +25,9 @@ const CATCHUP_CAP := 0.1
 const GOBLIN_SWING_BRACKETS: Array[int] = [1, 3, 5]
 ## Hard limit on an enemy's scaled walking speed (dashes / charges are separate)
 ## unless the enemy sets its own Enemy.speed_cap (only the Demon, which is meant to
-## catch a Mage that only runs). Kept below the Mage's base speed (150) so the
-## other pursuers can always be outrun.
-const MAX_PURSUER_SPEED := 140.0
+## catch a Mage that only runs). Kept below the Mage's base speed (185) so the
+## other pursuers can always be outrun (Issue #51 tempo: 140 -> 175).
+const MAX_PURSUER_SPEED := 175.0
 ## Extra enemies: +1 per dungeon level above 1 in every combat room (and per
 ## survival wave). From EXTRA_BONUS_FROM_LEVEL, tier-2 combat rooms with at
 ## least EXTRA_BONUS_MIN_POINTS free safe spawn points get one more. The caller

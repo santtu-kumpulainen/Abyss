@@ -83,7 +83,7 @@ func _test_baseline_hp() -> void:
 		hp.append(run.enemy_health_multiplier())
 	_check(is_equal_approx(hp[0], 1.0) and is_equal_approx(hp[1], 1.25) and is_equal_approx(hp[2], 1.5), "RunState HP multiplier at D1-D3 (Normal): %s" % [hp])
 	run.dungeon_level = 3
-	_check(is_equal_approx(run.enemy_damage_multiplier(), 1.12 * 1.10) and is_equal_approx(run.enemy_pace_multiplier(), 1.04),
+	_check(is_equal_approx(run.enemy_damage_multiplier(), 1.12 * 1.10) and is_equal_approx(run.enemy_pace_multiplier(), 1.04 * Tempo.ENEMY_ATTACK),
 			"enemy damage (+6%/level, then the x1.10 factor) and speed (+2%/level) scaling are unchanged")
 	run.free()
 
@@ -117,7 +117,7 @@ func _test_prices_and_caps() -> void:
 	_check(is_equal_approx(mults[0], 1.0) and is_equal_approx(mults[1], 0.95) and is_equal_approx(mults[2], 0.90) and is_equal_approx(mults[3], 0.85),
 			"Quick Cast cooldown multiplier: 1.00 / 0.95 / 0.90 / 0.85 (%s)" % [mults])
 	var base := (load(FIRE_BALL) as Spell).cooldown
-	_check(is_equal_approx(base * mults[3], 0.35 * 0.85), "Fire Ball cooldown with 3 stacks: %.4f s" % (base * mults[3]))
+	_check(is_equal_approx(base * mults[3], 0.31 * 0.85), "Fire Ball cooldown with 3 stacks: %.4f s" % (base * mults[3]))
 	run.claim_treasure(&"rune_sigil")
 	_check(is_equal_approx(run.spell_cooldown_multiplier(), 0.75), "Quick Cast x3 + Rune Sigil x1 add up to x0.75")
 	_next_level(run)

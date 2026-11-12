@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="Spell" format=3]
+
+[ext_resource type="Script" path="res://scripts/spells/spell.gd" id="1_spell"]
+[ext_resource type="PackedScene" path="res://scenes/spells/enemy_water_projectile.tscn" id="2_projectile"]
+[ext_resource type="SpriteFrames" path="res://scenes/spells/water_bolt/water_ball_frames.tres" id="3_frames"]
+[ext_resource type="Resource" path="res://scenes/effects/gigapack/water_impact.tres" id="4_impact"]
+[ext_resource type="Resource" path="res://scenes/effects/freeze_burst.tres" id="5_bounce"]
+
+[resource]
+script = ExtResource("1_spell")
+id = &"big_water_bolt"
+display_name = "Big Water Bolt"
+projectile_scene = ExtResource("2_projectile")
+frames = ExtResource("3_frames")
+visual_scale = 0.14
+collision_radius = 26.0
+impact_effect = ExtResource("4_impact")
+damage = 14.0
+speed = 300.0
+cooldown = 2.4
+lifetime = 6.0
+max_bounces = 2
+bounce_effect = ExtResource("5_bounce")

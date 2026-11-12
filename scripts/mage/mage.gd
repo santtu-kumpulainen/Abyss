@@ -9,6 +9,8 @@ extends CharacterBody2D
 ## direction (or `facing`), ignoring damage for `dash_invulnerability` s and
 ## then recharging for `dash_cooldown` s, both counted from the dash start
 ## (Issue #49). The HUD reads dash_ready()/dash_cooldown_ratio().
+## apply_slow() (Water Caster wave, Issue #51) slows walking for a while; it
+## refreshes instead of stacking and never shortens the dash.
 
 signal died
 ## Emitted when a dash starts, with its unit direction.
@@ -66,10 +68,29 @@ const AFTERIMAGE_GROUP := &"dash_afterimages"
 var facing: StringName = &"south"
 ## Run modifier applied on top of `speed` (set by the Dungeon from RunState).
 var speed_multiplier := 1.0
+## The permanent part of speed_multiplier (items, relics), without temporary
+## boosts such as the Speed Potion (set by the Dungeon from RunState).
+var base_speed_multiplier := 1.0
 ## Run modifier on all damage taken (set by the Dungeon from RunState).
 var damage_taken_multiplier := 1.0
 ## Set by end_run(): take_damage() does nothing.
 var invulnerable := false
+## Tint of the sprite while slowed (apply_slow()).
+var slow_tint := Color(0.6, 0.8, 1.0)
+
+@export_group("Hit feedback")
+## Knockback when damaged (Issue #51 Stage 3): starts at `knockback_speed` along
+## the hit direction and fades linearly to 0 over `knockback_duration` s
+## (220 px/s x 0.12 s -> about 13 px), added to the walking velocity, so walls
+## stop it (move_and_slide). Never during the dash or its invulnerability.
+@export var knockback_speed: float = 220.0
+@export var knockback_duration: float = 0.12
+## Red impact flash: colour, strength (0..1) and fade time (sprite shader;
+## modulate and the slow tint stay untouched).
+@export var hit_flash_color := Color(1.0, 0.2, 0.15)
+@export var hit_flash_strength: float = 0.6
+@export var hit_flash_time: float = 0.18
+@export_group("")
 
 var _dash_direction := Vector2.ZERO
 ## Seconds left of the dash movement (> 0 while dashing).
@@ -77,12 +98,17 @@ var _dash_time_left := 0.0
 var _dash_distance_left := 0.0
 var _dash_invulnerable_left := 0.0
 var _dash_cooldown_left := 0.0
+## Walking speed factor of the current slow and its seconds left (apply_slow()).
+var _slow_factor := 1.0
+var _slow_left := 0.0
 var _afterimages_spawned := 0
 ## Set by the "dash" key; the dash starts on the next physics tick.
 var _dash_requested := false
 var _dash_trail: DashTrail
 ## Visual nodes of the current/last dash (afterimages, puff), freed on cancel.
 var _dash_effects: Array[Node] = []
+var _knock_velocity := Vector2.ZERO
+var _knock_left := 0.0
 
 @onready var caster: SpellCaster = $SpellCaster
 @onready var health: Health = $Health
@@ -98,17 +124,22 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_dash_invulnerable_left = _count_down(_dash_invulnerable_left, delta)
 	_dash_cooldown_left = _count_down(_dash_cooldown_left, delta)
+	if _slow_left > 0.0:
+		_slow_left = _count_down(_slow_left, delta)
+		if _slow_left <= 0.0:
+			clear_slow()
 	# get_vector() clamps length to 1, so diagonals are not faster.
 	var input := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
 	if _dash_requested:
 		_dash_requested = false
 		try_dash(input)
 	if is_dashing():
-		# No walking or casting during the burst.
+		# No walking or casting during the burst; a dash ends any knockback.
+		_knock_left = 0.0
 		_dash_step(delta)
 		return
 
-	velocity = input * speed * speed_multiplier
+	velocity = input * speed * speed_multiplier * slow_multiplier() + _knockback_velocity(delta)
 	move_and_slide()
 
 	if input != Vector2.ZERO:
@@ -133,17 +164,84 @@ func take_damage(amount: float) -> void:
 		return
 	health.take_damage(amount * damage_taken_multiplier)
 	if not health.is_dead():
-		_sprite.modulate = Color(1.0, 0.4, 0.4)
-		create_tween().tween_property(_sprite, ^"modulate", Color.WHITE, 0.15)
+		HitFeedback.flash(_sprite, hit_flash_color, hit_flash_strength, hit_flash_time)
+
+
+## Starts a knockback along `direction` (see knockback_speed). Ignored while
+## dashing, dash-invulnerable, invulnerable (end_run) or dead, i.e. whenever
+## take_damage() would not have hurt. A new hit restarts it. Returns true if started.
+func apply_knockback(direction: Vector2) -> bool:
+	if direction == Vector2.ZERO or knockback_speed <= 0.0 or knockback_duration <= 0.0 \
+			or invulnerable or is_dashing() or is_dash_invulnerable() or is_dead():
+		return false
+	_knock_velocity = direction.normalized() * knockback_speed
+	_knock_left = knockback_duration
+	return true
+
+
+## True while a knockback is pushing the Mage.
+func is_knocked_back() -> bool:
+	return _knock_left > 0.0
+
+
+## Knockback part of this frame's velocity (linear fade), counting its time down.
+func _knockback_velocity(delta: float) -> Vector2:
+	if _knock_left <= 0.0:
+		return Vector2.ZERO
+	var fade := _knock_left / knockback_duration
+	var step := minf(delta, _knock_left)
+	_knock_left -= delta
+	# Average speed over this frame's share of the remaining time (exact for a linear fade).
+	var next_fade := maxf(_knock_left, 0.0) / knockback_duration
+	return _knock_velocity * (fade + next_fade) * 0.5 * (step / maxf(delta, 0.0001))
 
 
 func is_dead() -> bool:
 	return health.is_dead()
 
 
+## Slows walking to `factor` x speed for `duration` s. A new slow while slowed
+## refreshes the time (the longer remaining time wins) and keeps the stronger
+## factor; slows never multiply together. The dash is never slowed.
+func apply_slow(factor: float, duration: float) -> void:
+	if duration <= 0.0 or factor >= 1.0 or is_dead():
+		return
+	_slow_factor = minf(_slow_factor, clampf(factor, 0.0, 1.0)) if is_slowed() else clampf(factor, 0.0, 1.0)
+	_slow_left = maxf(_slow_left, duration)
+	_sprite.self_modulate = slow_tint
+
+
+## Ends the current slow at once.
+func clear_slow() -> void:
+	_slow_factor = 1.0
+	_slow_left = 0.0
+	_sprite.self_modulate = Color.WHITE
+
+
+func is_slowed() -> bool:
+	return _slow_left > 0.0
+
+
+## Seconds left of the current slow (0 when not slowed).
+func slow_remaining() -> float:
+	return _slow_left
+
+
+## Walking speed factor of the current slow (1.0 when not slowed).
+## Walking speed without temporary boosts or slows (Speed Potion, Water Caster
+## slow): what enemies that pace themselves on the Mage (the Demon) follow.
+func base_walk_speed() -> float:
+	return speed * base_speed_multiplier
+
+
+func slow_multiplier() -> float:
+	return _slow_factor if is_slowed() else 1.0
+
+
 ## Ends the run (victory): stops movement and casting, ignores further damage.
 func end_run() -> void:
 	cancel_dash()
+	clear_slow()
 	invulnerable = true
 	velocity = Vector2.ZERO
 	set_physics_process(false)
@@ -229,8 +327,10 @@ func dash_direction() -> Vector2:
 
 
 ## Stops a running dash and its invulnerability at once and removes its
-## visuals (room/level change, death, end_run()). The cooldown keeps running.
+## visuals (room/level change, death, end_run()); any knockback stops too, so
+## it never carries into the next room. The cooldown keeps running.
 func cancel_dash() -> void:
+	_knock_left = 0.0
 	_dash_requested = false
 	_dash_invulnerable_left = 0.0
 	var was_dashing := is_dashing()
@@ -265,6 +365,7 @@ func _play(action: StringName) -> void:
 
 func _on_died() -> void:
 	cancel_dash()
+	clear_slow()
 	# No death animation or game-over flow yet: stop and dim.
 	velocity = Vector2.ZERO
 	set_physics_process(false)

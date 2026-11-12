@@ -44,6 +44,7 @@ func step(body: CharacterBody2D, delta: float, victim: Node2D) -> bool:
 	if not hit and victim and body.global_position.distance_to(victim.global_position) <= hit_radius:
 		hit = true
 		victim.take_damage(damage)
+		HitFeedback.knock(victim, aim)
 	return travelled >= distance
 
 

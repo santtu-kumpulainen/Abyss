@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/health_bar.tscn" id="5_health_bar"]
 
 [ext_resource type="Resource" path="res://scenes/effects/slam_telegraph.tres" id="6_slam_fx"]
+[ext_resource type="Resource" path="res://scenes/effects/violet_burst.tres" id="20_death_fx"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_boss_feet"]
 radius = 22.0
@@ -34,6 +35,9 @@ elite = true
 sprite_frames = ExtResource("3_frames")
 sprite_scale = 5.0
 side_view = true
+death_effect = ExtResource("20_death_fx")
+death_effect_offset = Vector2(0, -60)
+death_effect_diameter = 340.0
 
 [node name="AnimatedSprite2D" parent="." index="0"]
 self_modulate = Color(0.75, 0.55, 1, 1)

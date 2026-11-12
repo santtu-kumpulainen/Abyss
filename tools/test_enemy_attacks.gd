@@ -40,12 +40,15 @@ func _initialize() -> void:
 
 func _run_tests() -> void:
 	_test_player_speed()
-	_test_enemy_speed_scaling()
+	await _test_enemy_speed_scaling()
 	await _test_blood_monster_dash()
 	await _test_blood_monster_sidestep()
+	await _test_dash_telegraph_drawn()
 	_test_goblin_swing_mapping()
 	await _test_goblin_cycle()
 	_test_goblin_geometry()
+	for tier in [Difficulty.Tier.NORMAL, Difficulty.Tier.HARD, Difficulty.Tier.ABYSSAL]:
+		await _test_goblin_dash_timeline(tier)
 	await _test_goblin_swing_area()
 	await _test_goblin_step_out()
 	await _test_goblin_anti_kiting()
@@ -65,7 +68,7 @@ func _mage_base_speed() -> float:
 
 func _test_player_speed() -> void:
 	var base := _mage_base_speed()
-	_check(base > 130.0 and is_equal_approx(base, 150.0), "Mage base speed raised from 130 to %.0f" % base)
+	_check(is_equal_approx(base, 185.0), "Mage base speed %.0f (Issue #51 tempo: 150 -> 185)" % base)
 	_check(is_equal_approx(RunState.ITEMS[&"swift_boots"]["speed"], 0.08) and is_equal_approx(RunState.ITEMS[&"bloodstone"]["speed"], 0.03)
 			and is_equal_approx(RunState.RELICS[&"wind_relic"]["speed"], 0.05), "speed bonuses: Boots +8%, Bloodstone +3%, Wind Relic +5%")
 	var run := RunState.new()
@@ -100,8 +103,8 @@ func _test_enemy_speed_scaling() -> void:
 	for i in 20:
 		run.relics.append(&"wind_relic")
 	var move := run.enemy_move_pace_multiplier()
-	_check(is_equal_approx(move, 1.1 * 1.15 * 1.1), "worst-case move pace x%.3f (Abyssal x level cap x catch-up cap)" % move)
-	_check(is_equal_approx(run.enemy_pace_multiplier(), 1.2 * 1.3), "attack pace unchanged (x%.2f)" % run.enemy_pace_multiplier())
+	_check(is_equal_approx(move, 1.1 * 1.15 * 1.1 * Tempo.ENEMY_MOVE), "worst-case move pace x%.3f (Abyssal x level cap x catch-up cap x tempo 1.25)" % move)
+	_check(is_equal_approx(run.enemy_pace_multiplier(), 1.2 * 1.3 * Tempo.ENEMY_ATTACK), "attack pace: Abyssal x level cap x tempo 1.15 (x%.2f)" % run.enemy_pace_multiplier())
 	var speeds := {}
 	for path in PURSUERS:
 		var enemy := (load(path) as PackedScene).instantiate() as Enemy
@@ -111,8 +114,8 @@ func _test_enemy_speed_scaling() -> void:
 		enemy.apply_scaling(1.0, 1.0, run.enemy_pace_multiplier(), 1.0, move)
 		speeds[path] = enemy.speed
 		if path == DEMON:
-			_check(is_equal_approx(enemy.speed, enemy.speed_cap) and enemy.speed <= base * 1.12 + 0.001,
-					"demon.tscn: %.0f -> %.1f at the highest scaling (its own cap, <= Mage base +12%%)" % [unscaled, enemy.speed])
+			_check(is_equal_approx(enemy.speed, enemy.speed_cap) and enemy.speed <= base * 1.14 + 0.001,
+					"demon.tscn fallback speed (targets without base_walk_speed): %.0f -> %.1f at the highest scaling (its own cap)" % [unscaled, enemy.speed])
 		else:
 			_check(enemy.speed <= LevelScaling.MAX_PURSUER_SPEED + 0.001 and enemy.speed < base and enemy.speed >= unscaled,
 					"%s: %.0f -> %.1f at the highest scaling (< Mage base %.0f)" % [path.get_file(), unscaled, enemy.speed, base])
@@ -127,32 +130,40 @@ func _test_enemy_speed_scaling() -> void:
 	goblin.apply_scaling(1.0, 1.0, 2.0)
 	_check(is_equal_approx(goblin.speed, LevelScaling.MAX_PURSUER_SPEED), "a single pace multiplier is capped too (%.1f)" % goblin.speed)
 	goblin.free()
-	_test_demon_speed(base)
+	await _test_demon_speed(base)
 
 
-## Demon (Issue #47 follow-up): slightly faster than the Mage's base speed so it
-## must be dealt with, with its own modest scaling cap.
+## Demon: walks at 0.9 x the Mage's base walking speed (permanent speed bonuses
+## count; the Speed Potion, slows and run speed scaling do not).
 func _test_demon_speed(mage_base: float) -> void:
+	var mage := (load("res://scenes/mage/mage.tscn") as PackedScene).instantiate() as Mage
+	root.add_child(mage)
+	mage.global_position = Vector2(-3000, 0)
 	var demon := (load(DEMON) as PackedScene).instantiate() as Enemy
-	var unscaled := demon.speed
-	_check(unscaled > mage_base * 1.05 - 0.001 and unscaled <= mage_base * 1.08 + 0.001,
-			"Demon base speed %.0f is 5-8%% above the Mage's %.0f (+%.1f%%)" % [unscaled, mage_base, (unscaled / mage_base - 1.0) * 100.0])
-	_check(demon.speed_cap > unscaled and demon.speed_cap <= mage_base * 1.12, "Demon scaling cap %.0f (<= Mage base +12%%)" % demon.speed_cap)
+	root.add_child(demon)
+	demon.global_position = Vector2(-3000, -200)  # inside its 260 px detection
+	await _frames(2)
+	_check(is_equal_approx(demon.player_speed_ratio, 0.9), "Demon paces itself at 0.9x the Mage's speed")
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base), "Demon walks %.1f px/s (0.9 x %.0f)" % [demon.walk_speed(), mage_base])
+	var start := demon.global_position
+	await _frames(30)
+	var measured := start.distance_to(demon.global_position) / 0.5
+	_check(absf(measured - 0.9 * mage_base) <= 3.0, "Demon really moves at %.1f px/s towards the Mage" % measured)
+	mage.speed_multiplier = 1.25  # Speed Potion active
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base), "Speed Potion on the Mage: Demon speed unchanged (%.1f)" % demon.walk_speed())
+	mage.apply_slow(0.6, 2.0)
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base), "slowed Mage: Demon speed unchanged (%.1f)" % demon.walk_speed())
+	mage.base_speed_multiplier = 1.13  # Boots + Wind Relic
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base * 1.13), "permanent speed bonuses: Demon follows them (%.1f)" % demon.walk_speed())
+	mage.base_speed_multiplier = 1.0
+	var run := RunState.new()
+	run.configure(Difficulty.Tier.ABYSSAL)
+	run.dungeon_level = 20
+	demon.apply_scaling(1.0, 1.0, run.enemy_pace_multiplier(), 1.0, run.enemy_move_pace_multiplier(), run.enemy_recovery_multiplier())
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base), "run speed scaling (Abyssal L20, tempo) does not change it (%.1f)" % demon.walk_speed())
+	run.free()
 	demon.free()
-	var results := []
-	for tier: int in [Difficulty.Tier.NORMAL, Difficulty.Tier.HARD, Difficulty.Tier.ABYSSAL]:
-		for level in [1, 5, 20]:
-			var run := RunState.new()
-			run.configure(tier)
-			run.dungeon_level = level
-			var d := (load(DEMON) as PackedScene).instantiate() as Enemy
-			root.add_child(d)
-			d.apply_scaling(1.0, 1.0, run.enemy_pace_multiplier(), 1.0, run.enemy_move_pace_multiplier())
-			var expected := minf(unscaled * run.enemy_move_pace_multiplier(), d.speed_cap)
-			results.append(is_equal_approx(d.speed, expected) and d.speed > mage_base and d.speed <= d.speed_cap + 0.001)
-			d.free()
-			run.free()
-	_check(not results.has(false), "Demon speed on every difficulty and level: base x move pace, above the Mage, at most its cap")
+	mage.free()
 
 
 # --- Blood Monster dash ------------------------------------------------------------------------------
@@ -218,6 +229,55 @@ func _test_blood_monster_sidestep() -> void:
 	await _frames_until(func() -> bool: return monster.phase == TelegraphedMelee.Phase.RECOVER, 300)
 	_check(is_zero_approx(dummy.taken), "a perpendicular sidestep during the windup avoids the dash")
 	monster.free()
+	dummy.free()
+
+
+## Issue #51 Stage 4 fix: TelegraphedMelee redraws every physics frame again
+## (a Stage 3 edit had left queue_redraw() unreachable, so the regular Blood
+## Monster's dash lane was never drawn). Counts real _draw() passes: the lane is
+## drawn throughout the windup, erased right after it, and gone with the monster
+## if it dies mid-windup. The Brood Mother's charge lane keeps working.
+func _test_dash_telegraph_drawn() -> void:
+	var dummy := _dummy(Vector2(200, 0))
+	var monster := _spawn(BLOOD_MONSTER, Vector2.ZERO) as BloodMonster
+	var draws := {"windup": 0, "after": 0}
+	monster.draw.connect(func() -> void:
+		if monster.phase == TelegraphedMelee.Phase.WINDUP:
+			draws["windup"] += 1
+		elif draws["windup"] > 0:
+			draws["after"] += 1)
+	await _frames(2)
+	_check(monster.begin_special(), "lane setup: dash telegraph started")
+	await _frames(1)
+	_check(monster.dash().aim.is_equal_approx((dummy.global_position - monster.global_position).normalized())
+			and is_equal_approx(monster.dash().distance, monster.dash_distance) and is_equal_approx(monster.dash().hit_radius, monster.dash_hit_radius),
+			"Blood Monster: lane from its feet towards the Mage, dash length x hit width")
+	var windup := await _frames_until(func() -> bool: return monster.phase != TelegraphedMelee.Phase.WINDUP, 300)
+	_check(draws["windup"] >= windup - 2, "Blood Monster: the dash lane is drawn every frame of the windup (%d draws / %d frames)" % [draws["windup"], windup])
+	_check(monster.z_index > -10 and monster.z_as_relative, "Blood Monster: the lane is drawn on the monster (z %d), above the room floor (z -10)" % monster.z_index)
+	await _frames(2)
+	_check(draws["after"] >= 1, "Blood Monster: the lane is erased (redrawn without it) once the windup ends")
+	monster.free()
+	# Killed mid-windup: the lane goes with the monster.
+	monster = _spawn(BLOOD_MONSTER, Vector2.ZERO) as BloodMonster
+	await _frames(2)
+	monster.begin_special()
+	await _frames(10)
+	monster.take_damage(1.0e9)
+	await _frames(1)
+	_check(not is_instance_valid(monster), "Blood Monster: killed during the windup -> lane removed with it")
+	await _frames(60)
+	# Brood Mother (miniboss) charge lane.
+	var mother := _spawn("res://scenes/enemies/brood_mother.tscn", Vector2.ZERO) as BroodMother
+	var mother_draws := [0]
+	mother.draw.connect(func() -> void:
+		if mother.state == Miniboss.State.WINDUP and mother.current_attack == &"charge":
+			mother_draws[0] += 1)
+	await _frames(2)
+	_check(mother.begin_charge(), "Brood Mother: charge telegraph started")
+	var mw := await _frames_until(func() -> bool: return mother.state != Miniboss.State.WINDUP, 300)
+	_check(mother_draws[0] >= mw - 2, "Brood Mother: charge lane drawn every frame of the windup (%d / %d)" % [mother_draws[0], mw])
+	mother.free()
 	dummy.free()
 
 
@@ -316,6 +376,61 @@ func _test_goblin_cycle() -> void:
 	dummy.free()
 
 
+## Issue #51 Goblin Dash timeline on difficulty `tier` (scaled like a deep
+## dungeon level, plus a 3x pace stand-in for a future Tempo system): tracking
+## 0.30 s, locked warning 0.35 s, anticipation 0.30 s (standing still, distinct
+## state), strike 0.12 s that still lunges and hits once.
+func _test_goblin_dash_timeline(tier: int) -> void:
+	var label := Difficulty.display_name(tier)
+	var data := Difficulty.data(tier)
+	var dummy := _dummy(Vector2(100, 0))
+	var goblin := _spawn(GOBLIN, Vector2.ZERO) as Goblin
+	var pace: float = data["enemy_pace"] * LevelScaling.enemy_pace(8) * 3.0
+	goblin.apply_scaling(1.0, 1.0, pace)
+	_check(is_equal_approx(goblin.special_track_time, 0.3) and is_equal_approx(goblin.special_lock_time, 0.35)
+			and is_equal_approx(goblin.special_anticipation, 0.3) and is_equal_approx(goblin.special_windup, 0.95),
+			"%s Goblin Dash: 0.30 tracking + 0.35 locked + 0.30 anticipation = 0.95 s windup, even at %.2fx pace" % [label, pace])
+	await physics_frame
+	var origin := goblin.global_position
+	goblin.begin_special()
+	var counts := {&"track": 0, &"locked": 0, &"anticipation": 0, &"active": 0}
+	var order: Array[StringName] = []
+	var moved := 0.0
+	var hit_in_windup := false
+	for i in 200:
+		var key: StringName
+		match goblin.phase:
+			TelegraphedMelee.Phase.WINDUP:
+				key = &"anticipation" if goblin.is_anticipating() else (&"locked" if goblin.is_aim_locked() else &"track")
+				moved = maxf(moved, goblin.global_position.distance_to(origin))
+				hit_in_windup = hit_in_windup or dummy.hits > 0
+			TelegraphedMelee.Phase.ACTIVE:
+				key = &"active"
+			_:
+				break
+		counts[key] += 1
+		if order.is_empty() or order.back() != key:
+			order.append(key)
+		await physics_frame
+	var t := func(k: StringName) -> float: return counts[k] / 60.0
+	_check(order == [&"track", &"locked", &"anticipation", &"active"],
+			"%s Goblin Dash: phases run tracking -> locked -> anticipation -> strike, each exactly once (%s)" % [label, order])
+	_check(absf(t.call(&"track") - 0.3) <= 0.017 and absf(t.call(&"locked") - 0.35) <= 0.017
+			and absf(t.call(&"anticipation") - 0.3) <= 0.017 and absf(t.call(&"active") - 0.12) <= 0.017,
+			"%s Goblin Dash timeline: tracking %.2f s, locked %.2f s, anticipation %.2f s, strike %.2f s"
+			% [label, t.call(&"track"), t.call(&"locked"), t.call(&"anticipation"), t.call(&"active")])
+	var reaction: float = t.call(&"locked") + t.call(&"anticipation")
+	var total: float = t.call(&"track") + reaction
+	_check(reaction >= 0.65 - 0.017 and reaction > 0.33 + 0.25 and absf(total - 0.95) <= 0.04,
+			"%s Goblin Dash: %.2f s to react after the lock (was 0.30-0.33 s), %.2f s total warning" % [label, reaction, total])
+	_check(moved < 0.5 and not hit_in_windup, "%s Goblin Dash: the goblin stands still and deals no damage during the whole warning" % label)
+	_check(dummy.hits == 1 and is_equal_approx(dummy.taken, goblin.special_damage)
+			and goblin.global_position.distance_to(origin) > goblin.lunge * 0.8 and goblin.lunge > 0.0,
+			"%s Goblin Dash: the strike still lunges (%.0f of %.0f px) and hits once for %.0f" % [label, goblin.global_position.distance_to(origin), goblin.lunge, dummy.taken])
+	goblin.free()
+	dummy.free()
+
+
 func _test_goblin_geometry() -> void:
 	var goblin := _spawn(GOBLIN, Vector2(400, 400)) as Goblin
 	_check(is_equal_approx(goblin.strike_length, 80.0 * 1.35) and is_equal_approx(goblin.strike_half_width, 18.0 * 1.35),
@@ -365,9 +480,10 @@ func _test_goblin_swing_area() -> void:
 			"swing timing (0.25 s / 0.3 s / 1.0 s cooldown) and damage 12 unchanged")
 	_check(goblin.swing_slash_time > 0.0 and goblin.swing_slash_time <= goblin.swing_recover,
 			"the slash effect (%.2f s) ends within the recovery" % goblin.swing_slash_time)
-	_check(is_equal_approx(goblin.special_windup, 0.6) and is_equal_approx(goblin.special_damage, 14.0) and is_equal_approx(goblin.strike_active, 0.12)
-			and is_equal_approx(goblin.strike_length, 108.0) and is_equal_approx(goblin.strike_half_width, 24.3),
-			"the special strike is unchanged (0.6 s warning, 0.12 s, 14 damage, 108 x 48.6)")
+	_check(is_equal_approx(goblin.special_windup, 0.95) and is_equal_approx(goblin.special_damage, 14.0) and is_equal_approx(goblin.strike_active, 0.12)
+			and is_equal_approx(goblin.strike_length, 108.0) and is_equal_approx(goblin.strike_half_width, 24.3)
+			and is_equal_approx(goblin.lunge_max, 150.0) and is_equal_approx(goblin.lunge_stop, 30.0),
+			"the special strike: 0.95 s warning (Issue #51), unchanged 0.12 s strike, 14 damage, 108 x 48.6, 150 px lunge")
 	goblin.free()
 	var cases := [
 		[Vector2(55, 0), true, "55 px straight ahead"],
@@ -464,17 +580,31 @@ func _test_goblin_anti_kiting() -> void:
 	goblin.free()
 	dummy.free()
 
-	# Passive straight retreat after the lock is still hit (only leaving the area dodges).
+	# A late reaction is punished: standing through the locked warning and only
+	# running straight away during the anticipation is still hit.
 	pair = _kite_goblin()
 	goblin = pair[0]
 	dummy = pair[1]
 	await _kite(goblin, dummy, Vector2(120, 0), func() -> bool: return goblin.is_aim_locked(), 600)
 	var run_dir := goblin.aim
+	await _frames_until(func() -> bool: return goblin.is_anticipating(), 120)
 	while goblin.phase == TelegraphedMelee.Phase.WINDUP or goblin.phase == TelegraphedMelee.Phase.ACTIVE:
 		dummy.global_position += run_dir * 150.0 / 60.0
 		await physics_frame
 	_check(dummy.hits == 1 and is_equal_approx(dummy.taken, goblin.special_damage),
-			"running straight away at the Mage's base speed does not escape the strike (%.0f damage)" % dummy.taken)
+			"running straight away only during the anticipation does not escape the strike (%.0f damage)" % dummy.taken)
+	goblin.free()
+	dummy.free()
+	# Reacting at the lock (0.65 s before the strike) escapes even straight away at base speed.
+	pair = _kite_goblin()
+	goblin = pair[0]
+	dummy = pair[1]
+	await _kite(goblin, dummy, Vector2(120, 0), func() -> bool: return goblin.is_aim_locked(), 600)
+	run_dir = goblin.aim
+	while goblin.phase == TelegraphedMelee.Phase.WINDUP or goblin.phase == TelegraphedMelee.Phase.ACTIVE:
+		dummy.global_position += run_dir * 150.0 / 60.0
+		await physics_frame
+	_check(dummy.hits == 0, "reacting at the lock: walking straight away at base speed escapes (0.65 s reaction window)")
 	goblin.free()
 	dummy.free()
 

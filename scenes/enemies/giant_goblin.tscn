@@ -3,12 +3,15 @@
 [ext_resource type="PackedScene" path="res://scenes/enemies/enemy.tscn" id="1_enemy"]
 [ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/giant_goblin.tres" id="2_frames"]
 [ext_resource type="Script" path="res://scripts/enemies/goblin.gd" id="3_script"]
+[ext_resource type="Resource" path="res://scenes/effects/gigapack/green_splatter.tres" id="20_death_fx"]
 
 [node name="GiantGoblin" instance=ExtResource("1_enemy")]
 script = ExtResource("3_script")
 special_max_range = 180.0
 speed = 100.0
 sprite_frames = ExtResource("2_frames")
+death_effect = ExtResource("20_death_fx")
+death_effect_offset = Vector2(0, -18)
 
 [node name="AnimatedSprite2D" parent="." index="0"]
 sprite_frames = ExtResource("2_frames")
