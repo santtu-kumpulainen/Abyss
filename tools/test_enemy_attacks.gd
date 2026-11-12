@@ -46,6 +46,8 @@ func _run_tests() -> void:
 	_test_goblin_swing_mapping()
 	await _test_goblin_cycle()
 	_test_goblin_geometry()
+	for tier in [Difficulty.Tier.NORMAL, Difficulty.Tier.HARD, Difficulty.Tier.ABYSSAL]:
+		await _test_goblin_dash_timeline(tier)
 	await _test_goblin_swing_area()
 	await _test_goblin_step_out()
 	await _test_goblin_anti_kiting()
@@ -316,6 +318,61 @@ func _test_goblin_cycle() -> void:
 	dummy.free()
 
 
+## Issue #51 Goblin Dash timeline on difficulty `tier` (scaled like a deep
+## dungeon level, plus a 3x pace stand-in for a future Tempo system): tracking
+## 0.30 s, locked warning 0.35 s, anticipation 0.30 s (standing still, distinct
+## state), strike 0.12 s that still lunges and hits once.
+func _test_goblin_dash_timeline(tier: int) -> void:
+	var label := Difficulty.display_name(tier)
+	var data := Difficulty.data(tier)
+	var dummy := _dummy(Vector2(100, 0))
+	var goblin := _spawn(GOBLIN, Vector2.ZERO) as Goblin
+	var pace: float = data["enemy_pace"] * LevelScaling.enemy_pace(8) * 3.0
+	goblin.apply_scaling(1.0, 1.0, pace)
+	_check(is_equal_approx(goblin.special_track_time, 0.3) and is_equal_approx(goblin.special_lock_time, 0.35)
+			and is_equal_approx(goblin.special_anticipation, 0.3) and is_equal_approx(goblin.special_windup, 0.95),
+			"%s Goblin Dash: 0.30 tracking + 0.35 locked + 0.30 anticipation = 0.95 s windup, even at %.2fx pace" % [label, pace])
+	await physics_frame
+	var origin := goblin.global_position
+	goblin.begin_special()
+	var counts := {&"track": 0, &"locked": 0, &"anticipation": 0, &"active": 0}
+	var order: Array[StringName] = []
+	var moved := 0.0
+	var hit_in_windup := false
+	for i in 200:
+		var key: StringName
+		match goblin.phase:
+			TelegraphedMelee.Phase.WINDUP:
+				key = &"anticipation" if goblin.is_anticipating() else (&"locked" if goblin.is_aim_locked() else &"track")
+				moved = maxf(moved, goblin.global_position.distance_to(origin))
+				hit_in_windup = hit_in_windup or dummy.hits > 0
+			TelegraphedMelee.Phase.ACTIVE:
+				key = &"active"
+			_:
+				break
+		counts[key] += 1
+		if order.is_empty() or order.back() != key:
+			order.append(key)
+		await physics_frame
+	var t := func(k: StringName) -> float: return counts[k] / 60.0
+	_check(order == [&"track", &"locked", &"anticipation", &"active"],
+			"%s Goblin Dash: phases run tracking -> locked -> anticipation -> strike, each exactly once (%s)" % [label, order])
+	_check(absf(t.call(&"track") - 0.3) <= 0.017 and absf(t.call(&"locked") - 0.35) <= 0.017
+			and absf(t.call(&"anticipation") - 0.3) <= 0.017 and absf(t.call(&"active") - 0.12) <= 0.017,
+			"%s Goblin Dash timeline: tracking %.2f s, locked %.2f s, anticipation %.2f s, strike %.2f s"
+			% [label, t.call(&"track"), t.call(&"locked"), t.call(&"anticipation"), t.call(&"active")])
+	var reaction: float = t.call(&"locked") + t.call(&"anticipation")
+	var total: float = t.call(&"track") + reaction
+	_check(reaction >= 0.65 - 0.017 and reaction > 0.33 + 0.25 and absf(total - 0.95) <= 0.04,
+			"%s Goblin Dash: %.2f s to react after the lock (was 0.30-0.33 s), %.2f s total warning" % [label, reaction, total])
+	_check(moved < 0.5 and not hit_in_windup, "%s Goblin Dash: the goblin stands still and deals no damage during the whole warning" % label)
+	_check(dummy.hits == 1 and is_equal_approx(dummy.taken, goblin.special_damage)
+			and goblin.global_position.distance_to(origin) > goblin.lunge * 0.8 and goblin.lunge > 0.0,
+			"%s Goblin Dash: the strike still lunges (%.0f of %.0f px) and hits once for %.0f" % [label, goblin.global_position.distance_to(origin), goblin.lunge, dummy.taken])
+	goblin.free()
+	dummy.free()
+
+
 func _test_goblin_geometry() -> void:
 	var goblin := _spawn(GOBLIN, Vector2(400, 400)) as Goblin
 	_check(is_equal_approx(goblin.strike_length, 80.0 * 1.35) and is_equal_approx(goblin.strike_half_width, 18.0 * 1.35),
@@ -365,9 +422,10 @@ func _test_goblin_swing_area() -> void:
 			"swing timing (0.25 s / 0.3 s / 1.0 s cooldown) and damage 12 unchanged")
 	_check(goblin.swing_slash_time > 0.0 and goblin.swing_slash_time <= goblin.swing_recover,
 			"the slash effect (%.2f s) ends within the recovery" % goblin.swing_slash_time)
-	_check(is_equal_approx(goblin.special_windup, 0.6) and is_equal_approx(goblin.special_damage, 14.0) and is_equal_approx(goblin.strike_active, 0.12)
-			and is_equal_approx(goblin.strike_length, 108.0) and is_equal_approx(goblin.strike_half_width, 24.3),
-			"the special strike is unchanged (0.6 s warning, 0.12 s, 14 damage, 108 x 48.6)")
+	_check(is_equal_approx(goblin.special_windup, 0.95) and is_equal_approx(goblin.special_damage, 14.0) and is_equal_approx(goblin.strike_active, 0.12)
+			and is_equal_approx(goblin.strike_length, 108.0) and is_equal_approx(goblin.strike_half_width, 24.3)
+			and is_equal_approx(goblin.lunge_max, 150.0) and is_equal_approx(goblin.lunge_stop, 30.0),
+			"the special strike: 0.95 s warning (Issue #51), unchanged 0.12 s strike, 14 damage, 108 x 48.6, 150 px lunge")
 	goblin.free()
 	var cases := [
 		[Vector2(55, 0), true, "55 px straight ahead"],
@@ -464,17 +522,31 @@ func _test_goblin_anti_kiting() -> void:
 	goblin.free()
 	dummy.free()
 
-	# Passive straight retreat after the lock is still hit (only leaving the area dodges).
+	# A late reaction is punished: standing through the locked warning and only
+	# running straight away during the anticipation is still hit.
 	pair = _kite_goblin()
 	goblin = pair[0]
 	dummy = pair[1]
 	await _kite(goblin, dummy, Vector2(120, 0), func() -> bool: return goblin.is_aim_locked(), 600)
 	var run_dir := goblin.aim
+	await _frames_until(func() -> bool: return goblin.is_anticipating(), 120)
 	while goblin.phase == TelegraphedMelee.Phase.WINDUP or goblin.phase == TelegraphedMelee.Phase.ACTIVE:
 		dummy.global_position += run_dir * 150.0 / 60.0
 		await physics_frame
 	_check(dummy.hits == 1 and is_equal_approx(dummy.taken, goblin.special_damage),
-			"running straight away at the Mage's base speed does not escape the strike (%.0f damage)" % dummy.taken)
+			"running straight away only during the anticipation does not escape the strike (%.0f damage)" % dummy.taken)
+	goblin.free()
+	dummy.free()
+	# Reacting at the lock (0.65 s before the strike) escapes even straight away at base speed.
+	pair = _kite_goblin()
+	goblin = pair[0]
+	dummy = pair[1]
+	await _kite(goblin, dummy, Vector2(120, 0), func() -> bool: return goblin.is_aim_locked(), 600)
+	run_dir = goblin.aim
+	while goblin.phase == TelegraphedMelee.Phase.WINDUP or goblin.phase == TelegraphedMelee.Phase.ACTIVE:
+		dummy.global_position += run_dir * 150.0 / 60.0
+		await physics_frame
+	_check(dummy.hits == 0, "reacting at the lock: walking straight away at base speed escapes (0.65 s reaction window)")
 	goblin.free()
 	dummy.free()
 

@@ -55,6 +55,12 @@ func _ready() -> void:
 		label.text = display_name
 
 
+## False during the opening delay (in the Dungeon: the shared room-entry delay,
+## counted only while the encounter is active): no attack, not even a contact hit.
+func attacks_unlocked() -> bool:
+	return _opening_left <= 0.0
+
+
 ## True during a punish window.
 func is_vulnerable() -> bool:
 	return _vulnerable
@@ -189,12 +195,12 @@ func _room() -> Room:
 	return node as Room
 
 
-## Moves towards the target and hits it on contact (like Enemy).
+## Moves towards the target and hits it on contact (like Enemy; no hit during the opening delay).
 func _chase_and_hit() -> void:
 	var to_target := target.global_position - global_position
 	if to_target.length() > attack_range:
 		velocity = to_target.normalized() * speed
-	elif _attack_cooldown_left <= 0.0:
+	elif _attack_cooldown_left <= 0.0 and attacks_unlocked():
 		_attack_cooldown_left = attack_cooldown
 		target.take_damage(contact_damage)
 

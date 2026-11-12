@@ -20,13 +20,19 @@ extends TelegraphedMelee
 ## 2*`strike_half_width` wide and `strike_length` + the lunge long. The lunge
 ## (0..`lunge_max`) carries the goblin to `lunge_stop` px short of the Mage, so a
 ## Mage next to it gets the in-place strike and a Mage further away gets a lunging
-## one. For the first `special_track_time` s the aim and lunge follow the Mage
-## (thin outline); then they lock (bold outline, the fill sweeps towards the tip).
+## one. Windup timeline (Issue #51, same on every difficulty, never scaled by pace):
+##   tracking      `special_track_time` s   - aim and lunge follow the Mage (thin outline)
+##   locked        `special_lock_time` s    - aim locked (bold outline, the fill sweeps to the tip)
+##   anticipation  `special_anticipation` s - still locked and standing still; the whole
+##                                            rectangle pulses bright (is_anticipating())
+## so special_windup = their sum (0.95 s) and the Mage has 0.65 s after the lock.
 ## In the `strike_active` s window the goblin lunges along the locked aim and the
 ## Mage takes `special_damage` once if its position is inside the locked
 ## rectangle; a gold slash covers exactly that rectangle and fades over
 ## `slash_fade` s (the fade deals no damage). Leaving the rectangle after the
-## lock (e.g. a sidestep) avoids the hit; walking straight away does not.
+## lock (e.g. a sidestep or a Dash) avoids the hit. Walking straight away from
+## the lock on also escapes now, but a Mage that only starts to leave during the
+## anticipation is still hit.
 ##
 ## Anti-kiting: after `kite_patience` s of chasing a Mage outside its swing range
 ## without swinging, the goblin skips its remaining swings, so the special
@@ -68,8 +74,13 @@ extends TelegraphedMelee
 ## blade still reaches strike_length - lunge_stop past it.
 @export var lunge_stop: float = 30.0
 ## Seconds at the start of the windup during which aim and lunge follow the Mage
-## (the rest of the windup is locked; never scaled by pace).
+## (never scaled by pace).
 @export var special_track_time: float = 0.3
+## Seconds of the locked warning after the tracking (never scaled by pace).
+@export var special_lock_time: float = 0.35
+## Seconds of the anticipation after the locked warning, right before the strike:
+## the goblin stands still and the locked rectangle pulses (never scaled by pace).
+@export var special_anticipation: float = 0.3
 
 @export_group("Anti-kiting")
 ## Seconds of chasing a Mage outside swing range without swinging before the
@@ -77,6 +88,9 @@ extends TelegraphedMelee
 @export var kite_patience: float = 2.0
 
 enum Swing { NONE, WINDUP, RECOVER }
+
+## Float slack so the lock lands on the frame where special_track_time is reached.
+const TIME_EPSILON := 0.0001
 
 ## Normal swings done since the last special.
 var swings_done := 0
@@ -107,8 +121,20 @@ var _origin_locked := false
 
 
 func _ready() -> void:
+	_sync_windup()
 	super._ready()
 	_kite_left = kite_patience
+
+
+## special_windup is always tracking + locked warning + anticipation.
+func _sync_windup() -> void:
+	special_windup = special_track_time + special_lock_time + special_anticipation
+
+
+## Pace (and any future tempo scaling) never shortens the warning intervals.
+func _scale_attacks(damage_mult: float, pace_mult: float) -> void:
+	super._scale_attacks(damage_mult, pace_mult)
+	_sync_windup()
 
 
 ## True if global `pos` is inside the strike rectangle (the telegraphed area).
@@ -131,7 +157,12 @@ func strike_reach() -> float:
 
 ## True once the special's aim and lunge are locked (after special_track_time of the windup).
 func is_aim_locked() -> bool:
-	return phase != Phase.CHASE and _track_left <= 0.0
+	return phase != Phase.CHASE and _track_left <= TIME_EPSILON
+
+
+## True during the anticipation: the last `special_anticipation` s of the windup.
+func is_anticipating() -> bool:
+	return phase == Phase.WINDUP and is_aim_locked() and _phase_left <= special_anticipation
 
 
 ## True if global `pos` is inside the current normal swing's sector.
@@ -265,7 +296,7 @@ func _special_active(delta: float) -> bool:
 func _physics_process(delta: float) -> void:
 	_swing_slash_left = maxf(_swing_slash_left - delta, 0.0)
 	_slash_left = maxf(_slash_left - delta, 0.0)
-	if phase == Phase.WINDUP and _track_left > 0.0:
+	if phase == Phase.WINDUP and _track_left > TIME_EPSILON:
 		_update_lunge(_find_target())
 		_track_left -= delta
 	elif phase == Phase.CHASE and _slash_left <= 0.0:
@@ -286,7 +317,8 @@ func _draw() -> void:
 
 
 ## Red strike rectangle: a thin outline while the aim still follows the Mage,
-## then a bold outline with a fill sweeping towards the tip until the strike.
+## then a bold outline with a fill sweeping towards the tip over the locked
+## warning, then (anticipation) the full rectangle pulsing white-hot until the strike.
 func _draw_strike_telegraph() -> void:
 	var area := strike_polygon()
 	var outline := area + PackedVector2Array([area[0]])
@@ -294,8 +326,13 @@ func _draw_strike_telegraph() -> void:
 	if not is_aim_locked():
 		draw_polyline(outline, Color(1.0, 0.45, 0.25, 0.5), 1.0)
 		return
-	var locked_time := maxf(special_windup - special_track_time, 0.01)
-	var progress := clampf(1.0 - _phase_left / locked_time, 0.0, 1.0)
+	if is_anticipating():
+		var pulse := 0.5 + 0.5 * cos(TAU * 3.0 * (special_anticipation - _phase_left) / maxf(special_anticipation, 0.01))
+		draw_colored_polygon(area, Color(1.0, 0.25 + 0.55 * pulse, 0.2 + 0.5 * pulse, 0.35 + 0.25 * pulse))
+		draw_polyline(outline, Color(0.0, 0.0, 0.0, 0.6), 5.0)
+		draw_polyline(outline, Color(1.0, 0.9 + 0.1 * pulse, 0.75 + 0.25 * pulse, 1.0), 3.0)
+		return
+	var progress := clampf(1.0 - (_phase_left - special_anticipation) / maxf(special_lock_time, 0.01), 0.0, 1.0)
 	var origin := area[0] - aim.orthogonal() * strike_half_width
 	var side := aim.orthogonal() * strike_half_width
 	var reach := aim * strike_reach() * progress

@@ -4,6 +4,8 @@
 [ext_resource type="PackedScene" path="res://scenes/mage/mage.tscn" id="2_mage"]
 [ext_resource type="PackedScene" path="res://scenes/ui/game_over_overlay.tscn" id="4_game_over"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/water_caster_boss.tscn" id="5_hmct3"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/hexcaller.tscn" id="5_kvgh1"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/brood_mother.tscn" id="6_1yej1"]
 
 [node name="CombatTest" type="Node2D" unique_id=1676954969]
 
@@ -18,4 +20,96 @@ visible = false
 player = NodePath("../Mage")
 
 [node name="WaterCasterBoss" parent="." unique_id=343323041 instance=ExtResource("5_hmct3")]
-position = Vector2(456, 455)
+position = Vector2(917, 532)
+bolt_damage = 14.0
+bolt_speed = 300.0
+bolt_windup = 0.7
+bolt_cooldown = 2.6
+bolt_burst = 1
+bolt_burst_interval = 0.3
+bolt_range = 700.0
+zone_count = 3
+zone_radius = 95.0
+zone_delay = 1.1
+zone_stagger = 0.4
+zone_spacing = 210.0
+zone_damage = 12.0
+zone_windup = 0.6
+zone_cooldown = 6.5
+zone_color = Color(0.3, 0.65, 1, 1)
+wave_cast = 0.5
+wave_telegraph = 1.4
+wave_speed = 520.0
+wave_thickness = 80.0
+wave_lane_fraction = 0.5
+wave_damage = 12.0
+wave_slow_factor = 0.6
+wave_slow_duration = 2.5
+wave_cooldown = 10.0
+wave_followup_zones = 0
+wave_color = Color(0.35, 0.7, 1, 1)
+preferred_min = 220.0
+preferred_max = 380.0
+aura_color = Color(0.35, 0.7, 1, 0.4)
+aura_radius = 48.0
+cast_stretch = 0.08
+tier_cooldown_step = 0.1
+opening_delay = 1.2
+recover_time = 0.6
+punish_multiplier = 1.6
+floor_margin = 150.0
+
+[node name="Hexcaller" parent="." unique_id=1281503367 instance=ExtResource("5_kvgh1")]
+position = Vector2(104, 129)
+fan_damage = 9.0
+fan_speed = 240.0
+fan_count = 3
+fan_spread_degrees = 16.0
+fan_windup = 0.75
+fan_cooldown = 2.6
+fan_range = 560.0
+hex_count = 3
+hex_radius = 72.0
+hex_delay = 1.2
+hex_damage = 10.0
+hex_lifetime = 3.0
+hex_pulse = 1.0
+hex_windup = 0.6
+hex_cooldown = 6.0
+hex_lead_time = 0.8
+hex_spread = 150.0
+hex_color = Color(0.75, 0.35, 1, 1)
+preferred_min = 230.0
+preferred_max = 380.0
+blink_trigger = 150.0
+blink_hold = 0.7
+blink_windup = 0.65
+blink_cooldown = 5.0
+opening_delay = 1.2
+recover_time = 0.6
+punish_multiplier = 1.6
+floor_margin = 150.0
+
+[node name="BroodMother" parent="." unique_id=1069574306 instance=ExtResource("6_1yej1")]
+position = Vector2(611, 562)
+summon_count = 2
+max_summons = 4
+summon_windup = 1.8
+summon_cooldown = 7.0
+summon_distance = 130.0
+summon_radius = 34.0
+summon_color = Color(0.45, 1, 0.45, 1)
+charge_windup = 0.85
+charge_cooldown = 4.5
+charge_speed = 620.0
+charge_distance = 440.0
+charge_damage = 18.0
+charge_hit_radius = 48.0
+charge_min_range = 110.0
+charge_max_range = 520.0
+charge_recover = 1.0
+opening_delay = 1.2
+recover_time = 0.6
+punish_multiplier = 1.6
+muzzle_offset = Vector2(0, -40)
+floor_margin = 150.0
