@@ -35,3 +35,10 @@ extends Resource
 @export var cooldown: float = 0.4
 ## Seconds before an unhit projectile is removed.
 @export var lifetime: float = 1.5
+
+@export_group("Bounces")
+## Walls ("world" layer) the projectile bounces off before the next wall ends
+## it (0 = it ends at the first wall, like every spell so far).
+@export var max_bounces: int = 0
+## Played where the projectile bounces off a wall (sized to its hit area).
+@export var bounce_effect: EffectSheet

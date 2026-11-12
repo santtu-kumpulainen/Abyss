@@ -22,6 +22,8 @@ const SHEETS := {
 	&"haste": preload("res://scenes/effects/gigapack/haste.tres"),
 	## Anvil supply bought.
 	&"coin_burst": preload("res://scenes/effects/gigapack/coin_burst.tres"),
+	## Water Caster miniboss: big water bolt impact (Issue #51).
+	&"water_impact": preload("res://scenes/effects/gigapack/water_impact.tres"),
 }
 
 

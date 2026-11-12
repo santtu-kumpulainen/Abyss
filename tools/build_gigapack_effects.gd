@@ -34,6 +34,8 @@ const EFFECTS := {
 	&"haste": {"sheet": "Fantasy Spells/spell_haste_001/spell_haste_001_large_green", "scale": 0.6},
 	# Anvil supply bought.
 	&"coin_burst": {"sheet": "Magic Bursts/directional_coin_burst_001/directional_coin_burst_001_large_yellow", "scale": 0.45},
+	# Water Caster miniboss: big water bolt impact (Issue #51; same imported sheet as teleport_ring, all frames).
+	&"water_impact": {"sheet": "Impacts/symmetrical_impact_002/symmetrical_impact_002_large_blue", "scale": 2.0},
 }
 
 

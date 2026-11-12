@@ -1,18 +1,80 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cphx4w5tpebc"]
 
 [ext_resource type="PackedScene" path="res://scenes/rooms/test_room.tscn" id="1_test_room"]
 [ext_resource type="PackedScene" path="res://scenes/mage/mage.tscn" id="2_mage"]
 [ext_resource type="PackedScene" path="res://scenes/test/test_target.tscn" id="3_target"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/water_caster_boss.tscn" id="4_lbube"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="5_c82gf"]
 
-[node name="MageTest" type="Node2D"]
+[node name="MageTest" type="Node2D" unique_id=1953124284]
 
-[node name="TestRoom" parent="." instance=ExtResource("1_test_room")]
+[node name="TestRoom" parent="." unique_id=1647409584 instance=ExtResource("1_test_room")]
 
-[node name="Mage" parent="." instance=ExtResource("2_mage")]
+[node name="Mage" parent="." unique_id=704466758 instance=ExtResource("2_mage")]
 position = Vector2(300, 324)
 
-[node name="TargetA" parent="." instance=ExtResource("3_target")]
+[node name="TargetA" parent="." unique_id=1431850108 instance=ExtResource("3_target")]
 position = Vector2(700, 250)
 
-[node name="TargetB" parent="." instance=ExtResource("3_target")]
+[node name="TargetB" parent="." unique_id=1970053899 instance=ExtResource("3_target")]
 position = Vector2(820, 420)
+
+[node name="WaterCasterBoss" parent="." unique_id=2012593145 instance=ExtResource("4_lbube")]
+position = Vector2(649, 457)
+bolt_damage = 14.0
+bolt_speed = 230.0
+bolt_windup = 0.7
+bolt_cooldown = 2.6
+bolt_burst = 1
+bolt_burst_interval = 0.3
+bolt_range = 700.0
+zone_count = 3
+zone_radius = 78.0
+zone_delay = 1.1
+zone_stagger = 0.4
+zone_spacing = 175.0
+zone_damage = 12.0
+zone_windup = 0.6
+zone_cooldown = 6.5
+zone_color = Color(0.3, 0.65, 1, 1)
+wave_cast = 0.5
+wave_telegraph = 1.4
+wave_speed = 520.0
+wave_thickness = 56.0
+wave_lane_fraction = 0.5
+wave_damage = 12.0
+wave_slow_factor = 0.6
+wave_slow_duration = 2.5
+wave_cooldown = 10.0
+wave_followup_zones = 0
+wave_color = Color(0.35, 0.7, 1, 1)
+preferred_min = 220.0
+preferred_max = 380.0
+tier_cooldown_step = 0.1
+opening_delay = 1.2
+recover_time = 0.6
+punish_multiplier = 1.6
+floor_margin = 150.0
+
+[node name="GiantGoblin" parent="." unique_id=1680688405 instance=ExtResource("5_c82gf")]
+position = Vector2(175, 571)
+swings_before_special = 3
+swing_windup = 0.25
+swing_recover = 0.3
+swing_reach = 60.0
+swing_half_angle = 70.0
+swing_slash_time = 0.18
+strike_active = 0.12
+strike_length = 108.0
+strike_half_width = 24.3
+slash_fade = 0.2
+lunge_max = 150.0
+lunge_stop = 30.0
+special_track_time = 0.3
+kite_patience = 2.0
+opening_delay = 1.0
+special_min_range = 0.0
+special_windup = 0.6
+special_recover = 0.5
+special_cooldown = 2.5
+special_damage = 14.0

@@ -182,7 +182,8 @@ func _test_placement() -> void:
 				rewards_ok = rewards_ok and ids.size() == 2 and ids[0] != ids[1] and ids.all(func(id: StringName) -> bool: return pool.has(id))
 			for i in _dungeon.rooms.size():
 				ok = ok and (_dungeon.miniboss_scene(i) != null) == bosses.has(i)
-			both = both and kinds.size() == mini(count, 2)
+			# The shuffle bag never repeats a type before all have appeared.
+			both = both and kinds.size() == mini(count, _dungeon.miniboss_scenes.size())
 			if count == 2:
 				var all_ids := _dungeon.reward_choices(bosses[0]) + _dungeon.reward_choices(bosses[1])
 				var unique := {}
@@ -193,7 +194,7 @@ func _test_placement() -> void:
 				ok = ok and not _adjacent(bosses[0], bosses[1])
 		_check(ok, "%d miniboss room(s): exactly the planned miniboss rooms, %d of them seal sources, never boss/anvil (%d seeds)%s"
 				% [count, mini(count, 2), SEEDS, " and never adjacent" if count == 2 else ""])
-		_check(both, "%d miniboss room(s): %s" % [count, "both minibosses appear" if count >= 2 else "one miniboss"])
+		_check(both, "%d miniboss room(s): %s" % [count, "%d different miniboss types" % mini(count, _dungeon.miniboss_scenes.size()) if count >= 2 else "one miniboss"])
 		_check(rewards_ok, "%d miniboss room(s): two different reward items each%s" % [count, ", all four different" if count == 2 else ""])
 		_check(distinct_rooms.size() > 5, "%d miniboss room(s): placement varies by seed (%d layouts)" % [count, distinct_rooms.size()])
 	_dungeon.miniboss_rooms = 2
@@ -707,20 +708,20 @@ func _test_double_room(level: int) -> void:
 	_check(bosses.size() == 2 and _enemies(room).size() == 2, "level %d double room: exactly two minibosses, nothing else" % level)
 	if bosses.size() != 2:
 		return
-	var brood: BroodMother = bosses.filter(func(e: Node) -> bool: return e is BroodMother).front()
-	var hex: Hexcaller = bosses.filter(func(e: Node) -> bool: return e is Hexcaller).front()
-	_check(brood != null and hex != null, "level %d double room: Brood Mother and Hexcaller" % level)
-	if brood == null or hex == null:
-		return
-	var xp_sum: int = brood.xp_reward + hex.xp_reward
-	var gold_sum: int = brood.currency_reward + hex.currency_reward
-	_check(xp_sum == lineup_xp and absi(brood.xp_reward - hex.xp_reward) <= 1,
-			"level %d double room: XP split exactly (%d + %d = %d, line-up %d)" % [level, brood.xp_reward, hex.xp_reward, xp_sum, lineup_xp])
+	# Roster-agnostic (Issue #51 Stage 2b: Brood Mother, Hexcaller and Water Caster): two different types.
+	var first: Miniboss = bosses[0]
+	var second: Miniboss = bosses[1]
+	_check(first.scene_file_path != second.scene_file_path,
+			"level %d double room: two different minibosses (%s and %s)" % [level, first.display_name, second.display_name])
+	var xp_sum: int = first.xp_reward + second.xp_reward
+	var gold_sum: int = first.currency_reward + second.currency_reward
+	_check(xp_sum == lineup_xp and absi(first.xp_reward - second.xp_reward) <= 1,
+			"level %d double room: XP split exactly (%d + %d = %d, line-up %d)" % [level, first.xp_reward, second.xp_reward, xp_sum, lineup_xp])
 	var comp := _dungeon.miniboss_compensation_gold(index)
 	_check(gold_sum == lineup_gold + comp + 2 * _dungeon.miniboss_bonus_gold
-			and absi(brood.currency_reward - hex.currency_reward) <= 1,
+			and absi(first.currency_reward - second.currency_reward) <= 1,
 			"level %d double room: line-up + omitted-extras gold split exactly, bonus per miniboss (%d + %d = %d + %d + 2 x %d)"
-			% [level, brood.currency_reward, hex.currency_reward, lineup_gold, comp, _dungeon.miniboss_bonus_gold])
+			% [level, first.currency_reward, second.currency_reward, lineup_gold, comp, _dungeon.miniboss_bonus_gold])
 	# HP: base x 0.6 x the run's enemy HP scaling (same scaling as a single miniboss).
 	var scaling := _run.enemy_health_multiplier() * _run.output_hp_modifier()
 	var hp_ok := true
@@ -732,7 +733,7 @@ func _test_double_room(level: int) -> void:
 		elif b is Hexcaller:
 			hp_ok = hp_ok and is_equal_approx(b.opening_delay, base.opening_delay + _dungeon.double_hexcaller_delay)
 		base.free()
-	_check(hp_ok, "level %d double room: 0.6x HP each, Brood Mother max %d summons, Hexcaller opens %.1f s later"
+	_check(hp_ok, "level %d double room: 0.6x HP each, a Brood Mother max %d summons, a Hexcaller opens %.1f s later"
 			% [level, _dungeon.double_max_summons, _dungeon.double_hexcaller_delay])
 	var pickups := _pickups(room)
 	_check(pickups.size() == 2 and pickups[0].item_id != pickups[1].item_id and pickups.all(func(p: ItemPickup) -> bool:
@@ -741,7 +742,7 @@ func _test_double_room(level: int) -> void:
 	_run.xp_multiplier_override = 1.0
 	var xp_before := _total_xp()
 	var gold_before := _run.currency
-	var expected_gold := roundi(brood.currency_reward * _run.gold_multiplier()) + roundi(hex.currency_reward * _run.gold_multiplier())
+	var expected_gold := roundi(first.currency_reward * _run.gold_multiplier()) + roundi(second.currency_reward * _run.gold_multiplier())
 	for b: Miniboss in bosses:
 		b.take_damage(999999.0)
 	await _wait_until(func() -> bool: return room.state == Room.State.CLEARED)

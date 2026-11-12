@@ -9,6 +9,7 @@ size = Vector2(32, 648)
 [node name="TestRoom" type="Node2D"]
 
 [node name="Floor" type="ColorRect" parent="."]
+z_index = -10
 offset_right = 1152.0
 offset_bottom = 648.0
 mouse_filter = 2

@@ -9,6 +9,8 @@ extends CharacterBody2D
 ## direction (or `facing`), ignoring damage for `dash_invulnerability` s and
 ## then recharging for `dash_cooldown` s, both counted from the dash start
 ## (Issue #49). The HUD reads dash_ready()/dash_cooldown_ratio().
+## apply_slow() (Water Caster wave, Issue #51) slows walking for a while; it
+## refreshes instead of stacking and never shortens the dash.
 
 signal died
 ## Emitted when a dash starts, with its unit direction.
@@ -70,6 +72,8 @@ var speed_multiplier := 1.0
 var damage_taken_multiplier := 1.0
 ## Set by end_run(): take_damage() does nothing.
 var invulnerable := false
+## Tint of the sprite while slowed (apply_slow()).
+var slow_tint := Color(0.6, 0.8, 1.0)
 
 var _dash_direction := Vector2.ZERO
 ## Seconds left of the dash movement (> 0 while dashing).
@@ -77,6 +81,9 @@ var _dash_time_left := 0.0
 var _dash_distance_left := 0.0
 var _dash_invulnerable_left := 0.0
 var _dash_cooldown_left := 0.0
+## Walking speed factor of the current slow and its seconds left (apply_slow()).
+var _slow_factor := 1.0
+var _slow_left := 0.0
 var _afterimages_spawned := 0
 ## Set by the "dash" key; the dash starts on the next physics tick.
 var _dash_requested := false
@@ -98,6 +105,10 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_dash_invulnerable_left = _count_down(_dash_invulnerable_left, delta)
 	_dash_cooldown_left = _count_down(_dash_cooldown_left, delta)
+	if _slow_left > 0.0:
+		_slow_left = _count_down(_slow_left, delta)
+		if _slow_left <= 0.0:
+			clear_slow()
 	# get_vector() clamps length to 1, so diagonals are not faster.
 	var input := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
 	if _dash_requested:
@@ -108,7 +119,7 @@ func _physics_process(delta: float) -> void:
 		_dash_step(delta)
 		return
 
-	velocity = input * speed * speed_multiplier
+	velocity = input * speed * speed_multiplier * slow_multiplier()
 	move_and_slide()
 
 	if input != Vector2.ZERO:
@@ -141,9 +152,42 @@ func is_dead() -> bool:
 	return health.is_dead()
 
 
+## Slows walking to `factor` x speed for `duration` s. A new slow while slowed
+## refreshes the time (the longer remaining time wins) and keeps the stronger
+## factor; slows never multiply together. The dash is never slowed.
+func apply_slow(factor: float, duration: float) -> void:
+	if duration <= 0.0 or factor >= 1.0 or is_dead():
+		return
+	_slow_factor = minf(_slow_factor, clampf(factor, 0.0, 1.0)) if is_slowed() else clampf(factor, 0.0, 1.0)
+	_slow_left = maxf(_slow_left, duration)
+	_sprite.self_modulate = slow_tint
+
+
+## Ends the current slow at once.
+func clear_slow() -> void:
+	_slow_factor = 1.0
+	_slow_left = 0.0
+	_sprite.self_modulate = Color.WHITE
+
+
+func is_slowed() -> bool:
+	return _slow_left > 0.0
+
+
+## Seconds left of the current slow (0 when not slowed).
+func slow_remaining() -> float:
+	return _slow_left
+
+
+## Walking speed factor of the current slow (1.0 when not slowed).
+func slow_multiplier() -> float:
+	return _slow_factor if is_slowed() else 1.0
+
+
 ## Ends the run (victory): stops movement and casting, ignores further damage.
 func end_run() -> void:
 	cancel_dash()
+	clear_slow()
 	invulnerable = true
 	velocity = Vector2.ZERO
 	set_physics_process(false)
@@ -265,6 +309,7 @@ func _play(action: StringName) -> void:
 
 func _on_died() -> void:
 	cancel_dash()
+	clear_slow()
 	# No death animation or game-over flow yet: stop and dim.
 	velocity = Vector2.ZERO
 	set_physics_process(false)
