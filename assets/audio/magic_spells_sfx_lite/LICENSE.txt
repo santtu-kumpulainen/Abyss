@@ -1,0 +1,18 @@
+LICENSE — Magic Spells SFX Lite
+by Willosuna
+
+WHAT YOU CAN DO
+  - Use these sounds in personal and commercial projects, in any number of
+    projects, royalty free.
+  - Modify, trim, layer and process them however you like.
+  - Use them in games, apps, video, prototypes and client work.
+  - Attribution is not required, though it is always appreciated.
+
+WHAT YOU CANNOT DO
+  - Resell, redistribute or give away the audio files themselves, either as-is
+    or modified, as a sound pack, library or collection.
+  - Register these sounds, or works derived from them, with content
+    identification systems (Content ID and similar).
+
+NO WARRANTY
+  Provided "as is", without warranty of any kind.
