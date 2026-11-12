@@ -411,6 +411,10 @@ func _test_mage_slow() -> void:
 	_mage.apply_slow(0.6, 2.5)
 	_check(_mage.is_slowed() and is_equal_approx(_mage.slow_multiplier(), 0.6) and _mage.slow_remaining() == 2.5,
 			"slow: x0.6 for 2.5 s")
+	# Same stretch of floor as the free measurement (Issue #51 tempo: at 185 px/s the
+	# second walk from further down could reach the room's edge).
+	_mage.global_position = start.global_position
+	await physics_frame
 	var slowed_speed := await _walk_speed()
 	_check(is_equal_approx(slowed_speed, free_speed * 0.6), "slow: walking speed x0.6 (%.0f -> %.0f px/s)" % [free_speed, slowed_speed])
 	_mage.apply_slow(0.6, 2.5)

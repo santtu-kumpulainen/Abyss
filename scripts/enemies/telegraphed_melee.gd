@@ -54,6 +54,12 @@ func _scale_attacks(damage_mult: float, pace_mult: float) -> void:
 	special_cooldown /= maxf(pace_mult, 0.01)
 
 
+## The RECOVER pause after the special (the windup is never scaled).
+func _scale_recovery(mult: float) -> void:
+	super._scale_recovery(mult)
+	special_recover /= mult
+
+
 ## Telegraph progress 0..1 during the windup.
 func windup_progress() -> float:
 	return clampf(1.0 - _phase_left / maxf(special_windup, 0.01), 0.0, 1.0) if phase == Phase.WINDUP else 0.0

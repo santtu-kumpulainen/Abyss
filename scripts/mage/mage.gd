@@ -68,6 +68,9 @@ const AFTERIMAGE_GROUP := &"dash_afterimages"
 var facing: StringName = &"south"
 ## Run modifier applied on top of `speed` (set by the Dungeon from RunState).
 var speed_multiplier := 1.0
+## The permanent part of speed_multiplier (items, relics), without temporary
+## boosts such as the Speed Potion (set by the Dungeon from RunState).
+var base_speed_multiplier := 1.0
 ## Run modifier on all damage taken (set by the Dungeon from RunState).
 var damage_taken_multiplier := 1.0
 ## Set by end_run(): take_damage() does nothing.
@@ -225,6 +228,12 @@ func slow_remaining() -> float:
 
 
 ## Walking speed factor of the current slow (1.0 when not slowed).
+## Walking speed without temporary boosts or slows (Speed Potion, Water Caster
+## slow): what enemies that pace themselves on the Mage (the Demon) follow.
+func base_walk_speed() -> float:
+	return speed * base_speed_multiplier
+
+
 func slow_multiplier() -> float:
 	return _slow_factor if is_slowed() else 1.0
 

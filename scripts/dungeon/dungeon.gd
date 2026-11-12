@@ -787,7 +787,7 @@ func _scale_enemy(enemy: Enemy, treasure_room: bool, output_modifier: float = 1.
 	enemy.apply_scaling(run_state.enemy_health_multiplier(treasure_room) * output_modifier,
 			run_state.enemy_damage_multiplier(elite, treasure_room),
 			run_state.enemy_pace_multiplier(), run_state.enemy_vulnerability_multiplier(elite),
-			run_state.enemy_move_pace_multiplier())
+			run_state.enemy_move_pace_multiplier(), run_state.enemy_recovery_multiplier())
 	if enemy is Goblin:
 		(enemy as Goblin).swings_before_special = run_state.goblin_swings_before_special()
 	if enemy is Miniboss:
@@ -1229,6 +1229,7 @@ func _apply_spell_modifiers() -> void:
 	mage.caster.set_modifiers(run_state.spell_damage_multiplier(), run_state.spell_cooldown_multiplier())
 	mage.caster.set_projectiles(run_state.projectile_count(), run_state.projectile_damage_factor())
 	mage.speed_multiplier = run_state.effective_move_speed_multiplier()
+	mage.base_speed_multiplier = run_state.move_speed_multiplier()
 	mage.damage_taken_multiplier = run_state.damage_taken_multiplier()
 	mage.caster.momentum = run_state.cast_momentum()
 

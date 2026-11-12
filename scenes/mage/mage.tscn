@@ -19,6 +19,9 @@ collision_layer = 2
 collision_mask = 5
 motion_mode = 1
 script = ExtResource("1_mage")
+speed = 185.0
+dash_distance = 130.0
+dash_cooldown = 2.35
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 texture_filter = 1

@@ -223,6 +223,8 @@ func _test_scene() -> void:
 	# Speed Potion on the Mage.
 	_check(_dungeon.use_speed_potion() and is_equal_approx(_mage.speed_multiplier, 1.25) and is_equal_approx(_mage.speed, base_speed),
 			"Speed Potion: Mage x1.25, base speed unchanged")
+	_check(is_equal_approx(_mage.base_speed_multiplier, 1.0) and is_equal_approx(_mage.base_walk_speed(), base_speed),
+			"Speed Potion: the Mage's base walking speed (what the Demon follows) is unchanged")
 	var remaining := _run.speed_potion_remaining
 	await _frames(30)
 	_check(_run.speed_potion_remaining < remaining, "the Dungeon counts the potion down with active play")

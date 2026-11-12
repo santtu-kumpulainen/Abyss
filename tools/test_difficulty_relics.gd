@@ -161,8 +161,9 @@ func _test_hard_scaling() -> void:
 	var enemy := _enemies(room)[0] as Enemy
 	var base := _base_stats(load(enemy.scene_file_path))
 	_check(is_equal_approx(enemy.health.max_health, base["hp"] * 1.35) and is_equal_approx(enemy.health.current, base["hp"] * 1.35)
-			and is_equal_approx(enemy.contact_damage, base["damage"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR) and is_equal_approx(enemy.speed, base["speed"] * 1.05)
-			and is_equal_approx(enemy.attack_cooldown, base["cooldown"] / 1.1), "Hard melee: HP x1.35, damage x1.25, move x1.05, attack rate x1.1")
+			and is_equal_approx(enemy.contact_damage, base["damage"] * 1.25 * RunState.ENEMY_DAMAGE_FACTOR) and is_equal_approx(enemy.speed, base["speed"] * 1.05 * Tempo.ENEMY_MOVE)
+			and is_equal_approx(enemy.attack_cooldown, base["cooldown"] / (1.1 * Tempo.ENEMY_ATTACK)),
+			"Hard melee: HP x1.35, damage x1.25, move x1.05, attack rate x1.1 (each x the Issue #51 tempo)")
 	_check(not enemy.apply_scaling(2.0, 2.0, 2.0) and is_equal_approx(enemy.health.max_health, base["hp"] * 1.35),
 			"scaling applies exactly once per enemy")
 	room.start_encounter()

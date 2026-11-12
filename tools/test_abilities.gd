@@ -53,8 +53,8 @@ func _run_tests() -> void:
 	_mage = current_scene.get_node(^"Mage") as Mage
 	_mage.dash_started.connect(func(dir: Vector2) -> void: _started.append(dir))
 	_mage.dash_ended.connect(func() -> void: _ended += 1)
-	_check(_mage.dash_distance == 110.0 and _mage.dash_duration == 0.15 and _mage.dash_invulnerability == 0.20
-			and _mage.dash_cooldown == 2.75, "dash values: 110 px, 0.15 s, 0.20 s invulnerable, 2.75 s cooldown")
+	_check(_mage.dash_distance == 130.0 and _mage.dash_duration == 0.15 and _mage.dash_invulnerability == 0.20
+			and _mage.dash_cooldown == 2.35, "dash values (Issue #51 tempo): 130 px, 0.15 s, 0.20 s invulnerable, 2.35 s cooldown")
 	_check(_mage.dash_ready() and _mage.can_dash() and is_equal_approx(_mage.dash_cooldown_ratio(), 1.0)
 			and _mage.dash_cooldown_remaining() == 0.0, "the dash is ready at the start")
 	await _test_distance_and_direction()
@@ -121,7 +121,7 @@ func _test_distance_and_direction() -> void:
 	_check(not _mage.try_dash(Vector2.LEFT), "no second dash while dashing")
 	var ticks := await _ticks_until(func() -> bool: return not _mage.is_dashing())
 	var moved := _mage.global_position - start
-	_check(absf(moved.x - 110.0) <= 5.5 and absf(moved.y) < 0.5, "dash right moves 110 px (+-5%%): %.2f" % moved.x)
+	_check(absf(moved.x - 130.0) <= 6.5 and absf(moved.y) < 0.5, "dash right moves 130 px (+-5%%): %.2f" % moved.x)
 	_check(absf(ticks / TICKS - 0.15) <= 1.0 / TICKS + 0.001, "the burst lasts 0.15 s (%d ticks)" % ticks)
 	_check(_ended == 1 and _mage.velocity == Vector2.ZERO and _mage.facing == &"east", "dash_ended once, stopped, facing east")
 
@@ -130,7 +130,7 @@ func _test_distance_and_direction() -> void:
 	start = _mage.global_position
 	_mage.try_dash(Vector2(1, 1))
 	await _ticks_until(func() -> bool: return not _mage.is_dashing())
-	_check(absf(start.distance_to(_mage.global_position) - 110.0) <= 5.5, "a diagonal dash is not longer (%.2f px)" % start.distance_to(_mage.global_position))
+	_check(absf(start.distance_to(_mage.global_position) - 130.0) <= 6.5, "a diagonal dash is not longer (%.2f px)" % start.distance_to(_mage.global_position))
 
 	await _recover()
 	_place(Vector2(500, 324))
@@ -139,7 +139,7 @@ func _test_distance_and_direction() -> void:
 	_mage.try_dash()
 	await _ticks_until(func() -> bool: return not _mage.is_dashing())
 	var up := _mage.global_position - start
-	_check(absf(up.y + 110.0) <= 5.5 and absf(up.x) < 0.5, "no input: dashes toward facing (north, %s)" % up)
+	_check(absf(up.y + 130.0) <= 6.5 and absf(up.x) < 0.5, "no input: dashes toward facing (north, %s)" % up)
 
 	await _recover()
 	_place(Vector2(300, 324))
@@ -147,7 +147,7 @@ func _test_distance_and_direction() -> void:
 	start = _mage.global_position
 	_mage.try_dash(Vector2.RIGHT)
 	await _ticks_until(func() -> bool: return not _mage.is_dashing())
-	_check(absf(_mage.global_position.x - start.x - 110.0) <= 5.5, "speed upgrades/potions do not scale the dash (%.2f px)" % (_mage.global_position.x - start.x))
+	_check(absf(_mage.global_position.x - start.x - 130.0) <= 6.5, "speed upgrades/potions do not scale the dash (%.2f px)" % (_mage.global_position.x - start.x))
 	_mage.speed_multiplier = 1.0
 
 
@@ -225,7 +225,7 @@ func _test_cooldown_and_bar() -> void:
 			_check(elapsed >= 30 and absf(_mage.dash_cooldown_remaining() - (cooldown - elapsed / TICKS)) <= 0.25 / TICKS,
 					"dash_cooldown_remaining counts down (%.3f s after %d ticks)" % [_mage.dash_cooldown_remaining(), elapsed])
 	ticks = Engine.get_physics_frames() - dash_tick
-	_check(absi(ticks - 165) <= 1, "the dash is ready 2.75 s after the start (%d ticks)" % ticks)
+	_check(absi(ticks - 141) <= 1, "the dash is ready 2.35 s after the start (%d ticks)" % ticks)
 	_check(rising and is_equal_approx(_mage.dash_cooldown_ratio(), 1.0), "the cooldown ratio rises steadily to 1.0")
 	await _redraw()
 	_check(is_equal_approx(bar.value, 1.0), "the bar is full when dash_ready() turns true")

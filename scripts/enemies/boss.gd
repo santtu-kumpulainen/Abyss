@@ -117,6 +117,12 @@ func _scale_attacks(damage_mult: float, pace_mult: float) -> void:
 	volley_speed *= pace_mult
 	volley_cooldown /= maxf(pace_mult, 0.01)
 	slam_cooldown /= maxf(pace_mult, 0.01)
+
+
+## The pause after each attack (wind-ups are never scaled).
+func _scale_recovery(mult: float) -> void:
+	super._scale_recovery(mult)
+	recover_time /= mult
 	if _spell:
 		_spell.damage = volley_damage
 		_spell.speed = volley_speed

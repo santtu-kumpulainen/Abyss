@@ -137,6 +137,13 @@ func _scale_attacks(damage_mult: float, pace_mult: float) -> void:
 	_sync_windup()
 
 
+## Post-attack pauses: the special's recovery (TelegraphedMelee) and the swing
+## recovery. Tracking, lock, anticipation and strike times are never scaled.
+func _scale_recovery(mult: float) -> void:
+	super._scale_recovery(mult)
+	swing_recover /= mult
+
+
 ## True if global `pos` is inside the strike rectangle (the telegraphed area).
 func in_strike_area(pos: Vector2) -> bool:
 	var local := pos - strike_origin()
