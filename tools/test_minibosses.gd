@@ -57,16 +57,25 @@ func _run_tests() -> void:
 		await _load()
 		await _test_unsealed_miniboss_room()
 		_test_progression()
+		_test_early_level_sweep()
 		await _load()
-		await _test_double_room(4)
+		await _test_group_room(2, 2)
 		await _load()
-		await _test_double_room(6)
+		await _test_group_room(4, 2)
+		await _load()
+		await _test_group_room(4, 3)
+		await _load()
+		await _test_group_room(6, 3)
 		await _load()
 		var hard_l3 := await _test_miniboss_economy(Difficulty.Tier.HARD, 3)
 		await _load()
 		await _test_miniboss_economy(Difficulty.Tier.ABYSSAL, 4)
 		await _load()
 		await _test_miniboss_economy(Difficulty.Tier.NORMAL, 2)
+		await _load()
+		await _test_miniboss_economy(Difficulty.Tier.HARD, 1)
+		await _load()
+		await _test_miniboss_economy(Difficulty.Tier.NORMAL, 6)
 		await _load()
 		var again := await _test_miniboss_economy(Difficulty.Tier.HARD, 3)
 		_check(not hard_l3.is_empty() and hard_l3 == again, "economy: same seed -> identical compensation and miniboss rewards (%s)" % hard_l3)
@@ -521,7 +530,8 @@ func _test_unsealed_miniboss_room() -> void:
 	for i in _dungeon.miniboss_room_indexes():
 		if not _dungeon.seal_rooms().has(i):
 			index = i
-	_check(_dungeon.miniboss_count() == 3 and index >= 0, "level 1: 3 miniboss rooms by default, one without a seal")
+	var unsealed := _dungeon.miniboss_room_indexes().filter(func(i: int) -> bool: return not _dungeon.seal_rooms().has(i))
+	_check(_dungeon.miniboss_count() == 4 and unsealed.size() == 2 and index >= 0, "level 1: 4 miniboss rooms by default, two without a seal")
 	if index < 0:
 		return
 	var boss := await _enter_miniboss(index)
@@ -539,24 +549,23 @@ func _test_unsealed_miniboss_room() -> void:
 ## Miniboss / double-room counts per dungeon level (helpers and the planned
 ## levels), exact reward splits, seal sources, distinct pairs and reward choices.
 func _test_progression() -> void:
-	var counts: Array[int] = []
-	var doubles: Array[int] = []
-	for level in range(1, 4):
-		counts.append(EncounterPlanner.miniboss_room_count(level, 7 * level))
+	var table: Array = []
+	var limits_ok := true
 	for level in range(1, 13):
-		doubles.append(EncounterPlanner.double_miniboss_room_count(level))
-	_check(counts == [3, 3, 4], "miniboss rooms on levels 1-3: fixed 3, 3, 4 (%s)" % [counts])
-	_check(doubles == [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1], "double-miniboss rooms per level 1-12: none on 1-3, exactly one from level 4 (%s)" % [doubles])
-	var late := {}
-	var late_ok := true
-	for level in range(4, 13):
-		for s in 60:
-			var seed_value := EncounterPlanner.level_seed(900 + s, level)
-			var singles := EncounterPlanner.single_miniboss_room_count(level, seed_value)
-			late[singles] = true
-			late_ok = late_ok and singles >= 2 and singles <= 3 \
-					and EncounterPlanner.miniboss_room_count(level, seed_value) == singles + 1
-	_check(late_ok and late.size() == 2, "levels 4-12: 1 double room + 2 or 3 single rooms, both counts occur (%s)" % [late.keys()])
+		var row := [EncounterPlanner.miniboss_room_count(level), EncounterPlanner.triple_miniboss_room_count(level),
+				EncounterPlanner.double_miniboss_room_count(level), EncounterPlanner.single_miniboss_room_count(level),
+				EncounterPlanner.miniboss_draws(level)]
+		table.append(row)
+		limits_ok = limits_ok and row[0] <= EncounterPlanner.MAX_MINIBOSS_ROOMS and row[1] + row[2] <= EncounterPlanner.MAX_GROUP_ROOMS \
+				and row[0] == row[1] + row[2] + row[3] and row[4] == row[3] + 2 * row[2] + 3 * row[1] \
+				and EncounterPlanner.miniboss_room_count(level, 123) == row[0] and EncounterPlanner.miniboss_room_count(level, 987) == row[0]
+	# [rooms, triple, double, single, minibosses]
+	var expected := [[4, 0, 0, 4, 4], [5, 0, 1, 4, 6], [6, 0, 2, 4, 8], [7, 1, 2, 4, 11], [8, 1, 3, 4, 13], [8, 2, 2, 4, 14]]
+	var fixed_ok := table.slice(0, 6) == expected and table.slice(6).all(func(r: Array) -> bool: return r == expected[5])
+	_check(fixed_ok, "fixed composition [rooms, triple, double, single, minibosses] L1-6: %s, L7-12 = L6" % [table.slice(0, 6)])
+	_check(limits_ok and EncounterPlanner.MAX_MINIBOSS_ROOMS == 8 and EncounterPlanner.MAX_GROUP_ROOMS == 4
+			and EncounterPlanner.MAX_MINIBOSSES_PER_ROOM == 3,
+			"levels 1-12: <= 8 rooms, <= 4 double/triple rooms, not seeded (same for any seed)")
 	_test_shuffle_bag()
 	var splits_ok := true
 	for total in range(0, 25):
@@ -579,9 +588,12 @@ func _test_progression() -> void:
 			_dungeon._plan_level()
 			var rooms := _dungeon.miniboss_room_indexes()
 			var double_rooms := rooms.filter(func(i: int) -> bool: return _dungeon.is_double_miniboss(i))
+			var triple_rooms := rooms.filter(func(i: int) -> bool: return _dungeon.is_triple_miniboss(i))
 			var seals := _dungeon.seal_rooms()
 			var ok := rooms.size() == EncounterPlanner.miniboss_room_count(level, _run.level_seed()) and _dungeon.miniboss_count() == rooms.size() \
-					and double_rooms.size() == EncounterPlanner.double_miniboss_room_count(level)
+					and double_rooms.size() == EncounterPlanner.double_miniboss_room_count(level) \
+					and triple_rooms.size() == EncounterPlanner.triple_miniboss_room_count(level) \
+					and not double_rooms.any(func(i: int) -> bool: return triple_rooms.has(i))
 			for i in _dungeon.rooms.size():
 				ok = ok and _dungeon.is_double_miniboss(i) == double_rooms.has(i) and (_dungeon.miniboss_scene(i) != null) == rooms.has(i)
 			plan_ok = plan_ok and ok
@@ -592,15 +604,184 @@ func _test_progression() -> void:
 					and kinds.count(&"miniboss") == 2 and kinds.count(&"champion") == 0
 			for i in rooms:
 				var pair := _dungeon.miniboss_pair(i)
-				pair_ok = pair_ok and pair.size() == (2 if double_rooms.has(i) else 1) and (pair.size() == 1 or pair[0] != pair[1])
+				var unique := {}
+				for scene in pair:
+					unique[scene] = true
+				pair_ok = pair_ok and pair.size() == (3 if triple_rooms.has(i) else (2 if double_rooms.has(i) else 1)) and unique.size() == pair.size()
 				var ids := _dungeon.reward_choices(i)
 				reward_ok = reward_ok and ids.size() == 2 and ids[0] != ids[1] and ids.all(func(id: StringName) -> bool: return pool.has(id))
 	_run.dungeon_level = 1
 	_dungeon.miniboss_rooms = 0
-	_check(plan_ok, "levels 1-10 (25 seeds each): miniboss and double-miniboss room counts follow the progression %s" % detail)
+	_check(plan_ok, "levels 1-10 (25 seeds each): miniboss, double and triple room counts follow the composition %s" % detail)
 	_check(seal_ok, "levels 1-10: always exactly 4 seal sources (both puzzle rooms + 2 miniboss rooms, no champions)")
-	_check(pair_ok, "double rooms hold two different minibosses (Brood Mother + Hexcaller), other rooms one")
+	_check(pair_ok, "double / triple rooms hold two / three different minibosses, other rooms one")
 	_check(reward_ok, "every miniboss room (double or not) offers one pick-1-of-2 choice of two different items")
+
+
+## Issue #51 Stage 2c sweep: SWEEP_RUNS run seeds, each planning dungeon levels
+## 1-8 in order (the run-wide shuffle bag) plus level 12, with the real roster.
+## Every plan: the fixed composition, the room / group / per-room limits,
+## distinct types per room, exactly 4 seal sources, valid and reachable
+## placement, valid rewards; the bag: each level uses exactly its window of the
+## run's bag (nothing dropped or duplicated) and the run-wide counts stay within
+## 1 after every level; determinism (re-planned runs match). Then every room
+## scene is checked for safe, separated double / triple spawn points.
+func _test_early_level_sweep() -> void:
+	const SWEEP_RUNS := 200
+	const LEVELS: Array[int] = [1, 2, 3, 4, 5, 6, 7, 8]
+	var roster := _dungeon.miniboss_scenes
+	var types := roster.size()
+	var pool := RunState.miniboss_reward_pool()
+	var comp_ok := true
+	var limit_ok := true
+	var distinct_ok := true
+	var seal_ok := true
+	var place_ok := true
+	var reward_ok := true
+	var window_ok := true
+	var prefix_ok := true
+	var det_ok := true
+	var reach_ok := true
+	var plans := 0
+	var triples_seen := 0
+	var totals := {}
+	var level_spread := {}
+	var detail := ""
+	_dungeon.miniboss_rooms = 0
+	for s in SWEEP_RUNS:
+		_run.run_seed = 30000 + s
+		var run_counts := {}
+		for scene in roster:
+			run_counts[scene.resource_path] = 0
+		for level: int in LEVELS + [12]:
+			_run.dungeon_level = level
+			_dungeon._plan_level()
+			plans += 1
+			var rooms := _dungeon.miniboss_room_indexes()
+			var comp := EncounterPlanner.miniboss_composition(level)
+			var sizes := {1: 0, 2: 0, 3: 0}
+			var level_counts := {}
+			var signature: Array[String] = []
+			var candidates := _dungeon._seal_room_candidates()
+			var anvil := _dungeon.index_at(_dungeon.final_anvil_cell)
+			for i in rooms:
+				var pair := _dungeon.miniboss_pair(i)
+				sizes[pair.size()] = sizes.get(pair.size(), 0) + 1
+				var unique := {}
+				for scene in pair:
+					unique[scene.resource_path] = true
+					level_counts[scene.resource_path] = level_counts.get(scene.resource_path, 0) + 1
+					totals[scene.resource_path] = totals.get(scene.resource_path, 0) + 1
+				distinct_ok = distinct_ok and unique.size() == pair.size() and pair.size() <= EncounterPlanner.MAX_MINIBOSSES_PER_ROOM
+				if pair.size() == 3:
+					triples_seen += 1
+				var spec := _dungeon.rooms[i]
+				place_ok = place_ok and candidates.has(i) and i != anvil and not spec.is_boss and not spec.is_treasure() \
+						and spec.required_level >= 2 and spec.item.is_empty() \
+						and _dungeon.is_double_miniboss(i) == (pair.size() == 2) and _dungeon.is_triple_miniboss(i) == (pair.size() == 3)
+				var ids := _dungeon.reward_choices(i)
+				reward_ok = reward_ok and ids.size() == 2 and ids[0] != ids[1] and ids.all(func(id: StringName) -> bool: return pool.has(id))
+				signature.append("%d:%s:%s" % [i, pair.map(func(p: PackedScene) -> String: return p.resource_path), ids])
+			for i in _dungeon.rooms.size():
+				place_ok = place_ok and (_dungeon.miniboss_scene(i) != null) == rooms.has(i)
+			var ok: bool = rooms.size() == comp[0] + comp[1] + comp[2] and sizes[1] == comp[0] and sizes[2] == comp[1] and sizes[3] == comp[2]
+			if not ok and detail.is_empty():
+				detail = " (seed %d L%d: sizes %s, want %s)" % [_run.run_seed, level, sizes, comp]
+			comp_ok = comp_ok and ok
+			limit_ok = limit_ok and rooms.size() <= EncounterPlanner.MAX_MINIBOSS_ROOMS and sizes[2] + sizes[3] <= EncounterPlanner.MAX_GROUP_ROOMS
+			var seals := _dungeon.seal_rooms()
+			var kinds := seals.values()
+			seal_ok = seal_ok and seals.size() == EncounterPlanner.SEAL_SOURCES and kinds.count(&"treasure") == 2 \
+					and kinds.count(&"miniboss") == 2 and kinds.count(&"champion") == 0 \
+					and seals.keys().all(func(i: int) -> bool: return seals[i] != &"miniboss" or rooms.has(i))
+			# Every room of the layout is reachable from the start room.
+			var seen := {_dungeon.start_room: true}
+			var queue: Array[int] = [_dungeon.start_room]
+			while not queue.is_empty():
+				var r: int = queue.pop_front()
+				for n: int in _dungeon.get_neighbours(r):
+					if not seen.has(n):
+						seen[n] = true
+						queue.append(n)
+			reach_ok = reach_ok and seen.size() == _dungeon.rooms.size()
+			# The level uses exactly its window of the run's bag.
+			var offset := EncounterPlanner.miniboss_bag_offset(_run.run_seed, level)
+			var window := EncounterPlanner.miniboss_bag(types, offset + EncounterPlanner.miniboss_draws(level), _run.run_seed).slice(offset)
+			var expected := {}
+			for t: int in window:
+				expected[roster[t].resource_path] = expected.get(roster[t].resource_path, 0) + 1
+			window_ok = window_ok and str(_sorted_counts(expected)) == str(_sorted_counts(level_counts))
+			var spread: int = level_counts.values().max() - level_counts.values().min() if level_counts.size() == types else 99
+			level_spread[level] = maxi(level_spread.get(level, 0), spread)
+			if level != 12:
+				for path in level_counts:
+					run_counts[path] += level_counts[path]
+				var values := run_counts.values()
+				prefix_ok = prefix_ok and values.max() - values.min() <= 1
+			if s < 30:
+				var first := "|".join(signature)
+				_dungeon._plan_level()
+				var again: Array[String] = []
+				for i in _dungeon.miniboss_room_indexes():
+					again.append("%d:%s:%s" % [i, _dungeon.miniboss_pair(i).map(func(p: PackedScene) -> String: return p.resource_path), _dungeon.reward_choices(i)])
+				det_ok = det_ok and first == "|".join(again)
+	_run.dungeon_level = 1
+	_check(comp_ok, "sweep (%d runs x levels 1-8 + 12 = %d plans): exact fixed composition on every level%s" % [SWEEP_RUNS, plans, detail])
+	_check(limit_ok, "sweep: <= %d miniboss rooms and <= %d double/triple rooms per level" % [EncounterPlanner.MAX_MINIBOSS_ROOMS, EncounterPlanner.MAX_GROUP_ROOMS])
+	_check(distinct_ok and triples_seen > 0, "sweep: no room holds the same miniboss twice, <= 3 per room (%d triple rooms, all mixed)" % triples_seen)
+	_check(seal_ok, "sweep: exactly 4 seal sources on every plan (2 treasure + 2 miniboss rooms, no champions)")
+	_check(place_ok and reach_ok, "sweep: miniboss rooms are reachable tier-2 combat rooms (never boss / treasure / anvil / item), every room connected")
+	_check(reward_ok, "sweep: every miniboss room offers two different reward items")
+	_check(window_ok, "sweep: each level uses exactly its shuffle-bag window (no draw dropped or duplicated)")
+	_check(prefix_ok, "sweep: run-wide miniboss counts differ by at most 1 after every level 1-8")
+	_check(det_ok, "sweep: same run seed -> same rooms, line-ups and rewards (30 runs re-planned)")
+	var spread_ok := level_spread.values().all(func(v: int) -> bool: return v <= 2)
+	_check(spread_ok, "sweep: every type appears on every level, per-level counts differ by at most 2 (worst per level %s)" % [level_spread])
+	var totals_text := ", ".join(totals.keys().map(func(p: String) -> String: return "%s %d" % [p.get_file().get_basename(), totals[p]]))
+	var tv := totals.values()
+	_check(tv.size() == types and tv.max() - tv.min() <= SWEEP_RUNS, "sweep: overall draws balanced (%s)" % totals_text)
+
+	# Every room scene (both biomes): safe, separated double / triple spawn points.
+	var spawn_ok := true
+	var checked := 0
+	var closest := INF
+	var spawn_detail := ""
+	for level in [1, 4]:
+		for spec: RoomSpec in _dungeon.rooms:
+			if spec.scene == null or spec.is_boss or spec.is_treasure():
+				continue
+			var inst := Biomes.map_scene(spec.scene, level, "room_map").instantiate() as Room
+			if inst == null or not inst.has_node(^"SpawnPoints"):
+				if inst:
+					inst.free()
+				continue
+			var floor_rect := (inst.get_node(^"Visuals") as RoomVisuals).floor_rect
+			for count in [2, 3]:
+				var spots := _dungeon.miniboss_spawn_points(inst, count)
+				var gap := INF
+				var quads := {}
+				var ok: bool = spots.size() == count
+				for a in spots.size():
+					ok = ok and floor_rect.grow(-48.0).has_point(spots[a])
+					quads[Vector2i(signi(int(spots[a].x - floor_rect.get_center().x)), signi(int(spots[a].y - floor_rect.get_center().y)))] = true
+					for c in range(a + 1, spots.size()):
+						gap = minf(gap, spots[a].distance_to(spots[c]))
+				ok = ok and gap >= 250.0 and quads.size() == count
+				closest = minf(closest, gap)
+				if not ok and spawn_detail.is_empty():
+					spawn_detail = " (%s x%d: %s)" % [spec.scene.resource_path.get_file(), count, spots]
+				spawn_ok = spawn_ok and ok
+				checked += 1
+			inst.free()
+	_check(spawn_ok and checked > 0, "every room scene: double / triple spawns inside the floor, >= 250 px apart, different quadrants (%d checks, closest %.0f px)%s"
+			% [checked, closest, spawn_detail])
+
+
+## `counts` (key -> int) as a sorted [key, count] list for comparisons.
+func _sorted_counts(counts: Dictionary) -> Array:
+	var keys := counts.keys()
+	keys.sort()
+	return keys.map(func(k: Variant) -> Array: return [k, counts[k]])
 
 
 ## Shuffle-bag miniboss selection (Issue #51): even per level, no repeat before
@@ -656,11 +837,12 @@ func _test_shuffle_bag() -> void:
 			even_ok = even_ok and absi(per[a] - per[b]) <= 1
 			if level == 1:
 				first_counts[0 if (plan[rooms[0]] as Array)[0] == a else 1] += 1
+			if level == 3:  # 6 rooms + 1 double = 7 draws: one type gets the extra encounter
 				extra[0 if per[a] > per[b] else 1] += 1
 	_check(even_ok, "2-type roster: per-level counts differ by at most 1 on levels 1-7 (200 runs)%s" % detail)
 	_check(double_ok, "double rooms always get two different minibosses, single rooms one")
 	_check(first_counts[0] > 60 and first_counts[1] > 60 and extra[0] > 60 and extra[1] > 60,
-			"no selection bias: first type %d / %d, level-1 extra encounter %d / %d (200 runs)"
+			"no selection bias: first type %d / %d, level-3 extra encounter %d / %d (200 runs)"
 			% [first_counts[0], first_counts[1], extra[0], extra[1]])
 
 	# The bag continues across levels: level 1 ends with the type level 2 must not start with.
@@ -668,11 +850,12 @@ func _test_shuffle_bag() -> void:
 	for s in 100:
 		var run_seed := 8000 + s
 		var l1: Array[int] = []
-		l1.assign(range(3))
-		var l2 := l1.duplicate()
+		l1.assign(range(EncounterPlanner.miniboss_room_count(1, EncounterPlanner.level_seed(run_seed, 1))))
+		var l2: Array[int] = []
+		l2.assign(range(EncounterPlanner.miniboss_room_count(2, EncounterPlanner.level_seed(run_seed, 2))))
 		var p1 := EncounterPlanner.assign_minibosses(l1, no_doubles, roster, run_seed, 1)
 		var p2 := EncounterPlanner.assign_minibosses(l2, no_doubles, roster, run_seed, 2)
-		carry_ok = carry_ok and (p1[2] as Array)[0] != (p2[0] as Array)[0]
+		carry_ok = carry_ok and (p1[l1.back()] as Array)[0] != (p2[0] as Array)[0]
 	_check(carry_ok, "the bag carries over: level 2 never starts with the type level 1 ended with")
 
 	var rooms4: Array[int] = [3, 8, 12, 17]
@@ -687,80 +870,166 @@ func _test_shuffle_bag() -> void:
 			"3-type roster: deterministic per seed, all three types used on a 5-draw level, mixed double room")
 
 
-## A double-miniboss room on dungeon level `level`: both minibosses spawn with
-## 0.6x HP, the Brood Mother capped at 2 summons and the Hexcaller's opening
-## delayed; XP and gold are split exactly, bonus gold and the reward choice once.
-func _test_double_room(level: int) -> void:
+## A double (`size` 2) or triple (`size` 3) miniboss room on dungeon level `level`
+## (Issue #51 Stage 2c): distinct types, spawns at separated safe points (a
+## triple on three different sides / quadrants), 0.85x / 0.75x HP applied once on
+## top of the run's scaling, one shared 1.0 s room-entry delay (no attack, no
+## stagger), a triple-room Brood Mother with at most one living summon, exact
+## XP / gold splits paid once, one reward choice, no respawn on revisit.
+func _test_group_room(level: int, size: int) -> void:
 	_run.dungeon_level = level
 	_dungeon._plan_level()
-	var double_rooms := _dungeon.miniboss_room_indexes().filter(func(i: int) -> bool: return _dungeon.is_double_miniboss(i))
-	_check(double_rooms.size() == EncounterPlanner.double_miniboss_room_count(level), "level %d: %d double room(s) planned" % [level, double_rooms.size()])
-	if double_rooms.is_empty():
+	var kind := "double" if size == 2 else "triple"
+	var label := "level %d %s room" % [level, kind]
+	var group_rooms := _dungeon.miniboss_room_indexes().filter(func(i: int) -> bool: return _dungeon.miniboss_pair(i).size() == size)
+	var planned := EncounterPlanner.double_miniboss_room_count(level) if size == 2 else EncounterPlanner.triple_miniboss_room_count(level)
+	_check(group_rooms.size() == planned and group_rooms.all(func(i: int) -> bool:
+			return _dungeon.is_double_miniboss(i) == (size == 2) and _dungeon.is_triple_miniboss(i) == (size == 3)),
+			"level %d: %d %s room(s) planned" % [level, group_rooms.size(), kind])
+	if group_rooms.is_empty():
 		return
-	var index: int = double_rooms[0]
+	var index: int = group_rooms[0]
 	var lineup := _dungeon.room_lineup(index)
 	var lineup_xp := EncounterPlanner.lineup_xp(_mapped(lineup, level))
 	var lineup_gold := EncounterPlanner.lineup_gold(_mapped(lineup, level))
+	var mage_hp := _mage.health.current
 	_dungeon.enter_room(index, _dungeon.entry_door(index))
-	await _frames(2)
 	var room := _dungeon.current_room
 	var bosses: Array = _enemies(room).filter(func(e: Node) -> bool: return e is Miniboss)
-	_check(bosses.size() == 2 and _enemies(room).size() == 2, "level %d double room: exactly two minibosses, nothing else" % level)
-	if bosses.size() != 2:
+	_check(bosses.size() == size and _enemies(room).size() == size, "%s: exactly %d minibosses, nothing else" % [label, size])
+	if bosses.size() != size:
 		return
-	# Roster-agnostic (Issue #51 Stage 2b: Brood Mother, Hexcaller and Water Caster): two different types.
-	var first: Miniboss = bosses[0]
-	var second: Miniboss = bosses[1]
-	_check(first.scene_file_path != second.scene_file_path,
-			"level %d double room: two different minibosses (%s and %s)" % [level, first.display_name, second.display_name])
-	var xp_sum: int = first.xp_reward + second.xp_reward
-	var gold_sum: int = first.currency_reward + second.currency_reward
-	_check(xp_sum == lineup_xp and absi(first.xp_reward - second.xp_reward) <= 1,
-			"level %d double room: XP split exactly (%d + %d = %d, line-up %d)" % [level, first.xp_reward, second.xp_reward, xp_sum, lineup_xp])
+	var types := {}
+	for b: Miniboss in bosses:
+		types[b.scene_file_path] = true
+	_check(types.size() == size, "%s: %d different minibosses (%s)" % [label, size, ", ".join(bosses.map(func(b: Miniboss) -> String: return b.display_name))])
+
+	# Spawn positions: inside the floor, clear of obstacles and doors, well apart.
+	var floor_rect := (room.get_node(^"Visuals") as RoomVisuals).floor_rect
+	var spots: Array[Vector2] = []
+	for b: Miniboss in bosses:
+		spots.append(room.to_local(b.global_position))
+	var spawn_ok := true
+	var min_gap := INF
+	for a in spots.size():
+		spawn_ok = spawn_ok and floor_rect.grow(-48.0).has_point(spots[a])
+		for node in room.find_children("*", "", true, false):
+			if node is Obstacle:
+				var o := node as Obstacle
+				spawn_ok = spawn_ok and not Rect2(room.to_local(o.global_position) - o.footprint / 2.0, o.footprint).has_point(spots[a])
+		for door in room.get_node(^"Doors").get_children():
+			spawn_ok = spawn_ok and spots[a].distance_to(room.to_local((door as Node2D).global_position)) >= _dungeon.miniboss_door_clearance
+		for c in range(a + 1, spots.size()):
+			min_gap = minf(min_gap, spots[a].distance_to(spots[c]))
+	var quadrants := {}
+	for p in spots:
+		quadrants[Vector2i(signi(int(p.x - floor_rect.get_center().x)), signi(int(p.y - floor_rect.get_center().y)))] = true
+	_check(spawn_ok and min_gap >= 250.0 and (size < 3 or quadrants.size() == 3),
+			"%s: spawns inside the floor, clear of obstacles and doors, >= 250 px apart (closest %.0f px)%s"
+			% [label, min_gap, ", three different quadrants" if size == 3 else ""])
+
+	# One shared 1.0 s entry delay from the moment the Mage enters: no attack, no
+	# contact hit, no stagger; then every miniboss may attack (same frame).
+	var started := {}
+	for b: Miniboss in bosses:
+		b.attack_started.connect(func(_a: StringName) -> void:
+			if not started.has(b):
+				started[b] = Engine.get_physics_frames())
+	var entry_frame := Engine.get_physics_frames()
+	var same_delay := bosses.all(func(b: Miniboss) -> bool: return is_equal_approx(b.opening_delay, _dungeon.miniboss_entry_delay))
+	var unlock_frames := {}
+	var hurt_early := false
+	var max_summons_seen := 0
+	var brood: BroodMother = null
+	for b: Miniboss in bosses:
+		if b is BroodMother:
+			brood = b as BroodMother
+	for i in 300:
+		await physics_frame
+		var t := (Engine.get_physics_frames() - entry_frame) / 60.0
+		for b: Miniboss in bosses:
+			if b.attacks_unlocked() and not unlock_frames.has(b):
+				unlock_frames[b] = t
+		if t < _dungeon.miniboss_entry_delay - 0.02 and _mage.health.current < mage_hp:
+			hurt_early = true
+		_mage.health.current = _mage.health.max_health
+		mage_hp = _mage.health.current
+		if brood:
+			max_summons_seen = maxi(max_summons_seen, brood.alive_summons().size())
+	var first_attack := INF
+	for b in started:
+		first_attack = minf(first_attack, (started[b] - entry_frame) / 60.0)
+	var unlocks := unlock_frames.values()
+	_check(same_delay and unlocks.size() == size and unlocks.max() - unlocks.min() < 0.001
+			and absf(unlocks.min() - _dungeon.miniboss_entry_delay) <= 0.034,
+			"%s: all minibosses share one %.1f s entry delay, no stagger (unlocked at %s s)" % [label, _dungeon.miniboss_entry_delay, unlocks])
+	_check(first_attack >= _dungeon.miniboss_entry_delay - 0.02 and not hurt_early and not started.is_empty(),
+			"%s: no attack and no damage during the first %.1f s; first attack at %.2f s" % [label, _dungeon.miniboss_entry_delay, first_attack])
+	if size == 3:
+		_check(brood != null and brood.max_summons == _dungeon.triple_max_summons and max_summons_seen <= 1,
+				"%s: the Brood Mother keeps at most %d living summon (max seen %d in 5 s)" % [label, _dungeon.triple_max_summons, max_summons_seen])
+
+	var xp_sum := 0
+	var gold_sum := 0
+	var xp_shares: Array[int] = []
+	var gold_shares: Array[int] = []
+	for b: Miniboss in bosses:
+		xp_sum += b.xp_reward
+		gold_sum += b.currency_reward
+		xp_shares.append(b.xp_reward)
+		gold_shares.append(b.currency_reward)
+	_check(xp_sum == lineup_xp and xp_shares.max() - xp_shares.min() <= 1,
+			"%s: XP split exactly (%s = %d, line-up %d)" % [label, xp_shares, xp_sum, lineup_xp])
 	var comp := _dungeon.miniboss_compensation_gold(index)
-	_check(gold_sum == lineup_gold + comp + 2 * _dungeon.miniboss_bonus_gold
-			and absi(first.currency_reward - second.currency_reward) <= 1,
-			"level %d double room: line-up + omitted-extras gold split exactly, bonus per miniboss (%d + %d = %d + %d + 2 x %d)"
-			% [level, first.currency_reward, second.currency_reward, lineup_gold, comp, _dungeon.miniboss_bonus_gold])
-	# HP: base x 0.6 x the run's enemy HP scaling (same scaling as a single miniboss).
+	_check(gold_sum == lineup_gold + comp + size * _dungeon.miniboss_bonus_gold and gold_shares.max() - gold_shares.min() <= 1,
+			"%s: line-up + omitted-extras gold split exactly, bonus per miniboss (%s = %d + %d + %d x %d)"
+			% [label, gold_shares, lineup_gold, comp, size, _dungeon.miniboss_bonus_gold])
+	# HP: base x group factor x the run's enemy HP scaling (each applied exactly once).
+	var factor := _dungeon.double_health_factor if size == 2 else _dungeon.triple_health_factor
 	var scaling := _run.enemy_health_multiplier() * _run.output_hp_modifier()
 	var hp_ok := true
+	var hp_text: Array[String] = []
 	for b: Miniboss in bosses:
 		var base := (load(b.scene_file_path) as PackedScene).instantiate() as Miniboss
-		hp_ok = hp_ok and is_equal_approx(b.health.max_health, (base.get_node(^"Health") as Health).max_health * _dungeon.double_health_factor * scaling)
+		var base_hp := (base.get_node(^"Health") as Health).max_health
+		hp_ok = hp_ok and b.scaled and is_equal_approx(b.health.max_health, base_hp * factor * scaling)
+		hp_text.append("%s %.0f/%.0f" % [b.display_name, b.health.max_health, base_hp * scaling])
 		if b is BroodMother:
-			hp_ok = hp_ok and (b as BroodMother).max_summons == _dungeon.double_max_summons
-		elif b is Hexcaller:
-			hp_ok = hp_ok and is_equal_approx(b.opening_delay, base.opening_delay + _dungeon.double_hexcaller_delay)
+			hp_ok = hp_ok and (b as BroodMother).max_summons == (_dungeon.double_max_summons if size == 2 else _dungeon.triple_max_summons)
 		base.free()
-	_check(hp_ok, "level %d double room: 0.6x HP each, a Brood Mother max %d summons, a Hexcaller opens %.1f s later"
-			% [level, _dungeon.double_max_summons, _dungeon.double_hexcaller_delay])
+	_check(is_equal_approx(factor, 0.85 if size == 2 else 0.75) and hp_ok,
+			"%s: %.2fx HP each, applied once on top of the run scaling (%s)" % [label, factor, ", ".join(hp_text)])
 	var pickups := _pickups(room)
 	_check(pickups.size() == 2 and pickups[0].item_id != pickups[1].item_id and pickups.all(func(p: ItemPickup) -> bool:
-			return p.choice_group == &"miniboss_reward" and not p.visible), "level %d double room: one hidden pick-1-of-2 reward choice" % level)
-	# Kill both: the room pays exactly the line-up XP (raw) and its gold + bonus once.
+			return p.choice_group == &"miniboss_reward" and not p.visible), "%s: one hidden pick-1-of-2 reward choice" % label)
+	# Kill all: the room pays exactly the line-up XP (raw) and its gold + bonus once.
 	_run.xp_multiplier_override = 1.0
 	var xp_before := _total_xp()
 	var gold_before := _run.currency
-	var expected_gold := roundi(first.currency_reward * _run.gold_multiplier()) + roundi(second.currency_reward * _run.gold_multiplier())
+	var expected_gold := 0
 	for b: Miniboss in bosses:
+		expected_gold += roundi(b.currency_reward * _run.gold_multiplier())
+	for b: Miniboss in bosses:
+		b.take_damage(999999.0)
 		b.take_damage(999999.0)
 	await _wait_until(func() -> bool: return room.state == Room.State.CLEARED)
 	await _frames(1)
 	_check(room.state == Room.State.CLEARED and _total_xp() - xp_before == lineup_xp
 			and _run.currency - gold_before == expected_gold,
-			"level %d double room: clearing it grants exactly the line-up XP (%d) and the room's gold once (%d)"
-			% [level, _total_xp() - xp_before, _run.currency - gold_before])
+			"%s: clearing it grants exactly the line-up XP (%d) and the room's gold once (%d)"
+			% [label, _total_xp() - xp_before, _run.currency - gold_before])
 	_run.xp_multiplier_override = 0.0
 	var shown := pickups.filter(func(p: ItemPickup) -> bool: return is_instance_valid(p) and p.visible)
-	_check(shown.size() == 2 and shown[0].collect() and not shown[1].collect(), "level %d double room: only one of the two rewards can be taken" % level)
+	_check(shown.size() == 2 and shown[0].collect() and not shown[1].collect(), "%s: only one of the two rewards can be taken" % label)
 	await _frames(1)
+	var gold_after := _run.currency
 	_dungeon.enter_room(_dungeon.start_room)
 	await _frames(1)
 	_dungeon.enter_room(index)
 	await _frames(2)
 	_check(_dungeon.current_room.state == Room.State.CLEARED and _enemies(_dungeon.current_room).is_empty()
-			and _pickups(_dungeon.current_room).is_empty(), "level %d double room: revisit gives no respawn and no second reward" % level)
+			and _pickups(_dungeon.current_room).is_empty() and _run.currency == gold_after,
+			"%s: revisit gives no respawn, no second reward and no more gold" % label)
 	_run.dungeon_level = 1
 
 
@@ -780,6 +1049,7 @@ func _test_miniboss_economy(tier: int, level: int) -> String:
 	var any_comp := false
 	var parts: Array[String] = []
 	var target := -1
+	var target_size := 0
 	for i in _dungeon.miniboss_room_indexes():
 		_dungeon.enter_room(i)
 		await _frames(2)
@@ -797,8 +1067,9 @@ func _test_miniboss_economy(tier: int, level: int) -> String:
 				and xp_sum == EncounterPlanner.lineup_xp(_mapped(lineup, level))
 		any_comp = any_comp or extras[1] > 0
 		parts.append("%d:%d:%d" % [i, extras[1], gold_sum])
-		if target < 0 or bosses.size() > 1:
+		if target < 0 or bosses.size() > target_size:
 			target = i
+			target_size = bosses.size()
 	_check(rooms_ok, "%s economy: each miniboss room = line-up XP; line-up gold + omitted extras (once per room) + %d per miniboss" % [label, bonus])
 	_check(any_comp, "%s economy: omitted extra enemies are compensated (%s)" % [label, ", ".join(parts)])
 
@@ -824,7 +1095,7 @@ func _test_miniboss_economy(tier: int, level: int) -> String:
 	var gained := _run.currency - gold_before
 	_check(is_equal_approx(mult, Difficulty.data(tier)["gold"]) and gained == expected_gold
 			and _total_xp() - xp_before == EncounterPlanner.lineup_xp(_mapped(_dungeon.room_lineup(target), level)),
-			"%s economy: clearing a %s room grants its gold x%.2f once (%d) and its line-up XP" % [label, "double" if bosses.size() > 1 else "single", mult, gained])
+			"%s economy: clearing a %s room grants its gold x%.2f once (%d) and its line-up XP" % [label, ["single", "double", "triple"][bosses.size() - 1], mult, gained])
 	_run.xp_multiplier_override = 0.0
 	_dungeon.enter_room(_dungeon.start_room)
 	await _frames(1)

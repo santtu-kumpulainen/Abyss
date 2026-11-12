@@ -376,7 +376,7 @@ func _test_combat_test_scene() -> void:
 
 func _planned_caster_room() -> int:
 	for i in _dungeon.miniboss_room_indexes():
-		if not _dungeon.is_double_miniboss(i) and _dungeon.miniboss_scene(i) and _dungeon.miniboss_scene(i).resource_path == BOSS_SCENE:
+		if _dungeon.miniboss_pair(i).size() == 1 and _dungeon.miniboss_scene(i) and _dungeon.miniboss_scene(i).resource_path == BOSS_SCENE:
 			return i
 	return -1
 
@@ -755,7 +755,7 @@ func _enter_boss() -> WaterCasterBoss:
 	var indexes := _dungeon.miniboss_room_indexes()
 	var index := -1
 	for i in indexes:
-		if not _dungeon.is_double_miniboss(i):
+		if _dungeon.miniboss_pair(i).size() == 1:
 			index = i
 			break
 	if index < 0:
