@@ -189,11 +189,23 @@ func _test_cooldown_and_bar() -> void:
 	_check(bar != null and bar.position.y > _mage.get_node(^"HealthBar").position.y and bar.size.x == (_mage.get_node(^"HealthBar") as Control).size.x,
 			"DashBar sits below the HP bar with the same width")
 	_place(Vector2(300, 324))
+	# Start the dash between frames (not inside a physics_frame callback, where
+	# _recover() returns): then every physics tick counted from dash_tick is one the
+	# Mage has processed, so elapsed ticks and its cooldown line up exactly.
+	await process_frame
 	_mage.try_dash(Vector2.RIGHT)
 	var dashes := _started.size()
 	var dash_tick := Engine.get_physics_frames()
-	await _redraw()
-	_check(not _mage.dash_ready() and _mage.dash_cooldown_ratio() < 0.02 and bar.value < 0.02, "the bar empties when the dash is used")
+	var cooldown := _mage.dash_cooldown
+	_check(not _mage.dash_ready() and _mage.dash_cooldown_ratio() == 0.0 and _mage.dash_cooldown_remaining() == cooldown,
+			"the cooldown starts full when the dash is used (ratio 0, %.2f s left)" % _mage.dash_cooldown_remaining())
+	# A process frame can contain 0..N physics ticks (the engine catches up after a
+	# slow frame), so the expected values come from the ticks that actually ran.
+	var seen := await _bar_sample()
+	var elapsed := Engine.get_physics_frames() - dash_tick
+	_check(not _mage.dash_ready() and is_equal_approx(bar.value, seen) and seen < _mage.dash_cooldown_ratio() + 0.0001
+			and absf(_mage.dash_cooldown_ratio() - elapsed / TICKS / cooldown) <= 0.25 / TICKS / cooldown,
+			"the bar empties when the dash is used and refills only with elapsed time (%.3f after %d ticks)" % [_mage.dash_cooldown_ratio(), elapsed])
 	_check(not _mage.try_dash(Vector2.LEFT) and _started.size() == dashes, "no dash during the cooldown")
 	var last := -1.0
 	var rising := true
@@ -205,10 +217,13 @@ func _test_cooldown_and_bar() -> void:
 		rising = rising and ratio >= last
 		last = ratio
 		if ticks == 30:
-			await _redraw()
-			_check(is_equal_approx(bar.value, _mage.dash_cooldown_ratio()), "the bar shows the Mage's cooldown (%.2f)" % bar.value)
-			_check(absf(_mage.dash_cooldown_remaining() - (2.75 - 31 / TICKS)) <= 2.0 / TICKS,
-					"dash_cooldown_remaining counts down (%.2f s)" % _mage.dash_cooldown_remaining())
+			seen = await _bar_sample()
+			# After a process frame every physics tick since the dash has run, so the
+			# remaining time is exactly the cooldown minus the ticks that elapsed.
+			elapsed = Engine.get_physics_frames() - dash_tick
+			_check(is_equal_approx(bar.value, seen), "the bar shows the Mage's cooldown (%.2f)" % bar.value)
+			_check(elapsed >= 30 and absf(_mage.dash_cooldown_remaining() - (cooldown - elapsed / TICKS)) <= 0.25 / TICKS,
+					"dash_cooldown_remaining counts down (%.3f s after %d ticks)" % [_mage.dash_cooldown_remaining(), elapsed])
 	ticks = Engine.get_physics_frames() - dash_tick
 	_check(absi(ticks - 165) <= 1, "the dash is ready 2.75 s after the start (%d ticks)" % ticks)
 	_check(rising and is_equal_approx(_mage.dash_cooldown_ratio(), 1.0), "the cooldown ratio rises steadily to 1.0")
@@ -701,6 +716,18 @@ func _press(action: StringName) -> void:
 func _redraw() -> void:
 	await process_frame
 	await process_frame
+
+
+## Waits two process frames and returns the Mage's dash cooldown ratio as the
+## DashBar last read it. Code resumed by process_frame runs before the nodes'
+## _process() of that frame, so the bar shows the value of the previous frame;
+## a frame may also hold 0..N physics ticks. Sampling at the previous frame
+## matches the bar's own read exactly, whatever the tick count.
+func _bar_sample() -> float:
+	await process_frame
+	var seen := _mage.dash_cooldown_ratio()
+	await process_frame
+	return seen
 
 
 func _ticks(count: int) -> void:
