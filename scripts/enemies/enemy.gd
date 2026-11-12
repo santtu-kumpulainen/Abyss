@@ -15,6 +15,11 @@ signal died
 ## which is below the Mage's base speed). Only enemies meant to out-run the Mage
 ## (the Demon) set their own cap.
 @export var speed_cap: float = 0.0
+## > 0: walks at this ratio of its target's base walking speed
+## (Mage.base_walk_speed(): permanent speed bonuses, never the Speed Potion or a
+## slow) instead of `speed`; run speed scaling does not apply then. `speed` stays
+## the fallback for targets without base_walk_speed(). Used by the Demon (0.9).
+@export var player_speed_ratio: float = 0.0
 ## Distance at which the enemy notices a target.
 @export var detection_radius: float = 260.0
 ## Distance (between origins) at which the enemy stops and attacks.
@@ -122,20 +127,30 @@ func _pursue() -> void:
 	var to_target := target.global_position - global_position
 	facing = direction_name(to_target)
 	if to_target.length() > attack_range:
-		velocity = to_target.normalized() * speed
+		velocity = to_target.normalized() * walk_speed()
 	elif _attack_cooldown_left <= 0.0:
 		_attack_cooldown_left = attack_cooldown
 		target.take_damage(contact_damage)
 		HitFeedback.knock(target, to_target)
 
 
+## Current walking speed: `player_speed_ratio` x the target's base walking
+## speed when set (and the target provides one), else `speed`.
+func walk_speed() -> float:
+	if player_speed_ratio > 0.0 and target != null and is_instance_valid(target) and target.has_method(&"base_walk_speed"):
+		return player_speed_ratio * float(target.call(&"base_walk_speed"))
+	return speed
+
+
 ## Applies run scaling once (call after _ready, before the enemy is damaged):
 ## max/current HP x `health_mult`, every damage source x `damage_mult`, attack
 ## rate x `pace_mult`, move speed x `move_mult` (defaults to `pace_mult`; capped
-## at `speed_cap`, by default LevelScaling.MAX_PURSUER_SPEED), damage taken x `vulnerability`.
+## at `speed_cap`, by default LevelScaling.MAX_PURSUER_SPEED), damage taken x `vulnerability`,
+## post-attack recovery pauses / `recovery_mult` (Issue #51 tempo; telegraphs
+## and windups are never scaled).
 ## Returns false (and changes nothing) if this enemy was already scaled.
 func apply_scaling(health_mult: float, damage_mult: float, pace_mult: float = 1.0, vulnerability: float = 1.0,
-		move_mult: float = -1.0) -> bool:
+		move_mult: float = -1.0, recovery_mult: float = 1.0) -> bool:
 	if scaled:
 		return false
 	scaled = true
@@ -145,12 +160,19 @@ func apply_scaling(health_mult: float, damage_mult: float, pace_mult: float = 1.
 	speed = minf(speed * (pace_mult if move_mult < 0.0 else move_mult), maxf(speed, cap))
 	attack_cooldown /= maxf(pace_mult, 0.01)
 	_scale_attacks(damage_mult, pace_mult)
+	_scale_recovery(maxf(recovery_mult, 0.01))
 	return true
 
 
 ## Scales this enemy's damage (subclasses add their own attacks).
 func _scale_attacks(damage_mult: float, _pace_mult: float) -> void:
 	contact_damage *= damage_mult
+
+
+## Divides this enemy's post-attack recovery pauses by `mult` (subclasses with
+## such pauses override it; never a telegraph or windup).
+func _scale_recovery(_mult: float) -> void:
+	pass
 
 
 func take_damage(amount: float) -> void:

@@ -6,7 +6,8 @@
 
 [node name="Demon" instance=ExtResource("1_enemy")]
 speed = 160.0
-speed_cap = 168.0
+speed_cap = 210.0
+player_speed_ratio = 0.9
 contact_damage = 8.0
 attack_cooldown = 0.8
 xp_reward = 2

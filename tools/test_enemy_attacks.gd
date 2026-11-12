@@ -40,7 +40,7 @@ func _initialize() -> void:
 
 func _run_tests() -> void:
 	_test_player_speed()
-	_test_enemy_speed_scaling()
+	await _test_enemy_speed_scaling()
 	await _test_blood_monster_dash()
 	await _test_blood_monster_sidestep()
 	await _test_dash_telegraph_drawn()
@@ -68,7 +68,7 @@ func _mage_base_speed() -> float:
 
 func _test_player_speed() -> void:
 	var base := _mage_base_speed()
-	_check(base > 130.0 and is_equal_approx(base, 150.0), "Mage base speed raised from 130 to %.0f" % base)
+	_check(is_equal_approx(base, 185.0), "Mage base speed %.0f (Issue #51 tempo: 150 -> 185)" % base)
 	_check(is_equal_approx(RunState.ITEMS[&"swift_boots"]["speed"], 0.08) and is_equal_approx(RunState.ITEMS[&"bloodstone"]["speed"], 0.03)
 			and is_equal_approx(RunState.RELICS[&"wind_relic"]["speed"], 0.05), "speed bonuses: Boots +8%, Bloodstone +3%, Wind Relic +5%")
 	var run := RunState.new()
@@ -103,8 +103,8 @@ func _test_enemy_speed_scaling() -> void:
 	for i in 20:
 		run.relics.append(&"wind_relic")
 	var move := run.enemy_move_pace_multiplier()
-	_check(is_equal_approx(move, 1.1 * 1.15 * 1.1), "worst-case move pace x%.3f (Abyssal x level cap x catch-up cap)" % move)
-	_check(is_equal_approx(run.enemy_pace_multiplier(), 1.2 * 1.3), "attack pace unchanged (x%.2f)" % run.enemy_pace_multiplier())
+	_check(is_equal_approx(move, 1.1 * 1.15 * 1.1 * Tempo.ENEMY_MOVE), "worst-case move pace x%.3f (Abyssal x level cap x catch-up cap x tempo 1.25)" % move)
+	_check(is_equal_approx(run.enemy_pace_multiplier(), 1.2 * 1.3 * Tempo.ENEMY_ATTACK), "attack pace: Abyssal x level cap x tempo 1.15 (x%.2f)" % run.enemy_pace_multiplier())
 	var speeds := {}
 	for path in PURSUERS:
 		var enemy := (load(path) as PackedScene).instantiate() as Enemy
@@ -114,8 +114,8 @@ func _test_enemy_speed_scaling() -> void:
 		enemy.apply_scaling(1.0, 1.0, run.enemy_pace_multiplier(), 1.0, move)
 		speeds[path] = enemy.speed
 		if path == DEMON:
-			_check(is_equal_approx(enemy.speed, enemy.speed_cap) and enemy.speed <= base * 1.12 + 0.001,
-					"demon.tscn: %.0f -> %.1f at the highest scaling (its own cap, <= Mage base +12%%)" % [unscaled, enemy.speed])
+			_check(is_equal_approx(enemy.speed, enemy.speed_cap) and enemy.speed <= base * 1.14 + 0.001,
+					"demon.tscn fallback speed (targets without base_walk_speed): %.0f -> %.1f at the highest scaling (its own cap)" % [unscaled, enemy.speed])
 		else:
 			_check(enemy.speed <= LevelScaling.MAX_PURSUER_SPEED + 0.001 and enemy.speed < base and enemy.speed >= unscaled,
 					"%s: %.0f -> %.1f at the highest scaling (< Mage base %.0f)" % [path.get_file(), unscaled, enemy.speed, base])
@@ -130,32 +130,40 @@ func _test_enemy_speed_scaling() -> void:
 	goblin.apply_scaling(1.0, 1.0, 2.0)
 	_check(is_equal_approx(goblin.speed, LevelScaling.MAX_PURSUER_SPEED), "a single pace multiplier is capped too (%.1f)" % goblin.speed)
 	goblin.free()
-	_test_demon_speed(base)
+	await _test_demon_speed(base)
 
 
-## Demon (Issue #47 follow-up): slightly faster than the Mage's base speed so it
-## must be dealt with, with its own modest scaling cap.
+## Demon: walks at 0.9 x the Mage's base walking speed (permanent speed bonuses
+## count; the Speed Potion, slows and run speed scaling do not).
 func _test_demon_speed(mage_base: float) -> void:
+	var mage := (load("res://scenes/mage/mage.tscn") as PackedScene).instantiate() as Mage
+	root.add_child(mage)
+	mage.global_position = Vector2(-3000, 0)
 	var demon := (load(DEMON) as PackedScene).instantiate() as Enemy
-	var unscaled := demon.speed
-	_check(unscaled > mage_base * 1.05 - 0.001 and unscaled <= mage_base * 1.08 + 0.001,
-			"Demon base speed %.0f is 5-8%% above the Mage's %.0f (+%.1f%%)" % [unscaled, mage_base, (unscaled / mage_base - 1.0) * 100.0])
-	_check(demon.speed_cap > unscaled and demon.speed_cap <= mage_base * 1.12, "Demon scaling cap %.0f (<= Mage base +12%%)" % demon.speed_cap)
+	root.add_child(demon)
+	demon.global_position = Vector2(-3000, -200)  # inside its 260 px detection
+	await _frames(2)
+	_check(is_equal_approx(demon.player_speed_ratio, 0.9), "Demon paces itself at 0.9x the Mage's speed")
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base), "Demon walks %.1f px/s (0.9 x %.0f)" % [demon.walk_speed(), mage_base])
+	var start := demon.global_position
+	await _frames(30)
+	var measured := start.distance_to(demon.global_position) / 0.5
+	_check(absf(measured - 0.9 * mage_base) <= 3.0, "Demon really moves at %.1f px/s towards the Mage" % measured)
+	mage.speed_multiplier = 1.25  # Speed Potion active
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base), "Speed Potion on the Mage: Demon speed unchanged (%.1f)" % demon.walk_speed())
+	mage.apply_slow(0.6, 2.0)
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base), "slowed Mage: Demon speed unchanged (%.1f)" % demon.walk_speed())
+	mage.base_speed_multiplier = 1.13  # Boots + Wind Relic
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base * 1.13), "permanent speed bonuses: Demon follows them (%.1f)" % demon.walk_speed())
+	mage.base_speed_multiplier = 1.0
+	var run := RunState.new()
+	run.configure(Difficulty.Tier.ABYSSAL)
+	run.dungeon_level = 20
+	demon.apply_scaling(1.0, 1.0, run.enemy_pace_multiplier(), 1.0, run.enemy_move_pace_multiplier(), run.enemy_recovery_multiplier())
+	_check(is_equal_approx(demon.walk_speed(), 0.9 * mage_base), "run speed scaling (Abyssal L20, tempo) does not change it (%.1f)" % demon.walk_speed())
+	run.free()
 	demon.free()
-	var results := []
-	for tier: int in [Difficulty.Tier.NORMAL, Difficulty.Tier.HARD, Difficulty.Tier.ABYSSAL]:
-		for level in [1, 5, 20]:
-			var run := RunState.new()
-			run.configure(tier)
-			run.dungeon_level = level
-			var d := (load(DEMON) as PackedScene).instantiate() as Enemy
-			root.add_child(d)
-			d.apply_scaling(1.0, 1.0, run.enemy_pace_multiplier(), 1.0, run.enemy_move_pace_multiplier())
-			var expected := minf(unscaled * run.enemy_move_pace_multiplier(), d.speed_cap)
-			results.append(is_equal_approx(d.speed, expected) and d.speed > mage_base and d.speed <= d.speed_cap + 0.001)
-			d.free()
-			run.free()
-	_check(not results.has(false), "Demon speed on every difficulty and level: base x move pace, above the Mage, at most its cap")
+	mage.free()
 
 
 # --- Blood Monster dash ------------------------------------------------------------------------------

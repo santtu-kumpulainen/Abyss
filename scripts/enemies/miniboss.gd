@@ -55,6 +55,13 @@ func _ready() -> void:
 		label.text = display_name
 
 
+## The default pause after each attack (Issue #51 tempo); windups, punish
+## windows and the opening delay are never scaled.
+func _scale_recovery(mult: float) -> void:
+	super._scale_recovery(mult)
+	recover_time /= mult
+
+
 ## False during the opening delay (in the Dungeon: the shared room-entry delay,
 ## counted only while the encounter is active): no attack, not even a contact hit.
 func attacks_unlocked() -> bool:
