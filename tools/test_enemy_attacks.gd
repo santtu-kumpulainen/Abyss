@@ -43,6 +43,7 @@ func _run_tests() -> void:
 	_test_enemy_speed_scaling()
 	await _test_blood_monster_dash()
 	await _test_blood_monster_sidestep()
+	await _test_dash_telegraph_drawn()
 	_test_goblin_swing_mapping()
 	await _test_goblin_cycle()
 	_test_goblin_geometry()
@@ -220,6 +221,55 @@ func _test_blood_monster_sidestep() -> void:
 	await _frames_until(func() -> bool: return monster.phase == TelegraphedMelee.Phase.RECOVER, 300)
 	_check(is_zero_approx(dummy.taken), "a perpendicular sidestep during the windup avoids the dash")
 	monster.free()
+	dummy.free()
+
+
+## Issue #51 Stage 4 fix: TelegraphedMelee redraws every physics frame again
+## (a Stage 3 edit had left queue_redraw() unreachable, so the regular Blood
+## Monster's dash lane was never drawn). Counts real _draw() passes: the lane is
+## drawn throughout the windup, erased right after it, and gone with the monster
+## if it dies mid-windup. The Brood Mother's charge lane keeps working.
+func _test_dash_telegraph_drawn() -> void:
+	var dummy := _dummy(Vector2(200, 0))
+	var monster := _spawn(BLOOD_MONSTER, Vector2.ZERO) as BloodMonster
+	var draws := {"windup": 0, "after": 0}
+	monster.draw.connect(func() -> void:
+		if monster.phase == TelegraphedMelee.Phase.WINDUP:
+			draws["windup"] += 1
+		elif draws["windup"] > 0:
+			draws["after"] += 1)
+	await _frames(2)
+	_check(monster.begin_special(), "lane setup: dash telegraph started")
+	await _frames(1)
+	_check(monster.dash().aim.is_equal_approx((dummy.global_position - monster.global_position).normalized())
+			and is_equal_approx(monster.dash().distance, monster.dash_distance) and is_equal_approx(monster.dash().hit_radius, monster.dash_hit_radius),
+			"Blood Monster: lane from its feet towards the Mage, dash length x hit width")
+	var windup := await _frames_until(func() -> bool: return monster.phase != TelegraphedMelee.Phase.WINDUP, 300)
+	_check(draws["windup"] >= windup - 2, "Blood Monster: the dash lane is drawn every frame of the windup (%d draws / %d frames)" % [draws["windup"], windup])
+	_check(monster.z_index > -10 and monster.z_as_relative, "Blood Monster: the lane is drawn on the monster (z %d), above the room floor (z -10)" % monster.z_index)
+	await _frames(2)
+	_check(draws["after"] >= 1, "Blood Monster: the lane is erased (redrawn without it) once the windup ends")
+	monster.free()
+	# Killed mid-windup: the lane goes with the monster.
+	monster = _spawn(BLOOD_MONSTER, Vector2.ZERO) as BloodMonster
+	await _frames(2)
+	monster.begin_special()
+	await _frames(10)
+	monster.take_damage(1.0e9)
+	await _frames(1)
+	_check(not is_instance_valid(monster), "Blood Monster: killed during the windup -> lane removed with it")
+	await _frames(60)
+	# Brood Mother (miniboss) charge lane.
+	var mother := _spawn("res://scenes/enemies/brood_mother.tscn", Vector2.ZERO) as BroodMother
+	var mother_draws := [0]
+	mother.draw.connect(func() -> void:
+		if mother.state == Miniboss.State.WINDUP and mother.current_attack == &"charge":
+			mother_draws[0] += 1)
+	await _frames(2)
+	_check(mother.begin_charge(), "Brood Mother: charge telegraph started")
+	var mw := await _frames_until(func() -> bool: return mother.state != Miniboss.State.WINDUP, 300)
+	_check(mother_draws[0] >= mw - 2, "Brood Mother: charge lane drawn every frame of the windup (%d / %d)" % [mother_draws[0], mw])
+	mother.free()
 	dummy.free()
 
 

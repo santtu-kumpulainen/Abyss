@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://cl1p87wpi80io" path="res://scripts/enemies/ranged_enemy.gd" id="2_ranged"]
 [ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/demon.tres" id="3_frames"]
 [ext_resource type="Resource" path="res://scenes/spells/enemy_bolt/enemy_bolt.tres" id="4_bolt"]
+[ext_resource type="Resource" path="res://scenes/effects/violet_burst.tres" id="20_death_fx"]
 
 [node name="DemonCaster" unique_id=1768498846 instance=ExtResource("1_enemy")]
 script = ExtResource("2_ranged")
@@ -21,6 +22,8 @@ currency_reward = 10
 sprite_frames = ExtResource("3_frames")
 sprite_scale = 2.2
 side_view = true
+death_effect = ExtResource("20_death_fx")
+death_effect_offset = Vector2(0, -24)
 
 [node name="AnimatedSprite2D" parent="." index="0" unique_id=956072630]
 self_modulate = Color(0.7, 0.55, 1, 1)

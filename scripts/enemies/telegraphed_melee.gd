@@ -111,12 +111,12 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_knockback_step(delta)
 	_play(&"walk" if velocity != Vector2.ZERO else &"idle")
+	queue_redraw()
 
 
 ## No knockback during the special's windup (telegraph) and strike.
 func can_be_knocked_back() -> bool:
 	return phase != Phase.WINDUP and phase != Phase.ACTIVE
-	queue_redraw()
 
 
 # --- Subclass hooks ----------------------------------------------------------------

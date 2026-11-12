@@ -54,8 +54,12 @@ signal died
 ## Facing direction: "down", "left", "right" or "up".
 var facing: StringName = &"down"
 var target: Node2D
-## Played where this enemy dies (optional).
+## Played where this enemy dies (optional), on top of its corpse.
 @export var death_effect: EffectSheet
+## Offset of death_effect from the feet (e.g. up to the body centre).
+@export var death_effect_offset := Vector2.ZERO
+## World width of death_effect (0 = the sheet's own scale).
+@export var death_effect_diameter: float = 0.0
 
 @export_group("Hit feedback")
 ## Knockback when damaged (Issue #51 Stage 3): speed along the hit direction for
@@ -79,6 +83,9 @@ var scaled := false
 var damage_taken_multiplier := 1.0
 ## Summoned mid-fight (e.g. by a Miniboss): grants no XP, gold or kill heal.
 var summoned := false
+## True from the moment of death (Issue #51 Stage 4): the enemy has left combat
+## and is freed at the end of the frame; death runs only once.
+var dying := false
 
 var _attack_cooldown_left := 0.0
 var _knock_velocity := Vector2.ZERO
@@ -92,7 +99,7 @@ func _ready() -> void:
 	if sprite_frames:
 		_sprite.sprite_frames = sprite_frames
 	_sprite.scale = Vector2.ONE * sprite_scale
-	health.died.connect(_on_died)
+	health.died.connect(_handle_death)
 	_play(&"idle")
 
 
@@ -239,8 +246,52 @@ func _hit_pop() -> float:
 	return hit_pop_scale
 
 
+## Death entry point (Health.died): runs once. The enemy leaves combat first,
+## then _on_died() spawns the visuals, emits `died` (room count and rewards)
+## and frees the enemy.
+func _handle_death() -> void:
+	if dying:
+		return
+	dying = true
+	_leave_combat()
+	_on_died()
+
+
+## Removes this enemy from combat at once: out of the "enemies" group (targeting,
+## blasts), no body or hurtbox collision, no AI or knockback.
+func _leave_combat() -> void:
+	remove_from_group(&"enemies")
+	_knock_left = 0.0
+	velocity = Vector2.ZERO
+	set_physics_process(false)
+	set_process(false)
+	collision_layer = 0
+	collision_mask = 0
+	for child in get_children():
+		var area := child as Area2D
+		if area:
+			area.collision_layer = 0
+			area.collision_mask = 0
+			area.set_deferred(&"monitoring", false)
+			area.set_deferred(&"monitorable", false)
+
+
+## Parent of the death visuals: not the Enemies container (rooms count its
+## children); the scene root outlives the room.
+func _death_visual_parent() -> Node:
+	return get_tree().current_scene if get_tree().current_scene else get_tree().root
+
+
+## Death visuals (subclasses may add their own, e.g. the Blood Monster blast):
+## a detached EnemyCorpse playing the sprite's death animation (if it has one)
+## and death_effect. Neither has collision; both free themselves.
+func _spawn_death_visuals() -> void:
+	var parent := _death_visual_parent()
+	EnemyCorpse.spawn(_sprite, parent, facing)
+	PixelEffect.spawn(death_effect, parent, global_position + death_effect_offset, 0.0, death_effect_diameter)
+
+
 func _on_died() -> void:
-	# Not under the Enemies container (rooms count its children); the scene root outlives the room.
-	PixelEffect.spawn(death_effect, get_tree().current_scene if get_tree().current_scene else get_tree().root, global_position)
+	_spawn_death_visuals()
 	died.emit()
 	queue_free()

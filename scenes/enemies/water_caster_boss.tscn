@@ -29,6 +29,8 @@ elite = true
 sprite_frames = ExtResource("3_frames")
 sprite_scale = 3.8
 side_view = true
+death_effect = ExtResource("6_impact")
+death_effect_offset = Vector2(0, -40)
 
 [node name="AnimatedSprite2D" parent="." index="0"]
 self_modulate = Color(0.4, 0.72, 1.15, 1)

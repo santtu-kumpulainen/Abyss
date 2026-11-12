@@ -5,6 +5,7 @@
 [ext_resource type="SpriteFrames" path="res://scenes/enemies/sprite_frames/blood_monster.tres" id="3_frames"]
 [ext_resource type="Resource" path="res://scenes/spells/water_bolt/water_bolt.tres" id="4_bolt"]
 [ext_resource type="Resource" path="res://scenes/effects/water_telegraph.tres" id="5_telegraph"]
+[ext_resource type="Resource" path="res://scenes/effects/gigapack/water_impact.tres" id="20_death_fx"]
 
 [node name="WaterCaster" instance=ExtResource("1_enemy")]
 script = ExtResource("2_ranged")
@@ -24,6 +25,9 @@ currency_reward = 10
 sprite_frames = ExtResource("3_frames")
 sprite_scale = 2.2
 side_view = true
+death_effect = ExtResource("20_death_fx")
+death_effect_offset = Vector2(0, -24)
+death_effect_diameter = 120.0
 
 [node name="AnimatedSprite2D" parent="." index="0"]
 self_modulate = Color(0.45, 0.75, 1, 1)
