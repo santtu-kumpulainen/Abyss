@@ -69,19 +69,24 @@ extends Node2D
 ## doors, walls, obstacles, spawn points, enemies, pickups and props. The boss
 ## room needs RunState.SEALS_REQUIRED seals as well as its Mage level gate
 ## (can_enter()); its door label shows what is missing.
-## Miniboss rooms: miniboss_count() seeded tier-2 combat rooms per level (3 on
-## levels 1-2, 4 from level 3; EncounterPlanner.miniboss_room_count) - see
-## miniboss_room_indexes(); only 2 of them hold a seal - get one of `miniboss_scenes`
-## (EncounterPlanner.assign_minibosses) instead of their planned line-up. The
-## miniboss is given that line-up's XP (so the XP budget is unchanged) and its
-## gold plus `miniboss_bonus_gold`; such rooms get no extra enemies. Clearing
+## Miniboss rooms: miniboss_count() seeded tier-2 combat rooms per level (3 / 3 /
+## 4 on levels 1-3, from level 4 one double room + 2-3 single rooms;
+## EncounterPlanner.miniboss_room_count, Issue #51) - see miniboss_room_indexes();
+## only 2 of them hold a seal - get minibosses from `miniboss_scenes` (the
+## roster) through the run's shuffle bag (EncounterPlanner.assign_minibosses:
+## even, no repeats before every type appeared) instead of their planned line-up. The
+## miniboss is given the XP and gold of that line-up as the normal room would
+## spawn it (after the biome's enemy swaps), plus the gold of the extra enemies the room would have spawned as a
+## normal room (it spawns none; once per room, miniboss_compensation_gold()) and
+## `miniboss_bonus_gold` per miniboss (Issue #51). Clearing
 ## one reveals its seal and a pick-1-of-2 choice of RunState miniboss items
 ## (ItemPickups sharing a choice_group). Champion rooms keep their line-up and
 ## get a ChampionPack (the champion wards its pack until it dies).
-## Double-miniboss rooms (EncounterPlanner.double_miniboss_room_count: 1 on
-## levels 5-6, 2 from level 7) hold two different minibosses (miniboss_pair())
-## that split the room's line-up XP and gold exactly (split_reward); the bonus
-## gold and the reward choice are given once per room. Each has
+## Double-miniboss rooms (EncounterPlanner.double_miniboss_room_count: exactly 1
+## from level 4) hold two different minibosses (miniboss_pair())
+## that split the room's line-up XP and gold (+ the omitted extras' gold) exactly
+## (split_reward); each adds its own `miniboss_bonus_gold`, the reward choice is
+## given once per room. Each has
 ## `double_health_factor` x HP, the Brood Mother at most `double_max_summons`
 ## summons and the Hexcaller `double_hexcaller_delay` s more opening delay.
 ## Seeded layout (Issue #45): with `seeded_layout`, `rooms` is an authored
@@ -150,8 +155,8 @@ const DOOR_BY_DIRECTION := {
 @export_group("")
 ## Miniboss scenes (roots must be Minibosses) dealt to the miniboss rooms.
 @export var miniboss_scenes: Array[PackedScene] = []
-## Gold added to a miniboss room's reward (on top of the replaced encounter's
-## gold; once per room, also in double-miniboss rooms).
+## Gold bonus of each miniboss (Issue #51: once per miniboss, so a double room
+## pays it twice), on top of the replaced encounter's gold and its omitted extras.
 @export var miniboss_bonus_gold: int = 40
 @export_group("Double miniboss rooms")
 ## Max HP factor of each miniboss of a double room (initial tuning, Issue #45).
@@ -198,9 +203,12 @@ var _reach_time := 0.0
 var _lineups := {}
 ## Room index -> seal room kind (&"treasure", &"miniboss" or &"champion") of the current level.
 var _seal_rooms := {}
-## Room index -> miniboss scene / reward choice item ids of the current level.
+## Room index -> miniboss scenes (Array[PackedScene], two in a double room) /
+## reward choice item ids of the current level.
 var _minibosses := {}
 var _reward_choices := {}
+## Room index -> unscaled omitted-extras gold of a built miniboss room (miniboss_compensation_gold()).
+var _miniboss_compensation := {}
 ## Miniboss room indexes of the current level (seal holders or not) and the
 ## ones that hold two minibosses.
 var _miniboss_rooms: Array[int] = []
@@ -525,7 +533,8 @@ func miniboss_room_indexes() -> Array[int]:
 ## Miniboss rooms planned per level: the `miniboss_rooms` override, else the
 ## dungeon level's progression.
 func miniboss_count() -> int:
-	return miniboss_rooms if miniboss_rooms > 0 else EncounterPlanner.miniboss_room_count(run_state.dungeon_level)
+	return miniboss_rooms if miniboss_rooms > 0 \
+			else EncounterPlanner.miniboss_room_count(run_state.dungeon_level, run_state.level_seed())
 
 
 ## True if room `index` holds two minibosses on this level.
@@ -533,23 +542,19 @@ func is_double_miniboss(index: int) -> bool:
 	return _double_rooms.has(index)
 
 
-## Miniboss scenes of room `index` on this level: none, its miniboss_scene(),
-## or for a double room that scene plus a different one of `miniboss_scenes`.
+## Miniboss scenes of room `index` on this level: none, one, or for a double
+## room two different ones (both drawn from the run's shuffle bag, see
+## EncounterPlanner.assign_minibosses()).
 func miniboss_pair(index: int) -> Array[PackedScene]:
 	var scenes: Array[PackedScene] = []
-	var first := miniboss_scene(index)
-	if first == null:
-		return scenes
-	scenes.append(first)
-	if is_double_miniboss(index):
-		var others := miniboss_scenes.filter(func(s: PackedScene) -> bool: return s != first)
-		scenes.append(others[0] if not others.is_empty() else first)
+	scenes.assign(_minibosses.get(index, []))
 	return scenes
 
 
-## Miniboss scene planned for room `index` on this level (null if none).
+## First miniboss scene planned for room `index` on this level (null if none).
 func miniboss_scene(index: int) -> PackedScene:
-	return _minibosses.get(index, null)
+	var scenes: Array = _minibosses.get(index, [])
+	return scenes[0] if not scenes.is_empty() else null
 
 
 ## Item ids offered (pick one) after the miniboss of room `index` on this level.
@@ -664,12 +669,15 @@ func _get_room(index: int) -> Room:
 		# (just before the Mage enters), and also covers enemies registered later (waves).
 		room.enemy_registered.connect(_scale_enemy.bind(spec.is_treasure(), run_state.output_hp_modifier()))
 		var lineup := room_lineup(index)
+		var pool: Array[PackedScene] = []
+		for scene in lineup:
+			pool.append(Biomes.map_scene(scene, level, "enemy_map"))
 		if _minibosses.has(index):
-			_add_miniboss(room, index, lineup)
+			# The extras this room would have spawned as a normal room (same rule and
+			# spawn points as below); their gold is paid by the minibosses instead.
+			var omitted := run_state.extra_room_enemies(spec.required_level, room.safe_extra_points(pool.size()).size())
+			_add_miniboss(room, index, lineup, pool, EncounterPlanner.extra_enemies_gold(pool, omitted))
 		elif not lineup.is_empty():
-			var pool: Array[PackedScene] = []
-			for scene in lineup:
-				pool.append(Biomes.map_scene(scene, level, "enemy_map"))
 			room.add_encounter_enemies(pool)
 			if not spec.is_boss and not spec.is_treasure():
 				var free := room.safe_extra_points(pool.size()).size()
@@ -846,20 +854,33 @@ func advance_level() -> bool:
 	return true
 
 
-## Puts room `index`'s miniboss into the encounter in place of `lineup`, with
-## that line-up's XP and gold (+ miniboss_bonus_gold), and its reward choices.
-func _add_miniboss(room: Room, index: int, lineup: Array[PackedScene]) -> void:
+## Unscaled gold room `index` pays for the extra enemies it does not spawn as a
+## miniboss room (set when the room is built; 0 if not built or no miniboss room).
+func miniboss_compensation_gold(index: int) -> int:
+	return _miniboss_compensation.get(index, 0)
+
+
+## Puts room `index`'s minibosses into the encounter in place of `lineup`
+## (Issue #51 economy). `pool` is the resolved line-up the room would spawn as a
+## normal room (`lineup` after the biome's enemy_map, built once in _get_room()).
+## The resolved line-up's XP, and its gold + `compensation_gold` (the omitted
+## extra enemies' gold, from the same `pool`, once per room), are split exactly
+## between the minibosses, so the room pays what the normal room's encounter
+## would; each miniboss adds miniboss_bonus_gold (no XP bonus). All of it is
+## unscaled: RunState.grant_enemy_rewards() applies the XP / gold multipliers once per kill.
+func _add_miniboss(room: Room, index: int, lineup: Array[PackedScene], pool: Array[PackedScene],
+		compensation_gold: int = 0) -> void:
 	var scenes := miniboss_pair(index)
 	var double := scenes.size() > 1
-	# The line-up's XP and gold are split exactly; the bonus gold is paid once (first miniboss).
-	var xp_shares := EncounterPlanner.split_reward(EncounterPlanner.lineup_xp(lineup), scenes.size())
-	var gold_shares := EncounterPlanner.split_reward(EncounterPlanner.lineup_gold(lineup), scenes.size())
+	_miniboss_compensation[index] = compensation_gold
+	var xp_shares := EncounterPlanner.split_reward(EncounterPlanner.lineup_xp(pool), scenes.size())
+	var gold_shares := EncounterPlanner.split_reward(EncounterPlanner.lineup_gold(pool) + compensation_gold, scenes.size())
 	var points := room.get_node(^"SpawnPoints")
 	var names: Array[String] = []
 	for k in scenes.size():
 		var boss := scenes[k].instantiate() as Miniboss
 		boss.xp_reward = xp_shares[k]
-		boss.currency_reward = gold_shares[k] + (miniboss_bonus_gold if k == 0 else 0)
+		boss.currency_reward = gold_shares[k] + miniboss_bonus_gold
 		boss.position = (points.get_child(k % points.get_child_count()) as Node2D).position \
 				if points.get_child_count() > 0 else seal_position
 		boss.detection_radius = room.spawn_detection_radius
@@ -919,6 +940,7 @@ func _plan_level() -> void:
 		_place_rooms(level_seed)
 	_lineups = EncounterPlanner.plan(rooms, level_seed)
 	_seal_rooms.clear()
+	_miniboss_compensation.clear()
 	for i in rooms.size():
 		if rooms[i].is_treasure():
 			_seal_rooms[i] = &"treasure"
@@ -934,7 +956,8 @@ func _plan_level() -> void:
 		_seal_rooms[i] = &"miniboss"
 	_double_rooms = EncounterPlanner.pick_double_minibosses(_miniboss_rooms,
 			EncounterPlanner.double_miniboss_room_count(run_state.dungeon_level), level_seed)
-	_minibosses = EncounterPlanner.assign_minibosses(_miniboss_rooms, miniboss_scenes, level_seed)
+	_minibosses = EncounterPlanner.assign_minibosses(_miniboss_rooms, _double_rooms, miniboss_scenes,
+			run_state.run_seed, run_state.dungeon_level)
 	_reward_choices = EncounterPlanner.assign_rewards(_miniboss_rooms, RunState.miniboss_reward_pool(), reward_offsets.size(), level_seed)
 	if _seal_rooms.size() != EncounterPlanner.SEAL_SOURCES or _miniboss_rooms.size() != bosses:
 		push_error("Dungeon: %d Ancient Seal sources (need %d), %d of %d miniboss rooms"
