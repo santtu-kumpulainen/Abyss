@@ -13,6 +13,10 @@ extends Enemy
 ## `punish_multiplier` x damage. Summons (_summon()) join the room encounter
 ## with 0 XP and 0 gold and die with the miniboss; its FloorHazards and bolts
 ## are removed when it dies, so nothing outlives the encounter.
+## The Dungeon calls configure_for_level() with the dungeon level at spawn, so
+## a miniboss can pick its behaviour tier (Issue #51); the default does nothing.
+## floor_rect() is the floor it fights on: its Room's RoomVisuals floor, or
+## outside a Room (test scenes) a sibling's "Floor" control.
 
 ## Emitted when an attack's telegraph starts.
 signal attack_started(attack: StringName)
@@ -144,12 +148,38 @@ func _summon(scene: PackedScene, pos: Vector2) -> Enemy:
 
 ## Global `pos` moved inside the room floor, at least `floor_margin` from its edges.
 func _clamp_to_floor(pos: Vector2) -> Vector2:
-	var room := _room()
-	var visuals := room.get_node_or_null(^"Visuals") as RoomVisuals if room else null
-	if visuals == null:
+	var area := floor_rect()
+	if not area.has_area():
 		return pos
-	var rect := visuals.floor_rect.grow(-floor_margin)
-	return room.to_global(room.to_local(pos).clamp(rect.position, rect.end))
+	var rect := area.grow(-floor_margin)
+	return pos.clamp(rect.position, rect.end)
+
+
+## Global rect of the floor this miniboss fights on: its Room's RoomVisuals
+## floor_rect; outside a Room the first "Floor" Control of a sibling (e.g.
+## scenes/rooms/test_room.tscn); else an empty Rect2.
+func floor_rect() -> Rect2:
+	var room := _room()
+	if room:
+		var visuals := room.get_node_or_null(^"Visuals") as RoomVisuals
+		if visuals:
+			return Rect2(room.to_global(visuals.floor_rect.position), visuals.floor_rect.size)
+		return Rect2()
+	var parent := get_parent()
+	if parent == null:
+		return Rect2()
+	for sibling in parent.get_children():
+		var area := sibling.get_node_or_null(^"Floor") as Control
+		if area:
+			return area.get_global_rect()
+	return Rect2()
+
+
+## Node that holds this miniboss's floor hazards: its Room (so they are freed
+## with it), else its own parent.
+func _hazard_parent() -> Node:
+	var room := _room()
+	return room if room else get_parent()
 
 
 func _room() -> Room:
@@ -170,6 +200,11 @@ func _chase_and_hit() -> void:
 
 
 # --- Subclass hooks ----------------------------------------------------------------
+
+## Called by the Dungeon at spawn with the dungeon level (behaviour tiers).
+func configure_for_level(_level: int) -> void:
+	pass
+
 
 ## Cooldown timers.
 func _tick(_delta: float) -> void:

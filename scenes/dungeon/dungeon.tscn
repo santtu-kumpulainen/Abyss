@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" path="res://scenes/items/ancient_seal.tscn" id="17_seal"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/brood_mother.tscn" id="18_brood"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/hexcaller.tscn" id="19_hex"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/water_caster_boss.tscn" id="20_water_caster"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/upgrade_station.tscn" id="13_upgrade_station"]
 [ext_resource type="PackedScene" path="res://scenes/ui/victory_overlay.tscn" id="14_victory"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/survival_room.tscn" id="15_survival"]
@@ -200,7 +201,7 @@ seeded_layout = true
 rooms = Array[ExtResource("10_room_spec")]([SubResource("Room_2_4"), SubResource("Room_3_4"), SubResource("Room_3_3"), SubResource("Room_0_4"), SubResource("Room_1_4"), SubResource("Room_4_4"), SubResource("Room_0_3"), SubResource("Room_2_3"), SubResource("Room_4_3"), SubResource("Room_0_2"), SubResource("Room_1_2"), SubResource("Room_2_2"), SubResource("Room_3_2"), SubResource("Room_4_2"), SubResource("Room_0_1"), SubResource("Room_1_1"), SubResource("Room_2_1"), SubResource("Room_4_1"), SubResource("Room_0_0"), SubResource("Room_1_0"), SubResource("Room_3_0"), SubResource("Room_4_0"), SubResource("Room_2_0"), SubResource("Room_5_2"), SubResource("Room_m1_3")])
 item_pickup_scene = ExtResource("12_item_pickup")
 ancient_seal_scene = ExtResource("17_seal")
-miniboss_scenes = Array[PackedScene]([ExtResource("18_brood"), ExtResource("19_hex")])
+miniboss_scenes = Array[PackedScene]([ExtResource("18_brood"), ExtResource("19_hex"), ExtResource("20_water_caster")])
 upgrade_station_scene = ExtResource("13_upgrade_station")
 
 [node name="Mage" parent="." unique_id=534239917 instance=ExtResource("5_mage")]

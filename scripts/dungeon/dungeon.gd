@@ -774,6 +774,9 @@ func _scale_enemy(enemy: Enemy, treasure_room: bool, output_modifier: float = 1.
 			run_state.enemy_move_pace_multiplier())
 	if enemy is Goblin:
 		(enemy as Goblin).swings_before_special = run_state.goblin_swings_before_special()
+	if enemy is Miniboss:
+		# Behaviour tier by dungeon level (Issue #51); its cooldowns are already pace-scaled above.
+		(enemy as Miniboss).configure_for_level(run_state.dungeon_level)
 
 
 func _on_enemy_defeated(enemy: Enemy) -> void:
