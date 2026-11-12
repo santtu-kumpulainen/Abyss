@@ -151,9 +151,9 @@ func _test_snapshot_and_boss() -> void:
 	_check(again == room_a and is_equal_approx(_goblin(again).health.max_health, goblin), "revisiting room A keeps its snapshot (x1.0)")
 	# Damage, speed, XP and gold are not touched by the modifier.
 	var base := (load("res://scenes/enemies/giant_goblin.tscn") as PackedScene).instantiate() as Enemy
-	_check(is_equal_approx(enemy_b.contact_damage, base.contact_damage * 1.10) and is_equal_approx(enemy_b.speed, base.speed)
-			and is_equal_approx(enemy_b.attack_cooldown, base.attack_cooldown) and enemy_b.xp_reward == base.xp_reward and enemy_b.currency_reward == base.currency_reward,
-			"damage (x1.10 only), speed, cooldown, XP and gold are unchanged")
+	_check(is_equal_approx(enemy_b.contact_damage, base.contact_damage * 1.10) and is_equal_approx(enemy_b.speed, base.speed * Tempo.ENEMY_MOVE)
+			and is_equal_approx(enemy_b.attack_cooldown, base.attack_cooldown / Tempo.ENEMY_ATTACK) and enemy_b.xp_reward == base.xp_reward and enemy_b.currency_reward == base.currency_reward,
+			"damage (x1.10 only), XP and gold unchanged; speed and cooldown only by the Issue #51 tempo")
 	base.free()
 	# Boss room: same snapshot rule.
 	_run.add_rewards(100000, 0)

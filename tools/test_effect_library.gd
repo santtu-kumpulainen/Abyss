@@ -18,7 +18,7 @@ const SCENE := "res://scenes/dungeon/dungeon.tscn"
 const BUILD := "res://tools/build_gigapack_effects.gd"
 const PACK := "res://assets/effects/Super Pixel Effects Gigapack (Free Version)/"
 const EXPECTED_IDS: Array[StringName] = [&"dash_puff", &"teleport_ring", &"teleport_aura", &"teleport_arrive",
-		&"heal", &"haste", &"coin_burst"]
+		&"heal", &"haste", &"coin_burst", &"water_impact", &"green_splatter", &"skull_smoke"]
 
 var _failures := 0
 var _dungeon: Dungeon
@@ -48,7 +48,7 @@ func _run_tests() -> void:
 
 func _test_catalog() -> void:
 	var build: GDScript = load(BUILD)
-	_check(EffectLibrary.SHEETS.keys() == EXPECTED_IDS, "catalog holds the 7 Issue #49 effects")
+	_check(EffectLibrary.SHEETS.keys() == EXPECTED_IDS, "catalog holds the 7 Issue #49 effects and the Issue #51 water impact, green splatter and skull smoke")
 	_check(build.EFFECTS.keys() == EffectLibrary.SHEETS.keys(), "build tool and catalog list the same ids")
 	for id: StringName in EXPECTED_IDS:
 		var sheet := EffectLibrary.sheet(id)
@@ -89,7 +89,12 @@ func _test_imports() -> void:
 	for path in visible:
 		if path.ends_with("spritesheet.png"):
 			sheets += 1
-	_check(sheets == EXPECTED_IDS.size(), "only the %d used Gigapack sheets are visible to the importer (%d)" % [EXPECTED_IDS.size(), sheets])
+	# Ids may share one sheet (water_impact plays all frames of teleport_ring's sheet).
+	var used := {}
+	var build: GDScript = load(BUILD)
+	for id: StringName in build.EFFECTS:
+		used[build.EFFECTS[id]["sheet"]] = true
+	_check(sheets == used.size(), "only the %d used Gigapack sheets are visible to the importer (%d)" % [used.size(), sheets])
 	_check(FileAccess.file_exists(PACK + "PNG/.gdignore"), "PNG/ frame sequences are not imported (.gdignore)")
 	_check(FileAccess.file_exists(PACK + "spritesheet/Explosions/.gdignore") and FileAccess.file_exists(
 			PACK + "spritesheet/Fantasy Spells/spell_heal_001/spell_heal_001_small_red/.gdignore"), "unused categories and size variants are ignored")

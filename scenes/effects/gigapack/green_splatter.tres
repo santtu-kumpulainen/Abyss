@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="EffectSheet" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_sheet.gd" id="1_kixvb"]
+[ext_resource type="Texture2D" path="res://assets/effects/Super Pixel Effects Gigapack (Free Version)/spritesheet/Splatters/burst_splatter_003/burst_splatter_003_large_green/spritesheet.png" id="2_5w1ag"]
+
+[resource]
+script = ExtResource("1_kixvb")
+texture = ExtResource("2_5w1ag")
+columns = 5
+frame_count = 8
+fps = 15.0
+scale = 1.0
+frame_size = Vector2i(96, 96)

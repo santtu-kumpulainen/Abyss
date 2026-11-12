@@ -73,7 +73,7 @@ func _test_level_scaling_data() -> void:
 	run.dungeon_level = 5
 	_check(is_equal_approx(run.enemy_health_multiplier(), hard["enemy_health"] * LevelScaling.enemy_health(5))
 			and is_equal_approx(run.enemy_damage_multiplier(), hard["enemy_damage"] * LevelScaling.enemy_damage(5) * RunState.ENEMY_DAMAGE_FACTOR)
-			and is_equal_approx(run.enemy_pace_multiplier(), hard["enemy_pace"] * LevelScaling.enemy_pace(5))
+			and is_equal_approx(run.enemy_pace_multiplier(), hard["enemy_pace"] * LevelScaling.enemy_pace(5) * Tempo.ENEMY_ATTACK)
 			and run.extra_room_enemies(2, 8) == mini(hard["extra_lv2"] + LevelScaling.room_extra_enemies(5, true, 8), RunState.MAX_EXTRA_ENEMIES)
 			and run.extra_wave_enemies() == mini(hard["extra_wave"] + LevelScaling.wave_extra_enemies(5), RunState.MAX_EXTRA_ENEMIES),
 			"difficulty and level scaling multiply / add")

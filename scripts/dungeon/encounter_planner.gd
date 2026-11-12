@@ -79,17 +79,95 @@ static func pick_seal_rooms(rooms: Array[RoomSpec], candidates: Array[int], coun
 	return picked
 
 
-## Miniboss rooms per dungeon level (Issue #45): 3 on levels 1-2, 4 from level 3.
-static func miniboss_room_count(dungeon_level: int) -> int:
-	return 3 if dungeon_level <= 2 else 4
+## Fixed miniboss room composition per dungeon level (Issue #51 Stage 2c):
+## [single, double, triple] rooms on levels 1, 2, ...; the last entry repeats
+## for every later level. Not randomized.
+const MINIBOSS_ROOM_COMPOSITION: Array = [
+	[4, 0, 0],  # L1: 4 rooms, 4 minibosses
+	[4, 1, 0],  # L2: 5 rooms, 6 minibosses
+	[4, 2, 0],  # L3: 6 rooms, 8 minibosses
+	[4, 2, 1],  # L4: 7 rooms, 11 minibosses
+	[4, 3, 1],  # L5: 8 rooms, 13 minibosses
+	[4, 2, 2],  # L6+: 8 rooms, 14 minibosses
+]
+## Most miniboss rooms (single + double + triple) a level may plan.
+const MAX_MINIBOSS_ROOMS := 8
+## Most double + triple rooms on one level.
+const MAX_GROUP_ROOMS := 4
+## Most minibosses in one room.
+const MAX_MINIBOSSES_PER_ROOM := 3
 
 
-## Double-miniboss rooms per dungeon level: none before level 5, 1 on levels
-## 5-6, 2 from level 7.
+## [single, double, triple] miniboss rooms on dungeon level `dungeon_level`.
+static func miniboss_composition(dungeon_level: int) -> Array:
+	var level := clampi(dungeon_level, 1, MINIBOSS_ROOM_COMPOSITION.size())
+	return (MINIBOSS_ROOM_COMPOSITION[level - 1] as Array).duplicate()
+
+
+## Single (one-miniboss) rooms on dungeon level `dungeon_level` (fixed: 4 on
+## every level). `_seed_value` is kept for callers; the composition is not seeded.
+static func single_miniboss_room_count(dungeon_level: int, _seed_value: int = 0) -> int:
+	return miniboss_composition(dungeon_level)[0]
+
+
+## Double-miniboss rooms on dungeon level `dungeon_level` (0 / 1 / 2 / 2 / 3 / 2...).
 static func double_miniboss_room_count(dungeon_level: int) -> int:
-	if dungeon_level < 5:
-		return 0
-	return 1 if dungeon_level < 7 else 2
+	return miniboss_composition(dungeon_level)[1]
+
+
+## Triple-miniboss rooms on dungeon level `dungeon_level` (none before level 4).
+static func triple_miniboss_room_count(dungeon_level: int) -> int:
+	return miniboss_composition(dungeon_level)[2]
+
+
+## Miniboss rooms (single + double + triple) on dungeon level `dungeon_level`:
+## 4 / 5 / 6 / 7, then 8 from level 5.
+static func miniboss_room_count(dungeon_level: int, _seed_value: int = 0) -> int:
+	var c := miniboss_composition(dungeon_level)
+	return c[0] + c[1] + c[2]
+
+
+## Miniboss types drawn on dungeon level `dungeon_level` (a double room draws
+## two, a triple room three): 4 / 6 / 8 / 11 / 13, then 14.
+static func miniboss_draws(dungeon_level: int, _seed_value: int = 0) -> int:
+	var c := miniboss_composition(dungeon_level)
+	return c[0] + 2 * c[1] + 3 * c[2]
+
+
+## Shuffle bag of miniboss types for a whole run: `length` indexes into a
+## roster of `type_count` types. Every bag holds each type once in a seeded
+## order; when a bag runs out a new one is shuffled, and if it would start with
+## the type drawn last, that type is swapped to a random later slot. So no type
+## repeats before all types have appeared, two consecutive draws always differ
+## (with 2+ types) and with 2 types the draws strictly alternate. The first
+## type comes from the seed, so no type is favoured.
+static func miniboss_bag(type_count: int, length: int, seed_value: int) -> Array[int]:
+	var draws: Array[int] = []
+	if type_count <= 0:
+		return draws
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed_value, "miniboss_bag"])
+	while draws.size() < length:
+		var bag: Array = range(type_count)
+		_shuffle(bag, rng)
+		if type_count > 1 and not draws.is_empty() and bag[0] == draws.back():
+			var j := rng.randi_range(1, type_count - 1)
+			bag[0] = bag[j]
+			bag[j] = draws.back()
+		for t: int in bag:
+			draws.append(t)
+	draws.resize(length)
+	return draws
+
+
+## Index of the first shuffle-bag draw of dungeon level `dungeon_level` in run
+## `run_seed`: the draws of levels 1 .. dungeon_level - 1 come first, so the bag
+## continues across levels and every level is reproducible from the run seed.
+static func miniboss_bag_offset(run_seed: int, dungeon_level: int) -> int:
+	var offset := 0
+	for level in range(1, maxi(dungeon_level, 1)):
+		offset += miniboss_draws(level, level_seed(run_seed, level))
+	return offset
 
 
 ## The `count` rooms of `miniboss_rooms` that hold an Ancient Seal (seeded
@@ -99,9 +177,18 @@ static func pick_seal_minibosses(miniboss_rooms: Array[int], count: int, seed_va
 
 
 ## The `count` rooms of `miniboss_rooms` that get two minibosses (seeded,
+## independent of the seal choice; returned in `miniboss_rooms` order). Rooms in
+## `exclude` (the triple rooms) are never picked.
+static func pick_double_minibosses(miniboss_rooms: Array[int], count: int, seed_value: int,
+		exclude: Array[int] = []) -> Array[int]:
+	var free: Array[int] = miniboss_rooms.filter(func(i: int) -> bool: return not exclude.has(i))
+	return _pick_subset(free, count, hash([seed_value, "double_minibosses"]))
+
+
+## The `count` rooms of `miniboss_rooms` that get three minibosses (seeded,
 ## independent of the seal choice; returned in `miniboss_rooms` order).
-static func pick_double_minibosses(miniboss_rooms: Array[int], count: int, seed_value: int) -> Array[int]:
-	return _pick_subset(miniboss_rooms, count, hash([seed_value, "double_minibosses"]))
+static func pick_triple_minibosses(miniboss_rooms: Array[int], count: int, seed_value: int) -> Array[int]:
+	return _pick_subset(miniboss_rooms, count, hash([seed_value, "triple_minibosses"]))
 
 
 ## `total` split into `parts` whole shares that add up to exactly `total`
@@ -218,6 +305,17 @@ static func vary_waves(wave_enemies: Array[PackedScene], wave_sizes: PackedInt32
 	return result
 
 
+## Unscaled gold of `count` extra enemies drawn from `pool` the way
+## Room.add_extra_enemies() spawns them (cycling through the pool).
+static func extra_enemies_gold(pool: Array[PackedScene], count: int) -> int:
+	var total := 0
+	if pool.is_empty():
+		return total
+	for k in maxi(count, 0):
+		total += scene_gold(pool[k % pool.size()])
+	return total
+
+
 ## Total unscaled gold of a line-up.
 static func lineup_gold(lineup: Array[PackedScene]) -> int:
 	var total := 0
@@ -226,19 +324,54 @@ static func lineup_gold(lineup: Array[PackedScene]) -> int:
 	return total
 
 
-## Room index -> miniboss scene for each of `room_indexes` (in order): the
-## rooms take turns through a seeded order of `scenes`, so with two scenes and
-## two rooms both minibosses appear.
-static func assign_minibosses(room_indexes: Array[int], scenes: Array[PackedScene], seed_value: int) -> Dictionary:
+## Room index -> miniboss scenes (Array[PackedScene]) for each of
+## `room_indexes` (in order) on dungeon level `dungeon_level` of run `run_seed`
+## (Issue #51). The level takes its window of the run's shuffle bag
+## (miniboss_bag(), from miniboss_bag_offset()): one draw per single room, two
+## for a room in `double_rooms`, three for one in `triple_rooms` (capped at the
+## roster size). The groups (largest first, then room order) take the earliest
+## draws of the window whose types are not in the group yet, so a group never
+## holds a type twice even across a bag boundary; the single rooms then take the
+## remaining draws in order. Draws are only reordered inside the level's window,
+## never dropped or duplicated, so the run-wide counts stay those of the bag.
+## The roster is just `scenes`, so a new miniboss type needs no planner change.
+static func assign_minibosses(room_indexes: Array[int], double_rooms: Array[int], scenes: Array[PackedScene],
+		run_seed: int, dungeon_level: int, triple_rooms: Array[int] = []) -> Dictionary:
 	var result := {}
 	if scenes.is_empty():
 		return result
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash([seed_value, "minibosses"])
-	var order: Array = scenes.duplicate()
-	_shuffle(order, rng)
-	for k in room_indexes.size():
-		result[room_indexes[k]] = order[k % order.size()]
+	var sizes := {}
+	var needed := 0
+	for index in room_indexes:
+		var size := 3 if triple_rooms.has(index) else (2 if double_rooms.has(index) else 1)
+		size = mini(size, mini(scenes.size(), MAX_MINIBOSSES_PER_ROOM))
+		sizes[index] = size
+		needed += size
+	var offset := miniboss_bag_offset(run_seed, dungeon_level)
+	var window: Array = miniboss_bag(scenes.size(), offset + needed, run_seed).slice(offset)
+	var groups: Array[int] = room_indexes.filter(func(i: int) -> bool: return sizes[i] > 1)
+	groups.sort_custom(func(a: int, b: int) -> bool:
+		return sizes[a] > sizes[b] if sizes[a] != sizes[b] else room_indexes.find(a) < room_indexes.find(b))
+	var picks := {}
+	for index in groups:
+		var types: Array[int] = []
+		var k := 0
+		while types.size() < sizes[index] and k < window.size():
+			if not types.has(window[k]):
+				types.append(window[k])
+				window.remove_at(k)
+			else:
+				k += 1
+		picks[index] = types
+	for index in room_indexes:
+		if sizes[index] == 1 and not window.is_empty():
+			var one: Array[int] = [window.pop_front()]
+			picks[index] = one
+	for index in room_indexes:
+		var picked: Array[PackedScene] = []
+		for t: int in picks.get(index, []):
+			picked.append(scenes[t])
+		result[index] = picked
 	return result
 
 

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="EffectSheet" format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_sheet.gd" id="1_sheet"]
+[ext_resource type="Texture2D" path="res://assets/characters/mage/spells/Free Pixel Effects Pack/16_sunburn_spritesheet.png" id="2_tex"]
+
+[resource]
+script = ExtResource("1_sheet")
+texture = ExtResource("2_tex")
+columns = 8
+first_frame = 0
+frame_count = 61
+fps = 100.0
+scale = 0.8
+tint = Color(0.75, 0.5, 1, 1)

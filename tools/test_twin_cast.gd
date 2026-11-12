@@ -349,7 +349,7 @@ func _test_enemy_damage_unit() -> void:
 			"enemy damage = 1.10 x dungeon-level scaling (+6%%/level): %s" % [values])
 	_check(is_equal_approx(LevelScaling.enemy_damage(3), 1.12) and is_equal_approx(LevelScaling.enemy_health(3), 1.5) and is_equal_approx(LevelScaling.enemy_pace(3), 1.04),
 			"level scaling constants are unchanged (damage, HP, speed)")
-	_check(is_equal_approx(run.enemy_pace_multiplier(), LevelScaling.enemy_pace(3)) and is_equal_approx(run.enemy_health_multiplier(), 1.5),
+	_check(is_equal_approx(run.enemy_pace_multiplier(), LevelScaling.enemy_pace(3) * Tempo.ENEMY_ATTACK) and is_equal_approx(run.enemy_health_multiplier(), 1.5),
 			"enemy HP and speed multipliers do not include the damage factor")
 	run.free()
 	run = RunState.new()
@@ -380,9 +380,9 @@ func _test_enemy_damage_scene() -> void:
 			enemy = child as Enemy
 			break
 	_check(is_equal_approx(enemy.contact_damage, goblin["damage"] * 1.10), "a regular enemy deals 10%% more (%.2f -> %.2f)" % [goblin["damage"], enemy.contact_damage])
-	_check(is_equal_approx(enemy.health.max_health, goblin["hp"]) and is_equal_approx(enemy.speed, goblin["speed"])
-			and is_equal_approx(enemy.attack_cooldown, goblin["cooldown"]) and enemy.xp_reward == goblin["xp"] and enemy.currency_reward == goblin["gold"],
-			"HP, speed, attack cooldown, XP and gold are unchanged")
+	_check(is_equal_approx(enemy.health.max_health, goblin["hp"]) and is_equal_approx(enemy.speed, goblin["speed"] * Tempo.ENEMY_MOVE)
+			and is_equal_approx(enemy.attack_cooldown, goblin["cooldown"] / Tempo.ENEMY_ATTACK) and enemy.xp_reward == goblin["xp"] and enemy.currency_reward == goblin["gold"],
+			"HP, XP and gold unchanged; speed and attack cooldown only by the Issue #51 tempo")
 	_check(enemy is Goblin and (enemy as Goblin).swings_before_special == _run.goblin_swings_before_special(),
 			"the Dungeon sets the goblin's swings before its special from the run (%d)" % _run.goblin_swings_before_special())
 	var caster_base := (load("res://scenes/enemies/demon_caster.tscn") as PackedScene).instantiate() as RangedEnemy

@@ -58,6 +58,11 @@ func _scale_attacks(damage_mult: float, pace_mult: float) -> void:
 	charge_cooldown /= maxf(pace_mult, 0.01)
 
 
+func _scale_recovery(mult: float) -> void:
+	super._scale_recovery(mult)
+	charge_recover /= mult
+
+
 ## Starts the summon channel now (ignores cooldown). Returns false if busy.
 func begin_summon() -> bool:
 	if state != State.CHASE:
