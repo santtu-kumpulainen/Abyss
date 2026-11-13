@@ -28,7 +28,11 @@ const MOVE_PACE_PER_LEVEL := 0.01
 const MOVE_PACE_CAP := 0.1
 
 ## Minibosses (Miniboss subclasses); same meaning as the regular constants.
-const MINIBOSS_HEALTH_PER_LEVEL := 0.25
+## Max HP +50% per level above 1 (Issue #55 Stage 5): x1.0 / 2.0 / 3.0 / 5.5 on levels
+## 1 / 3 / 5 / 10. Applied once in Dungeon._scale_enemy(), on top of the double /
+## triple room factor (Dungeon.double_health_factor / triple_health_factor) and
+## times the room's output HP modifier.
+const MINIBOSS_HEALTH_PER_LEVEL := 0.5
 const MINIBOSS_DAMAGE_PER_LEVEL := 0.06
 const MINIBOSS_PACE_PER_LEVEL := 0.02
 const MINIBOSS_PACE_CAP := 0.3
