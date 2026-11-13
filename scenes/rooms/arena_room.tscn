@@ -5,8 +5,14 @@
 [ext_resource type="Texture2D" path="res://assets/environment/dungeon_objects/PNG/Objects.png" id="3_objects"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/giant_goblin.tscn" id="4_goblin"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/upgrade_station.tscn" id="5_upgrade_station"]
+[ext_resource type="Script" path="res://scripts/rooms/controls_guide.gd" id="6_controls_guide"]
 
 [node name="ArenaRoom" instance=ExtResource("1_base")]
+
+[node name="ControlsGuide" type="Node2D" parent="."]
+z_index = -9
+position = Vector2(576, 360)
+script = ExtResource("6_controls_guide")
 
 [node name="CrateStackTopLeft" parent="Decor" instance=ExtResource("2_obstacle")]
 position = Vector2(84, 104)

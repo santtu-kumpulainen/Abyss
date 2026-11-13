@@ -9,6 +9,12 @@ extends Control
 ## dungeon level (never above Progression.highest_level): level 1 is a normal
 ## endless run, higher levels are practice runs (new build, no records or
 ## unlocks).
+## The gear button (top right) opens Settings, which lists the controls
+## (ControlsInfo, keys read from the InputMap; Issue #55). Back or Escape
+## returns to the menu; Settings changes nothing else.
+
+## Key column colour of the controls list (the Anvil prompt / ability bar gold).
+const CONTROL_KEY_COLOR := Color(1, 0.9, 0.55, 1)
 
 @export var dungeon_scene: PackedScene
 
@@ -35,6 +41,12 @@ var _pact_group := ButtonGroup.new()
 @onready var _start_level_label: Label = %StartLevelLabel
 @onready var _begin_button: Button = %BeginButton
 @onready var _back_button: Button = %BackButton
+@onready var _gear_button: Button = %GearButton
+@onready var _gear_icon: Control = %GearIcon
+@onready var _settings: Control = %Settings
+@onready var _controls_grid: GridContainer = %ControlsGrid
+@onready var _anvil_grid: GridContainer = %AnvilGrid
+@onready var _settings_back_button: Button = %SettingsBackButton
 
 
 func _ready() -> void:
@@ -54,14 +66,44 @@ func _ready() -> void:
 	_quit_button.pressed.connect(get_tree().quit)
 	_begin_button.pressed.connect(begin_run)
 	_back_button.pressed.connect(close_setup)
+	_gear_button.pressed.connect(open_settings)
+	_gear_icon.draw.connect(_draw_gear)
+	_gear_button.mouse_entered.connect(_gear_icon.queue_redraw)
+	_gear_button.mouse_exited.connect(_gear_icon.queue_redraw)
+	_settings_back_button.pressed.connect(close_settings)
+	_build_controls(_controls_grid, ControlsInfo.GAMEPLAY)
+	_build_controls(_anvil_grid, ControlsInfo.ANVIL)
 	_setup.hide()
+	_settings.hide()
 	_start_button.grab_focus()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _settings.visible and event.is_action_pressed(&"ui_cancel"):
+		close_settings()
+		get_viewport().set_input_as_handled()
+
+
+## Shows Settings (the controls list) in place of the main menu.
+func open_settings() -> void:
+	_menu.hide()
+	_gear_button.hide()
+	_settings.show()
+	_settings_back_button.grab_focus()
+
+
+func close_settings() -> void:
+	_settings.hide()
+	_menu.show()
+	_gear_button.show()
+	_gear_button.grab_focus()
 
 
 func open_setup() -> void:
 	if not _progression.is_unlocked(selected_difficulty):
 		selected_difficulty = Difficulty.Tier.NORMAL
 	_menu.hide()
+	_gear_button.hide()
 	_setup.show()
 	_refresh()
 	_begin_button.grab_focus()
@@ -70,6 +112,7 @@ func open_setup() -> void:
 func close_setup() -> void:
 	_setup.hide()
 	_menu.show()
+	_gear_button.show()
 	_start_button.grab_focus()
 
 
@@ -140,6 +183,40 @@ func _build_buttons() -> void:
 		button.name = String(id)
 		button.pressed.connect(func() -> void: select_pact(id))
 		_pact_buttons.add_child(button)
+
+
+## Fills `grid` (2 columns) with one "keys | what it does" row per entry.
+func _build_controls(grid: GridContainer, entries: Array[Dictionary]) -> void:
+	for entry: Dictionary in entries:
+		var key := Label.new()
+		key.text = ControlsInfo.key_text(entry)
+		key.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		key.add_theme_font_size_override(&"font_size", 18)
+		key.add_theme_color_override(&"font_color", CONTROL_KEY_COLOR)
+		key.add_theme_color_override(&"font_outline_color", Color(0, 0, 0, 1))
+		key.add_theme_constant_override(&"outline_size", 4)
+		grid.add_child(key)
+		var what := Label.new()
+		what.text = entry["text"]
+		what.add_theme_font_size_override(&"font_size", 18)
+		what.add_theme_color_override(&"font_color", Color(0.92, 0.92, 0.95, 1))
+		grid.add_child(what)
+
+
+## Code-drawn gear icon for the Settings button (the art packs have no UI icons).
+func _draw_gear() -> void:
+	var area := _gear_icon.size
+	var center := area / 2.0
+	var outer := minf(area.x, area.y) * 0.34
+	var color := Color(0.85, 0.8, 0.95) if not _gear_button.is_hovered() else Color(1, 0.9, 0.55)
+	for i in 8:
+		var angle := TAU * i / 8.0
+		var tooth := PackedVector2Array()
+		for corner: Vector2 in [Vector2(-0.18, 0.75), Vector2(0.18, 0.75), Vector2(0.14, 1.25), Vector2(-0.14, 1.25)]:
+			tooth.append(center + corner.rotated(angle) * outer)
+		_gear_icon.draw_colored_polygon(tooth, color)
+	# Ring body (outer edge at 0.9 x outer) with a see-through centre.
+	_gear_icon.draw_arc(center, outer * 0.65, 0.0, TAU, 32, color, outer * 0.5, true)
 
 
 func _make_button(text: String, group: ButtonGroup, width: float) -> Button:
