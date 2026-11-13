@@ -176,3 +176,91 @@ custom_minimum_size = Vector2(160, 48)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "Back"
+
+[node name="GearButton" type="Button" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(52, 52)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -68.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 68.0
+grow_horizontal = 0
+tooltip_text = "Settings"
+
+[node name="GearIcon" type="Control" parent="GearButton"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Settings" type="CenterContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Settings"]
+custom_minimum_size = Vector2(620, 0)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SettingsHeading" type="Label" parent="Settings/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.55, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 32
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="ControlsHeading" type="Label" parent="Settings/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.55, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 26
+text = "Controls"
+horizontal_alignment = 1
+
+[node name="ControlsGrid" type="GridContainer" parent="Settings/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="AnvilHeading" type="Label" parent="Settings/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.92, 0.95, 1)
+theme_override_font_sizes/font_size = 16
+text = "While an Anvil menu is open:"
+horizontal_alignment = 1
+
+[node name="AnvilGrid" type="GridContainer" parent="Settings/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="SettingsBackButton" type="Button" parent="Settings/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 24
+text = "Back"
