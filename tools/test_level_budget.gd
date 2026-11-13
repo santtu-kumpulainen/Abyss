@@ -214,7 +214,7 @@ func _test_stacking_rules() -> void:
 			claims += 1
 		_check(not run.claim_treasure(&"rune_sigil"), "chest is empty for the rest of level %d" % run.dungeon_level)
 		_next_level(run)
-	_check(claims == 5 and run.treasures[&"rune_sigil"] == RunState.MAX_STACKS and is_equal_approx(run.spell_cooldown_multiplier(), 0.7),
+	_check(claims == 5 and run.treasures[&"rune_sigil"] == RunState.MAX_STACKS and is_equal_approx(run.spell_cooldown_multiplier(), 0.85),
 			"treasure stacks cap at %d (cooldown x%.2f)" % [RunState.MAX_STACKS, run.spell_cooldown_multiplier()])
 	var before := run.currency
 	run.claim_treasure(&"survivor_cache")

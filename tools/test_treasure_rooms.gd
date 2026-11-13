@@ -212,16 +212,16 @@ func _test_puzzle() -> void:
 	_check(_dungeon.is_cleared(index) and _map().marker_color(index) != _map().puzzle_color, "minimap shows the puzzle as completed")
 
 	var cooldown := _run.spell_cooldown_multiplier()
-	_check(room.chest.interact() and is_equal_approx(_run.spell_cooldown_multiplier(), cooldown - 0.1),
-			"Rune Sigil: -10%% spell cooldown (%.2f)" % _run.spell_cooldown_multiplier())
+	_check(room.chest.interact() and is_equal_approx(_run.spell_cooldown_multiplier(), cooldown - 0.05),
+			"Rune Sigil: -5%% spell cooldown (%.2f)" % _run.spell_cooldown_multiplier())
 	_check(is_equal_approx(_mage.caster.cooldown_multiplier, _run.spell_cooldown_multiplier()), "Mage spell cooldown follows the sigil")
 	_check(_items_text().contains("Rune Sigil"), "HUD lists the Rune Sigil (%s)" % _items_text())
-	_check(not room.chest.interact() and is_equal_approx(_run.spell_cooldown_multiplier(), cooldown - 0.1), "sigil cannot be claimed twice")
+	_check(not room.chest.interact() and is_equal_approx(_run.spell_cooldown_multiplier(), cooldown - 0.05), "sigil cannot be claimed twice")
 
 	await _try_exit(room, _exit(index), ACTIONS[_exit(index)])
 	_dungeon.enter_room(index, _dungeon.entry_door(index))
 	await _frames(2)
-	_check(room.is_solved() and room.chest.is_claimed() and is_equal_approx(_run.spell_cooldown_multiplier(), cooldown - 0.1)
+	_check(room.is_solved() and room.chest.is_claimed() and is_equal_approx(_run.spell_cooldown_multiplier(), cooldown - 0.05)
 			and _hud_text() == "Treasure claimed", "revisit: puzzle stays solved, no duplicate reward")
 	var summary := _dungeon.run_summary()
 	_check(summary["treasures"] == [&"survivor_cache", &"rune_sigil"] and summary["rooms_total"] == 23,

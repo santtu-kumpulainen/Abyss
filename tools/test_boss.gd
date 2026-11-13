@@ -228,8 +228,8 @@ func _test_items() -> void:
 	await _kill_all(_dungeon.current_room)
 	var shard := _pickup(_dungeon.current_room)
 	_check(shard != null and shard.collect(), "Ember Shard collected")
-	var expected := base_damage * (1.0 + 0.05 * (_run.level - 1) + 0.15)
-	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, expected), "Ember Shard: +15%% Fire Ball damage (%.2f)" % _mage.caster.get_cast_spell().damage)
+	var expected := base_damage * (1.0 + 0.05 * (_run.level - 1) + 0.08)
+	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, expected), "Ember Shard: +8%% Fire Ball damage (%.2f)" % _mage.caster.get_cast_spell().damage)
 	_check(_items_label().text.split("\n").size() == 3, "HUD lists all three items")
 
 	# --- Persistence and no farming ---

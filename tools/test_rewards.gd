@@ -80,7 +80,7 @@ func _run_tests() -> void:
 	await _frames(2)
 	_check(_run.level == 2 and _run.xp == 0 and _run.xp_to_next_level() == 100,
 			"Lv 2 reached at 50 XP, next threshold 100 (Lv %d, XP %d)" % [_run.level, _run.xp])
-	_check(is_equal_approx(_mage.health.max_health, base_max_hp + 20.0), "level-up: Mage max HP +20 (%.0f)" % _mage.health.max_health)
+	_check(is_equal_approx(_mage.health.max_health, base_max_hp + 10.0), "level-up: Mage max HP +10 (%.0f)" % _mage.health.max_health)
 	_check(is_equal_approx(_mage.health.current, hp_before + 20.0), "level-up: Mage restores 20 HP (%.0f)" % _mage.health.current)
 	var bar := _mage.get_node(^"HealthBar") as ProgressBar
 	_check(is_equal_approx(bar.max_value, _mage.health.max_health) and is_equal_approx(bar.value, _mage.health.current),

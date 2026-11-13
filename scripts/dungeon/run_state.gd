@@ -77,6 +77,9 @@ const TWIN_CAST_DAMAGE_FACTOR := 0.7
 ## Flat multiplier on all enemy damage (regular enemies and bosses), on top of
 ## the difficulty and dungeon-level scaling.
 const ENEMY_DAMAGE_FACTOR := 1.10
+## Upper limit of the summed spell cooldown reduction (Issue #55: 0.4 = the
+## cooldown multiplier never goes below 0.60), Swift Casting included.
+const MAX_COOLDOWN_REDUCTION := 0.4
 ## Most extra enemies added to one room or survival wave by scaling.
 const MAX_EXTRA_ENEMIES := 4
 ## Upper limit of move_speed_multiplier() (Issue #47): stacked speed items,
@@ -113,7 +116,7 @@ const UPGRADES := {
 	&"quick_cast": {"name": "Quick Cast", "prices": [200, 300, 400], "max_stacks": 3, "level": 2,
 			"effect": "-5% spell cooldown per stack", "cooldown": 0.05},
 	&"ember_core": {"name": "Ember Core", "prices": [300, 450, 600], "max_stacks": 3, "level": 3,
-			"effect": "+25% spell damage per stack", "damage": 0.25},
+			"effect": "+10% spell damage per stack", "damage": 0.1},
 	&"twin_cast": {"name": "Twin Cast", "prices": [4000], "max_stacks": 1, "level": 1, "min_dungeon_level": 3,
 			"effect": "2 projectiles per cast, 70% damage each (this run)"},
 }
@@ -121,15 +124,15 @@ const UPGRADES := {
 ## Collectible run items (same effect keys as UPGRADES), placed in rooms by RoomSpec.item.
 const ITEMS := {
 	&"swift_boots": {"name": "Swift Boots", "effect": "+8% move speed", "speed": 0.08, "color": Color(0.45, 0.9, 1.0)},
-	&"ember_shard": {"name": "Ember Shard", "effect": "+15% Fire Ball damage", "damage": 0.15, "color": Color(1.0, 0.5, 0.2)},
+	&"ember_shard": {"name": "Ember Shard", "effect": "+8% Fire Ball damage", "damage": 0.08, "color": Color(1.0, 0.5, 0.2)},
 	&"heart_crystal": {"name": "Heart Crystal", "effect": "+25 max HP", "max_health": 25.0, "color": Color(1.0, 0.3, 0.45)},
 	# Miniboss reward pool ("miniboss": true): offered two at a time after a
 	# miniboss (pick one), never placed by RoomSpec.item. Not part of any synergy.
-	&"quickening_rune": {"name": "Quickening Rune", "effect": "-8% spell cooldown", "cooldown": 0.08,
+	&"quickening_rune": {"name": "Quickening Rune", "effect": "-5% spell cooldown", "cooldown": 0.05,
 			"color": Color(0.55, 0.8, 1.0), "miniboss": true},
 	&"warding_charm": {"name": "Warding Charm", "effect": "-10% damage taken", "damage_taken": -0.1,
 			"color": Color(0.6, 1.0, 0.6), "miniboss": true},
-	&"fury_idol": {"name": "Fury Idol", "effect": "+12% spell damage", "damage": 0.12,
+	&"fury_idol": {"name": "Fury Idol", "effect": "+6% spell damage", "damage": 0.06,
 			"color": Color(1.0, 0.35, 0.25), "miniboss": true},
 	&"bloodstone": {"name": "Bloodstone", "effect": "+15 max HP, +3% move speed", "max_health": 15.0, "speed": 0.03,
 			"color": Color(0.85, 0.2, 0.5), "miniboss": true},
@@ -138,7 +141,7 @@ const ITEMS := {
 ## Post-boss relics (same effect keys); exactly one can be chosen per run.
 const RELICS := {
 	&"wind_relic": {"name": "Wind Relic", "effect": "+5% move speed", "speed": 0.05},
-	&"ember_relic": {"name": "Ember Relic", "effect": "+20% Fire Ball damage", "damage": 0.2},
+	&"ember_relic": {"name": "Ember Relic", "effect": "+10% Fire Ball damage", "damage": 0.1},
 	&"vital_relic": {"name": "Vital Relic", "effect": "+30 max HP, heal 30", "max_health": 30.0},
 }
 
@@ -146,7 +149,7 @@ const RELICS := {
 ## each claimable once per run. Kept below the boss relics in strength.
 const TREASURES := {
 	&"survivor_cache": {"name": "Survivor's Cache", "effect": "+150 gold, restore 50 HP", "gold": 150, "heal": 50.0},
-	&"rune_sigil": {"name": "Rune Sigil", "effect": "-10% spell cooldown", "cooldown": 0.1},
+	&"rune_sigil": {"name": "Rune Sigil", "effect": "-5% spell cooldown", "cooldown": 0.05},
 }
 
 ## Effect keys that give lasting stat bonuses (summed by _bonus_sum()).
@@ -154,8 +157,8 @@ const STAT_KEYS: Array[String] = ["max_health", "damage", "cooldown", "speed"]
 
 ## XP needed for level 1 -> 2; level N -> N+1 needs N times this.
 @export var xp_per_level: int = 50
-## Mage max HP gained per level-up.
-@export var max_health_per_level: float = 20.0
+## Mage max HP gained per level-up (Issue #55: 20 -> 10; the level-up heal stays heal_per_level).
+@export var max_health_per_level: float = 10.0
 ## Mage HP restored per level-up.
 @export var heal_per_level: float = 20.0
 ## Spell damage bonus per Mage level above 1 (0.05 = +5%). Applied only in
@@ -609,9 +612,10 @@ func gold_damage_bonus() -> float:
 	return minf(floorf(currency / float(Pacts.GOLD_DAMAGE_STEP)) * per_step, Pacts.GOLD_DAMAGE_CAP)
 
 
-## Spell cooldown multiplier from upgrades/items (1.0 = base, lower = faster).
+## Spell cooldown multiplier from upgrades, items, treasures and the Pact (1.0 = base,
+## lower = faster). The reductions add up but never pass MAX_COOLDOWN_REDUCTION.
 func spell_cooldown_multiplier() -> float:
-	return maxf(1.0 - _bonus_sum(&"cooldown"), 0.1)
+	return 1.0 - minf(_bonus_sum(&"cooldown"), MAX_COOLDOWN_REDUCTION)
 
 
 ## Mage movement speed multiplier from upgrades/items (1.0 = base), capped at

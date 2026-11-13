@@ -109,7 +109,7 @@ func _test_victory_and_summary() -> void:
 			"level state reset: rooms, discovery, anvil, boss")
 	_check(_run.level == 4 and _run.collected.has(&"swift_boots") and _run.purchased.has(&"vitality") and _run.enemies_defeated == kills
 			and _run.currency > 0, "build kept: XP level, items, upgrades, gold, kills")
-	var expected_damage := _base_damage * (1.0 + 0.05 * 3 + 0.2)
+	var expected_damage := _base_damage * (1.0 + 0.05 * 3 + 0.1)
 	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, expected_damage) and is_equal_approx(_mage.speed_multiplier, 1.08),
 			"relic, item and level bonuses persist (damage %.2f)" % _mage.caster.get_cast_spell().damage)
 	_run.changed.emit()
@@ -129,7 +129,7 @@ func _test_victory_and_summary() -> void:
 	var max_hp2 := _mage.health.max_health
 	_check(_overlay().choose_relic(&"vital_relic") and _run.relics == [&"ember_relic", &"vital_relic"] and _run.dungeon_level == 3,
 			"the second boss grants a second relic and level 3 starts")
-	_check(is_equal_approx(_mage.health.max_health, max_hp2 + 30.0) and is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * (1.0 + 0.05 * (_run.level - 1) + 0.2)),
+	_check(is_equal_approx(_mage.health.max_health, max_hp2 + 30.0) and is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * (1.0 + 0.05 * (_run.level - 1) + 0.1)),
 			"relics stack across levels")
 
 

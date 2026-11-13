@@ -166,7 +166,7 @@ func _test_casting() -> void:
 	var shots := _projectiles()
 	_check(first != null and shots.size() == 2 and casts[0] == 1, "one cast fires two projectiles and emits one cast signal")
 	var cast_spell := caster.get_cast_spell()
-	var expected_damage := fire_ball.damage * (1.0 + 0.05 * 6 + 0.5 + 0.15)
+	var expected_damage := fire_ball.damage * (1.0 + 0.05 * 6 + 0.2 + 0.08)
 	_check(is_equal_approx(cast_spell.damage, expected_damage) and shots.all(func(p: Projectile) -> bool: return is_equal_approx(p.damage_factor, 0.7)),
 			"projectiles carry the full damage bonuses (%.2f) and a 0.7 factor" % cast_spell.damage)
 	_check(is_equal_approx(fire_ball.damage, 10.0), "the shared Fire Ball resource keeps its damage")
