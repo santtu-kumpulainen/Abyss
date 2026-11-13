@@ -28,6 +28,12 @@ extends Node
 ## ~225 gold, tier-2 rooms (Lv 2) 106 base XP and ~456 gold, so a full clear
 ## pays ~680 gold plus the miniboss bonus gold. All three upgrades cost 800
 ## together: the player can afford two of them, not everything.
+## Every run starts with STARTING_GOLD (Issue #58), enough for one consumable or
+## a Vitality stack at the first anvil; it is not counted in gold_earned.
+## Loot chests (Issue #58): 1-4 per run, spread over the first levels and placed
+## by the Dungeon. Each pays loot_chest_gold() once through open_loot_chest()
+## (scaled like treasure gold); ids are per level (room cell), so
+## begin_next_level() and reset() clear the opened set.
 ##
 ## Run configuration: configure() sets the run's difficulty (Difficulty.TIERS)
 ## and Pact (Pacts.PACTS) once. Pact and active synergy (Pacts.SYNERGIES)
@@ -53,6 +59,8 @@ signal upgrade_purchased(id: StringName)
 signal item_collected(id: StringName)
 signal relic_chosen(id: StringName)
 signal treasure_claimed(id: StringName)
+## Emitted once per loot chest opened on the current dungeon level, with the gold paid.
+signal loot_chest_opened(id: StringName, gold: int)
 ## Emitted once when a synergy's required relics become owned.
 signal synergy_activated(id: StringName)
 ## Emitted once per Ancient Seal collected on the current dungeon level.
@@ -67,6 +75,13 @@ signal speed_potion_expired
 ## of the Mage level cap). The Dungeon registers one more source than this
 ## (EncounterPlanner.SEAL_SOURCES), so one can be skipped.
 const SEALS_REQUIRED := 3
+
+## Gold every run starts with (Issue #58); not part of gold_earned.
+const STARTING_GOLD := 250
+## Base gold of a loot chest on dungeon level 1, and the base added per later level
+## (before gold_multiplier() and treasure_reward_multiplier()).
+const LOOT_CHEST_GOLD := 60
+const LOOT_CHEST_GOLD_PER_LEVEL := 20
 
 ## Most copies of one item / treasure that stack (counts persist across levels).
 const MAX_STACKS := 3
@@ -178,7 +193,7 @@ const STAT_KEYS: Array[String] = ["max_health", "damage", "cooldown", "speed"]
 var level: int = 1
 ## XP towards the next level (always 0 at MAX_LEVEL).
 var xp: int = 0
-var currency: int = 0
+var currency: int = STARTING_GOLD
 ## Owned anvil upgrade ids (id -> stack count). Counts persist across dungeon
 ## levels; `_level_purchased` remembers what was bought on the current level.
 var purchased := {}
@@ -235,6 +250,7 @@ var _relic_claimed := false
 var _level_collected := {}
 var _level_purchased := {}
 var _level_treasures := {}
+var _level_chests := {}
 var _xp_fraction := 0.0
 var _active_synergies: Array[StringName] = []
 ## This level's Ancient Seal source ids (set by the Dungeon) and the ones collected.
@@ -307,6 +323,7 @@ func begin_next_level() -> bool:
 	# Pickups and chests refresh; owned counts are kept.
 	_level_collected.clear()
 	_level_treasures.clear()
+	_level_chests.clear()
 	_level_purchased.clear()
 	# Ancient Seals are a per-level objective; the Dungeon registers the new sources.
 	_level_seals.clear()
@@ -597,6 +614,30 @@ func claim_treasure(id: StringName) -> bool:
 	return true
 
 
+## Base gold of a loot chest on the current dungeon level (before multipliers).
+func loot_chest_gold() -> int:
+	return LOOT_CHEST_GOLD + LOOT_CHEST_GOLD_PER_LEVEL * maxi(dungeon_level - 1, 0)
+
+
+func is_loot_chest_opened(id: StringName) -> bool:
+	return _level_chests.has(id)
+
+
+## Opens loot chest `id` (once per dungeon level) and pays loot_chest_gold(),
+## scaled like treasure gold. Returns the gold paid, or -1 (nothing changes)
+## if `id` is empty or already opened on this level.
+func open_loot_chest(id: StringName) -> int:
+	if id.is_empty() or is_loot_chest_opened(id):
+		return -1
+	_level_chests[id] = true
+	var gold := _scaled_gold(loot_chest_gold(), treasure_reward_multiplier())
+	currency += gold
+	gold_earned += gold
+	_notify()
+	loot_chest_opened.emit(id, gold)
+	return gold
+
+
 ## Grants an enemy's rewards: XP unscaled, gold scaled by gold_multiplier().
 ## Returns the gold granted.
 func grant_enemy_rewards(xp_amount: int, base_gold: int) -> int:
@@ -814,13 +855,14 @@ func active_synergies() -> Array[StringName]:
 func reset() -> void:
 	level = MageLevels.arrival_level(start_level)
 	xp = 0
-	currency = 0
+	currency = STARTING_GOLD
 	purchased.clear()
 	_level_purchased.clear()
 	collected.clear()
 	treasures.clear()
 	_level_collected.clear()
 	_level_treasures.clear()
+	_level_chests.clear()
 	_xp_fraction = 0.0
 	boss_defeated = false
 	relic = &""

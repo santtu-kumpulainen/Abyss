@@ -179,9 +179,9 @@ func _test_boss_mage_death_and_restart() -> void:
 	_mage.take_damage(9999.0)
 	await _frames(60)
 	_check(_mage.is_dead() and (current_scene.get_node(^"GameOverOverlay") as CanvasLayer).visible, "Mage death during the fight shows Game Over")
-	_check(is_instance_valid(boss) and boss.target == null and _run.currency == 0, "boss stops targeting the dead Mage, no reward")
+	_check(is_instance_valid(boss) and boss.target == null and _run.currency == RunState.STARTING_GOLD, "boss stops targeting the dead Mage, no reward")
 	await _restart()
-	_check(_run.level == 1 and _run.currency == 0 and not _run.boss_defeated and _dungeon.current_index == _dungeon.start_room,
+	_check(_run.level == 1 and _run.currency == RunState.STARTING_GOLD and not _run.boss_defeated and _dungeon.current_index == _dungeon.start_room,
 			"Restart after dying in the boss fight starts a fresh run")
 
 
@@ -292,7 +292,7 @@ func _test_final_anvil() -> void:
 	_check(_dungeon.current_room.state == Room.State.COMBAT and _stations(_dungeon.current_room).is_empty(),
 			"boss room has no anvil and its fight starts normally")
 	await _restart()
-	_check(_dungeon.final_anvil == null and _run.purchased.is_empty() and _run.currency == 0, "Restart removes the pre-boss anvil and purchases")
+	_check(_dungeon.final_anvil == null and _run.purchased.is_empty() and _run.currency == RunState.STARTING_GOLD, "Restart removes the pre-boss anvil and purchases")
 
 
 func _clear_room(index: int) -> void:

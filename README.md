@@ -27,6 +27,8 @@ Implemented:
 - Seeded 5x5 dungeon layout with doors, a minimap and per-level encounter planning.
 - Room types: combat rooms (arena, cave and crypt scenes), a Home room, survival trials, treasure rooms (a timed challenge altar and a rune sequence puzzle), miniboss rooms and a boss room.
 - Anvil upgrade stations, supply purchases and consumable items in an ability bar (Health Potion, Speed Potion, Home Teleport).
+- Seeded loot chests (1-4 per run, spread over the first dungeon levels) that open once their room is cleared.
+- Pause menu (Esc) with Resume, Restart and Main Menu.
 - Relics, optional Pacts chosen before a run, and relic synergies.
 - Difficulty tiers (Normal, Hard, Abyssal), unlocked in order.
 - Endless dungeon levels with biomes.
@@ -51,6 +53,7 @@ Keyboard and mouse. These are the bindings in `project.godot`; the same list is 
 | 1, 2, 3 | Use item slots (drag to reorder) |
 | 1-4 | Buy upgrade (only while an Anvil menu is open) |
 | 5-7 | Buy supply (only while an Anvil menu is open) |
+| Esc | Pause menu (Resume, Restart, Main Menu) |
 
 An open Anvil menu uses keys 1-7, so the item slots are not triggered while it is open.
 
@@ -78,7 +81,8 @@ Boss:
 ## Progression
 
 - **Mage level:** XP from defeated enemies raises the Mage's level. Higher levels make the Mage stronger and unlock level-gated rooms and Anvil upgrades.
-- **Anvil upgrades and supplies:** gold buys upgrades (some are level-locked) and consumable supplies.
+- **Anvil upgrades and supplies:** every run starts with 250 gold; gold buys upgrades (some are level-locked) and consumable supplies.
+- **Loot chests:** each run holds 1-4 chests in total, placed from the run seed in combat rooms of its first three dungeon levels (the first one always on the starting level). A chest unlocks when its room is cleared and pays gold once.
 - **Items and relics:** items are found in rooms and as miniboss rewards; a relic is chosen after the boss. Some relics combine with a Pact into a synergy.
 - **Pacts:** an optional Pact chosen before the run gives a benefit and a drawback for the whole run.
 - **Difficulty tiers:** Hard and Abyssal are unlocked by completing the previous tier. Higher tiers make enemies tougher, add pressure to encounters and increase gold rewards.

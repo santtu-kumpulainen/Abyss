@@ -180,6 +180,7 @@ func _test_scene() -> void:
 	_check(text.contains("SUPPLIES") and text.contains("[5] Health Potion (0/3) - 120 gold") and text.contains("[6] Speed Potion (0/3) - 150 gold")
 			and text.contains("[7] Home Teleport (0/1) - 200 gold"), "anvil lists the supplies with keys 5-7, count and price")
 	_check(text.contains("[1] Vitality") and text.contains("[4] Twin Cast"), "upgrade lines and keys 1-4 are unchanged")
+	_run.currency = 0  # Issue #58: drop the starting gold to test the refusal.
 	_check(not station.purchase_supply(&"health_potion") and station._menu_label.text.contains("Not enough gold"), "anvil: no gold -> refused with a reason")
 	_run.add_rewards(0, 5000)
 	var gold := _run.currency

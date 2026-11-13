@@ -224,7 +224,7 @@ func _test_dungeon_integration() -> void:
 	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).restart()
 	await _wait_for_scene(scene_id)
 	dungeon = current_scene as Dungeon
-	_check(dungeon.run_state.xp == 0 and dungeon.run_state.currency == 0 and dungeon.run_state.level == 1, "Restart resets the run")
+	_check(dungeon.run_state.xp == 0 and dungeon.run_state.currency == RunState.STARTING_GOLD and dungeon.run_state.level == 1, "Restart resets the run")
 	dungeon.enter_room(_scene_room(dungeon, "cave_room"), dungeon.entry_door(_scene_room(dungeon, "cave_room")))
 	await _frames(2)
 	var fresh := dungeon.current_room

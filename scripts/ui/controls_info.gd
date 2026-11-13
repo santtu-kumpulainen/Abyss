@@ -17,6 +17,8 @@ const GAMEPLAY: Array[Dictionary] = [
 	{"actions": [&"dash"], "text": "Dash"},
 	{"actions": [&"interact"], "text": "Interact (Anvil, chests, altars, runes)"},
 	{"actions": [&"ability_slot_1", &"ability_slot_2", &"ability_slot_3"], "text": "Use item slots (drag to reorder)"},
+	# Godot's built-in "ui_cancel" (not in project.godot), so the key is fixed text.
+	{"key": "Esc", "text": "Pause menu"},
 ]
 
 ## Keys that only work while an Anvil menu is open (it then owns keys 1-7).

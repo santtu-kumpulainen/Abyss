@@ -72,7 +72,7 @@ func _test_survival() -> void:
 	_check(room != null and room.state == Room.State.IDLE and room.can_exit() and _door(room, _exit(index)).is_open(),
 			"survival room: entering does not start the trial, exit open")
 	_check(_hud_text().begins_with("Survival trial"), "HUD names the room before the trial (%s)" % _hud_text())
-	_check(not room.chest.interact() and _run.currency == 0, "chest sealed before the trial")
+	_check(not room.chest.interact() and _run.currency == RunState.STARTING_GOLD, "chest sealed before the trial")
 	_check(_map().marker_color(index) == _map().survival_color, "survival marker shown while uncompleted")
 
 	# Leaving before the trial is allowed.

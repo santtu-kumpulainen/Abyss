@@ -25,6 +25,11 @@ const MAX_SWAPS_PER_ROOM := 2
 ## Ancient Seal sources per level, exactly (RunState.SEALS_REQUIRED + 1), so the
 ## player can always skip one (Issue #45: both puzzle rooms + 2 miniboss rooms).
 const SEAL_SOURCES := 4
+## Loot chests per RUN (Issue #58), inclusive bounds. The run's chests are
+## spread over its first LOOT_CHEST_LEVEL_SPAN dungeon levels (see loot_chest_levels()).
+const MIN_LOOT_CHESTS := 1
+const MAX_LOOT_CHESTS := 4
+const LOOT_CHEST_LEVEL_SPAN := 3
 
 ## Scene path -> [xp_reward, currency_reward] of a fresh instance.
 static var _reward_cache := {}
@@ -33,6 +38,49 @@ static var _reward_cache := {}
 ## Seed of dungeon level `dungeon_level` in the run seeded with `run_seed`.
 static func level_seed(run_seed: int, dungeon_level: int) -> int:
 	return hash([run_seed, dungeon_level])
+
+
+## Seeded loot-chest total of a whole run: MIN_LOOT_CHESTS..MAX_LOOT_CHESTS.
+static func loot_chest_count(run_seed: int) -> int:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([run_seed, "loot_chest_count"])
+	return rng.randi_range(MIN_LOOT_CHESTS, MAX_LOOT_CHESTS)
+
+
+## Dungeon level of each of the run's loot_chest_count() chests (ascending).
+## The first is always on `start_level`, so every run meets a chest early; the
+## others land on start_level .. start_level + LOOT_CHEST_LEVEL_SPAN - 1.
+static func loot_chest_levels(run_seed: int, start_level: int) -> Array[int]:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([run_seed, "loot_chest_levels"])
+	var result: Array[int] = [start_level]
+	for k in loot_chest_count(run_seed) - 1:
+		result.append(start_level + rng.randi_range(0, LOOT_CHEST_LEVEL_SPAN - 1))
+	result.sort()
+	return result
+
+
+## How many of the run's loot chests are planned on `dungeon_level` (0 for
+## levels outside the span). The run total never exceeds MAX_LOOT_CHESTS.
+static func loot_chests_on_level(run_seed: int, start_level: int, dungeon_level: int) -> int:
+	return loot_chest_levels(run_seed, start_level).count(dungeon_level)
+
+
+## Up to `count` distinct rooms of `candidates` (seeded shuffle, returned in
+## ascending order). Never more rooms than candidates.
+static func pick_chest_rooms(candidates: Array[int], count: int, seed_value: int) -> Array[int]:
+	var pool := candidates.duplicate()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed_value, "loot_chest_rooms"])
+	for i in range(pool.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var t: int = pool[i]
+		pool[i] = pool[j]
+		pool[j] = t
+	var result: Array[int] = []
+	result.assign(pool.slice(0, clampi(count, 0, pool.size())))
+	result.sort()
+	return result
 
 
 ## Room index -> planned line-up (Array[PackedScene]) for every room of `rooms`

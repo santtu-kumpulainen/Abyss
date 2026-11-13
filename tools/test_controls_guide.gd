@@ -50,7 +50,7 @@ func _test_input_map() -> void:
 			_check(listed.has(action), "InputMap action '%s' is documented" % action)
 	var expected := {
 		"Move": "W A S D", "Aim": "Mouse", "Cast Fire Ball": "Left Click (hold)", "Dash": "Space",
-		"Interact": "E", "Use item slots": "1-3", "Buy upgrade": "1-4", "Buy supply": "5-7",
+		"Interact": "E", "Use item slots": "1-3", "Buy upgrade": "1-4", "Buy supply": "5-7", "Pause menu": "Esc",
 	}
 	for entry: Dictionary in ControlsInfo.GAMEPLAY + ControlsInfo.ANVIL:
 		var what := ControlsInfo.short_text(entry["text"])

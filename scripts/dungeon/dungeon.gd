@@ -99,6 +99,13 @@ extends Node2D
 ## and cells are only valid for the current level. boss_index(),
 ## treasure_index(), item_room_index(), door_to() and entry_door() find rooms
 ## and doors by role.
+## Loot chests (Issue #58): a run holds EncounterPlanner.loot_chest_count() (1-4)
+## chests in total, spread from the run seed over its first levels
+## (EncounterPlanner.loot_chest_levels()). Each level picks rooms for its share
+## among _loot_chest_candidates() (level seed); each gets a LootChest at a seeded
+## safe point (seal_spawn_points()) when built. Too few rooms or no safe point
+## means fewer chests, never an invalid spot.
+## The optional "PauseMenu" child handles ESC (PauseMenu).
 
 signal room_changed(room: Room, index: int)
 ## Something the map shows changed (room entered or cleared, level gates).
@@ -226,6 +233,8 @@ var _miniboss_compensation := {}
 var _miniboss_rooms: Array[int] = []
 var _double_rooms: Array[int] = []
 var _triple_rooms: Array[int] = []
+## Rooms holding a LootChest on this level (Issue #58).
+var _chest_rooms: Array[int] = []
 ## Authored room pool and its start room index (seeded_layout only).
 var _room_pool: Array[RoomSpec] = []
 var _pool_start := 0
@@ -740,6 +749,9 @@ func _get_room(index: int) -> Room:
 			room.state_changed.connect(func(state: Room.State) -> void:
 				if state == Room.State.COMBAT:
 					_run_hud.show_message("Champion pack! Slay the crowned champion to break its ward."))
+		# After the seal and pickups, so the chest keeps clear of them.
+		if _chest_rooms.has(index):
+			_add_loot_chest(room, index)
 		# get_doors() needs the room to be ready; read the Doors node directly.
 		for door: Door in room.get_node(^"Doors").get_children():
 			door.sealed = not _link_map.has(_key(index, door.name))
@@ -1019,6 +1031,9 @@ func _plan_level() -> void:
 	for i: int in _seal_rooms:
 		ids.append(seal_id(i))
 	run_state.set_seal_sources(ids)
+	# The run's 1-4 chests are planned once from the run seed; this level gets its share.
+	var chests := EncounterPlanner.loot_chests_on_level(run_state.run_seed, run_state.start_level, run_state.dungeon_level)
+	_chest_rooms = EncounterPlanner.pick_chest_rooms(_loot_chest_candidates(), chests, level_seed)
 
 
 ## Places the room pool for the current level (seeded_layout): replaces rooms,
@@ -1153,6 +1168,47 @@ func _seal_room_candidates() -> Array[int]:
 				and spec.item.is_empty() and spec.cell != final_anvil_cell and not spec.enemies.is_empty():
 			result.append(i)
 	return result
+
+
+## Rooms holding a loot chest on this level (ascending).
+func loot_chest_rooms() -> Array[int]:
+	return _chest_rooms.duplicate()
+
+
+## RunState id of room `index`'s loot chest (unique per level: the room cell).
+func loot_chest_id(index: int) -> StringName:
+	var cell := rooms[index].cell
+	return StringName("loot_chest_%d_%d" % [cell.x, cell.y])
+
+
+## Rooms that may hold a loot chest: combat rooms other than the start, boss,
+## treasure, miniboss and pre-boss anvil rooms (their rewards / anvil need the space).
+func _loot_chest_candidates() -> Array[int]:
+	var result: Array[int] = []
+	for i in rooms.size():
+		var spec := rooms[i]
+		if i != start_room and not spec.is_boss and not spec.is_treasure() and not spec.enemies.is_empty() \
+				and not _miniboss_rooms.has(i) and spec.cell != final_anvil_cell:
+			result.append(i)
+	return result
+
+
+## Adds room `index`'s LootChest at a seeded safe floor point (same rules as the
+## Ancient Seal: clear of walls, doors, obstacles, spawn points, enemies, pickups,
+## seals and interactables). No safe point: no chest (warned), never a bad spot.
+func _add_loot_chest(room: Room, index: int) -> void:
+	var spec := rooms[index]
+	var spot := EncounterPlanner.pick_point(seal_spawn_points(room), hash([run_state.level_seed(), "loot_chest", spec.cell]))
+	if spot == Vector2.INF:
+		push_warning("Dungeon: no safe loot chest spot in room %d; skipped" % index)
+		return
+	var chest := LootChest.new()
+	chest.name = &"LootChest"
+	chest.chest_id = loot_chest_id(index)
+	chest.position = spot
+	chest.run_state = run_state
+	chest.opened.connect(func(gold: int) -> void: _run_hud.show_message("Chest opened! +%d gold" % gold))
+	room.get_node(^"Decor").add_child(chest, true)
 
 
 ## Refreshes the boss gate and announces the seal count.
