@@ -89,7 +89,8 @@ Boss:
 ### Main Menu
 <img width="2030" height="1148" alt="Näyttökuva 2026-11-13 112455" src="https://github.com/user-attachments/assets/d6994b0a-db2e-4fc6-bb0e-cbc5dfdb99bb" />
 
-
+### Enemy wave - Puzzle room
+<img width="2030" height="1148" alt="Näyttökuva 2026-11-13 112455" src="https://github.com/user-attachments/assets/0974d320-277c-4957-b81d-61b95ec1f898" />
 
 ## Technology
 
