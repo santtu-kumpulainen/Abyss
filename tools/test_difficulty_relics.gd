@@ -290,7 +290,7 @@ func _test_pacts() -> void:
 			"Glass Heart: -25% max HP")
 	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * 1.3), "Glass Heart: +30% damage")
 	_run.add_rewards(_run.xp_to_next_level(), 0)
-	_check(is_equal_approx(_mage.health.max_health, _base_hp * 0.75 + 15.0), "Glass Heart: max HP gains also -25%")
+	_check(is_equal_approx(_mage.health.max_health, _base_hp * 0.75 + 7.5), "Glass Heart: max HP gains also -25% (level-up +10 -> +7.5)")
 	_run.changed.emit()
 	_run.changed.emit()
 	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * 1.35), "Pact bonus does not stack on recalculation")
@@ -396,14 +396,14 @@ func _test_synergies() -> void:
 	_run.synergy_activated.connect(func(id: StringName) -> void: activations.append(id))
 	_run.collect_item(&"ember_shard")
 	_check(_run.is_synergy_active(&"glass_cannon") and activations == [&"glass_cannon"], "Glass Cannon: Glass Heart + Ember Shard")
-	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * (1.0 + 0.3 + 0.15 + 0.25))
+	_check(is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * (1.0 + 0.3 + 0.08 + 0.25))
 			and is_equal_approx(_mage.damage_taken_multiplier, 1.2), "Glass Cannon: +25% damage and +20% damage taken")
 	var hp := _mage.health.current
 	_mage.take_damage(10.0)
 	_check(is_equal_approx(hp - _mage.health.current, 12.0), "Glass Cannon: a 10-damage hit deals 12")
 	_run.changed.emit()
 	_run.collect_item(&"swift_boots")
-	_check(activations.size() == 1 and is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * 1.7),
+	_check(activations.size() == 1 and is_equal_approx(_mage.caster.get_cast_spell().damage, _base_damage * 1.63),
 			"Glass Cannon applies exactly once")
 	_check(RunHud.status_text(_run).contains("Glass Cannon"), "HUD status shows the active synergy")
 
