@@ -7,6 +7,7 @@
 
 [node name="BloodMonster" instance=ExtResource("1_enemy")]
 script = ExtResource("3_script")
+special_windup_sound = &"blood_monster_charge"
 opening_delay = 1.5
 special_min_range = 90.0
 special_max_range = 300.0

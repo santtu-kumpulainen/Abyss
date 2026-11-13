@@ -187,6 +187,8 @@ var current_room: Room
 var current_index: int = -1
 ## Home Teleport cast (Issue #49); created in _ready.
 var home_teleport: HomeTeleport
+## Normal / battle music from the room state (Issue #53); created in _ready.
+var music: DungeonMusic
 ## The Home Teleport arrival warp while it plays; removed when the Mage leaves
 ## the room before it ends, so it never shows in another room.
 var _arrival_effect: PixelEffect
@@ -274,6 +276,10 @@ func _ready() -> void:
 	home_teleport.cast_cancelled.connect(_on_home_teleport_cancelled)
 	if _ability_bar:
 		_ability_bar.setup(self)
+	music = DungeonMusic.new()
+	music.name = "DungeonMusic"
+	add_child(music)
+	music.setup(self)
 	enter_room(start_room)
 	_run_hud.show_message("Find %d Ancient Seals to unseal the Abyss Warden's gate" % RunState.SEALS_REQUIRED)
 
@@ -410,6 +416,7 @@ func use_health_potion() -> bool:
 	var fraction: float = RunState.CONSUMABLES[&"health_potion"]["heal_fraction"]
 	var healed := heal_mage(mage.health.max_health * fraction)
 	EffectLibrary.spawn(&"heal", mage, mage.caster.global_position)
+	AudioManager.sfx(self, &"potion_health")
 	_run_hud.show_message("Health Potion: +%d HP" % roundi(healed))
 	return true
 
@@ -421,6 +428,7 @@ func use_speed_potion() -> bool:
 	if mage.is_dead() or victory or not run_state.use_speed_potion():
 		return false
 	EffectLibrary.spawn(&"haste", mage, mage.caster.global_position)
+	AudioManager.sfx(self, &"potion_speed")
 	var factor: float = RunState.CONSUMABLES[&"speed_potion"]["speed_factor"]
 	_run_hud.show_message("Speed Potion: +%d%% move speed for %s" % [roundi((factor - 1.0) * 100.0),
 			RunState.format_time(run_state.speed_potion_remaining)])
@@ -1137,6 +1145,7 @@ func _seal_room_candidates() -> Array[int]:
 
 ## Refreshes the boss gate and announces the seal count.
 func _on_seal_collected(_id: StringName) -> void:
+	AudioManager.sfx(self, &"seal_collected")
 	if current_index >= 0:
 		_update_level_gates(current_index)
 	map_changed.emit()
@@ -1170,6 +1179,7 @@ func _on_relic_chosen(id: StringName) -> void:
 
 
 func _on_leveled_up(new_level: int) -> void:
+	AudioManager.sfx(self, &"mage_level_up")
 	raise_max_health(run_state.max_health_per_level, run_state.heal_per_level)
 	if current_index >= 0:
 		_update_level_gates(current_index)

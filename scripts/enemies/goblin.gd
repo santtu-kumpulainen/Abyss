@@ -271,6 +271,8 @@ func _start_swing(to_target: Vector2) -> void:
 
 
 func _resolve_swing() -> void:
+	# Once per swing, as the slash starts (hit or miss).
+	AudioManager.sfx(self, &"goblin_swing")
 	var victim := _find_target()
 	_swing_hit = victim != null and in_swing_area(victim.global_position)
 	if _swing_hit:

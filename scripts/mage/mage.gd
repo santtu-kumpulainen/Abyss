@@ -118,6 +118,7 @@ var _knock_left := 0.0
 func _ready() -> void:
 	_apply_scale()
 	health.died.connect(_on_died)
+	health.damaged.connect(_on_damaged)
 	_play(&"idle")
 
 
@@ -286,6 +287,7 @@ func try_dash(direction := Vector2.ZERO) -> bool:
 	_play(&"dash")
 	_set_dash_lean(true)
 	_spawn_dash_start_effects()
+	AudioManager.sfx(self, &"mage_dash")
 	dash_started.emit(_dash_direction)
 	return true
 
@@ -363,7 +365,14 @@ func _play(action: StringName) -> void:
 		push_warning("Mage animation not found: %s" % anim)
 
 
+## Hurt sound (Issue #53) for any damage that leaves the Mage alive.
+func _on_damaged(amount: float, _current: float) -> void:
+	if amount > 0.0 and not health.is_dead():
+		AudioManager.sfx(self, &"mage_hurt")
+
+
 func _on_died() -> void:
+	AudioManager.sfx(self, &"mage_death")
 	cancel_dash()
 	clear_slow()
 	# No death animation or game-over flow yet: stop and dim.

@@ -119,6 +119,13 @@ func _choose(_delta: float, can_attack: bool) -> void:
 		_chase_and_hit()
 
 
+## Summon channel and charge windup (Issue #53; the charge has no suitable sound yet).
+func _attack_sound(attack: StringName, finished: bool) -> StringName:
+	if finished:
+		return &""
+	return {&"summon": &"brood_summon", &"charge": &"brood_charge"}.get(attack, &"")
+
+
 func _windup_finished(attack: StringName) -> void:
 	if attack == &"charge":
 		_start_action()
