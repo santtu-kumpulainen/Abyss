@@ -4,18 +4,48 @@ extends RefCounted
 ## (Level 1 = unscaled). This is independent of the selected Difficulty tier;
 ## RunState multiplies the two. Only enemies scale: player stats, XP and gold
 ## are never scaled by level. Tune the constants below to rebalance.
+##
+## Regular enemies, minibosses and the boss each have their own level curve
+## (Category, category_of(); Issue #55), so one can be tuned without touching
+## the others. The unprefixed constants are the regular-enemy curve.
 
-## Enemy max HP gained per level above 1 (0.25 = +25% each, additive): x1.00 / 1.25 / 1.50 on levels 1-3.
-const HEALTH_PER_LEVEL := 0.25
-## Enemy damage gained per level above 1.
-const DAMAGE_PER_LEVEL := 0.06
-## Enemy attack rate (cooldowns, projectile speed) gained per level above 1, capped by PACE_CAP.
-const PACE_PER_LEVEL := 0.02
-const PACE_CAP := 0.3
-## Enemy move speed gained per level above 1, capped by MOVE_PACE_CAP (Issue #47:
-## split from the attack pace so pursuers stay outrunnable).
-const MOVE_PACE_PER_LEVEL := 0.015
-const MOVE_PACE_CAP := 0.15
+## Which level curve an enemy uses (see category_of()).
+enum Category { REGULAR, MINIBOSS, BOSS }
+
+## Regular enemies (Issue #55 Stage 4: shorter fights, more threat per hit).
+## Max HP gained per level above 1 (0.08 = +8% each, additive): x1.00 / 1.16 / 1.32 / 1.72 on levels 1 / 3 / 5 / 10.
+const HEALTH_PER_LEVEL := 0.08
+## Damage gained per level above 1 (+12% each): x1.00 / 1.24 / 1.48 / 2.08 on levels 1 / 3 / 5 / 10.
+const DAMAGE_PER_LEVEL := 0.12
+## Attack rate (cooldowns, projectile speed) gained per level above 1, capped by
+## PACE_CAP (+25%, reached on level 11). Tempo.ENEMY_ATTACK is applied on top once.
+const PACE_PER_LEVEL := 0.025
+const PACE_CAP := 0.25
+## Move speed gained per level above 1, capped by MOVE_PACE_CAP (+10%, reached on
+## level 11; Issue #47: split from the attack pace so pursuers stay outrunnable).
+## Tempo.ENEMY_MOVE, catch-up and MAX_PURSUER_SPEED are applied on top once.
+const MOVE_PACE_PER_LEVEL := 0.01
+const MOVE_PACE_CAP := 0.1
+
+## Minibosses (Miniboss subclasses); same meaning as the regular constants.
+## Max HP +50% per level above 1 (Issue #55 Stage 5): x1.0 / 2.0 / 3.0 / 5.5 on levels
+## 1 / 3 / 5 / 10. Applied once in Dungeon._scale_enemy(), on top of the double /
+## triple room factor (Dungeon.double_health_factor / triple_health_factor) and
+## times the room's output HP modifier.
+const MINIBOSS_HEALTH_PER_LEVEL := 0.5
+const MINIBOSS_DAMAGE_PER_LEVEL := 0.06
+const MINIBOSS_PACE_PER_LEVEL := 0.02
+const MINIBOSS_PACE_CAP := 0.3
+const MINIBOSS_MOVE_PACE_PER_LEVEL := 0.015
+const MINIBOSS_MOVE_PACE_CAP := 0.15
+
+## The level boss (Boss); same meaning as the regular constants.
+const BOSS_HEALTH_PER_LEVEL := 0.25
+const BOSS_DAMAGE_PER_LEVEL := 0.06
+const BOSS_PACE_PER_LEVEL := 0.02
+const BOSS_PACE_CAP := 0.3
+const BOSS_MOVE_PACE_PER_LEVEL := 0.015
+const BOSS_MOVE_PACE_CAP := 0.15
 ## Bounded catch-up on enemy move speed from the Mage's speed bonus:
 ## 1 + min(CATCHUP_WEIGHT * (mage multiplier - 1), CATCHUP_CAP).
 const CATCHUP_WEIGHT := 0.5
@@ -49,22 +79,50 @@ static func _steps(level: int) -> int:
 	return maxi(level - 1, 0)
 
 
-static func enemy_health(level: int) -> float:
-	return 1.0 + HEALTH_PER_LEVEL * _steps(level)
+## Level curve of `enemy`: BOSS for a Boss, MINIBOSS for a Miniboss, else REGULAR
+## (elites and enemies summoned by a miniboss are regular).
+static func category_of(enemy: Enemy) -> Category:
+	if enemy is Boss:
+		return Category.BOSS
+	if enemy is Miniboss:
+		return Category.MINIBOSS
+	return Category.REGULAR
 
 
-static func enemy_damage(level: int) -> float:
-	return 1.0 + DAMAGE_PER_LEVEL * _steps(level)
+## Max HP multiplier for dungeon level `level` on `category`'s curve.
+static func enemy_health(level: int, category: Category = Category.REGULAR) -> float:
+	var per_level := _pick(category, HEALTH_PER_LEVEL, MINIBOSS_HEALTH_PER_LEVEL, BOSS_HEALTH_PER_LEVEL)
+	return 1.0 + per_level * _steps(level)
 
 
-## Attack-rate multiplier for dungeon level `level`.
-static func enemy_pace(level: int) -> float:
-	return 1.0 + minf(PACE_PER_LEVEL * _steps(level), PACE_CAP)
+## Damage multiplier for dungeon level `level` on `category`'s curve.
+static func enemy_damage(level: int, category: Category = Category.REGULAR) -> float:
+	var per_level := _pick(category, DAMAGE_PER_LEVEL, MINIBOSS_DAMAGE_PER_LEVEL, BOSS_DAMAGE_PER_LEVEL)
+	return 1.0 + per_level * _steps(level)
 
 
-## Move-speed multiplier for dungeon level `level`.
-static func enemy_move_pace(level: int) -> float:
-	return 1.0 + minf(MOVE_PACE_PER_LEVEL * _steps(level), MOVE_PACE_CAP)
+## Attack-rate multiplier for dungeon level `level` on `category`'s curve.
+static func enemy_pace(level: int, category: Category = Category.REGULAR) -> float:
+	var per_level := _pick(category, PACE_PER_LEVEL, MINIBOSS_PACE_PER_LEVEL, BOSS_PACE_PER_LEVEL)
+	var cap := _pick(category, PACE_CAP, MINIBOSS_PACE_CAP, BOSS_PACE_CAP)
+	return 1.0 + minf(per_level * _steps(level), cap)
+
+
+## Move-speed multiplier for dungeon level `level` on `category`'s curve.
+static func enemy_move_pace(level: int, category: Category = Category.REGULAR) -> float:
+	var per_level := _pick(category, MOVE_PACE_PER_LEVEL, MINIBOSS_MOVE_PACE_PER_LEVEL, BOSS_MOVE_PACE_PER_LEVEL)
+	var cap := _pick(category, MOVE_PACE_CAP, MINIBOSS_MOVE_PACE_CAP, BOSS_MOVE_PACE_CAP)
+	return 1.0 + minf(per_level * _steps(level), cap)
+
+
+## `category`'s value out of the three per-category constants.
+static func _pick(category: Category, regular: float, miniboss: float, boss: float) -> float:
+	match category:
+		Category.MINIBOSS:
+			return miniboss
+		Category.BOSS:
+			return boss
+	return regular
 
 
 ## Index into Difficulty's "goblin_swings" for dungeon level `level`.

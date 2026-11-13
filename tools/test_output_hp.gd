@@ -3,7 +3,7 @@ extends SceneTree
 ##   O        = spell_damage_multiplier (no Greed gold bonus) x projectiles x factor / cooldown multiplier
 ##   O_ref(D) = 1.25 x 1.5^(D-1)
 ##   modifier = clamp(O / O_ref(D), 1.0, 2.0)
-##   final    = dungeon baseline (1 + 0.25 (D-1)) x modifier x difficulty
+##   final    = dungeon baseline (regular enemies: 1 + 0.08 (D-1), Issue #55) x modifier x difficulty
 ## The modifier is snapshotted when a room is created (first entry) and also
 ## applies to boss rooms; enemy damage, speed, XP and gold are not affected.
 ##
@@ -23,13 +23,14 @@ var _run: RunState
 
 ## [name, dungeon level, Mage level, shard, ember relic, ember core, quick cast, rune sigil, twin cast,
 ##  damage, cooldown, projectile factor, O, O_ref, modifier, baseline, final HP multiplier]
+## (Issue #55 Stage 3 item values: Shard +8%, Ember Relic +10%, Ember Core +10%, Sigil -5%.)
 const ROWS := [
-	["typical D1", 1, 2, 1, 0, 0, 1, 0, false, 1.20, 0.95, 1.0, 1.2632, 1.25, 1.0105, 1.00, 1.0105],
-	["typical D2", 2, 5, 1, 1, 0, 2, 0, false, 1.55, 0.90, 1.0, 1.7222, 1.875, 1.0, 1.25, 1.25],
-	["typical D3", 3, 8, 2, 2, 1, 3, 1, false, 2.30, 0.75, 1.0, 3.0667, 2.8125, 1.0904, 1.50, 1.6356],
-	["heavy D1", 1, 4, 1, 0, 1, 1, 1, false, 1.55, 0.85, 1.0, 1.8235, 1.25, 1.4588, 1.00, 1.4588],
-	["heavy D2", 2, 7, 2, 1, 2, 2, 2, false, 2.30, 0.70, 1.0, 3.2857, 1.875, 1.7524, 1.25, 2.1905],
-	["heavy D3", 3, 10, 3, 2, 3, 3, 3, true, 3.05, 0.55, 1.4, 7.7636, 2.8125, 2.0, 1.50, 3.0],
+	["typical D1", 1, 2, 1, 0, 0, 1, 0, false, 1.13, 0.95, 1.0, 1.1895, 1.25, 1.0, 1.00, 1.0],
+	["typical D2", 2, 5, 1, 1, 0, 2, 0, false, 1.38, 0.90, 1.0, 1.5333, 1.875, 1.0, 1.08, 1.08],
+	["typical D3", 3, 8, 2, 2, 1, 3, 1, false, 1.81, 0.80, 1.0, 2.2625, 2.8125, 1.0, 1.16, 1.16],
+	["heavy D1", 1, 4, 1, 0, 1, 1, 1, false, 1.33, 0.90, 1.0, 1.4778, 1.25, 1.1822, 1.00, 1.1822],
+	["heavy D2", 2, 7, 2, 1, 2, 2, 2, false, 1.76, 0.80, 1.0, 2.2, 1.875, 1.1733, 1.08, 1.2672],
+	["heavy D3", 3, 10, 3, 2, 3, 3, 3, true, 2.19, 0.70, 1.4, 4.38, 2.8125, 1.5573, 1.16, 1.8065],
 ]
 
 
@@ -91,7 +92,7 @@ func _test_table() -> void:
 		(typical if row[0].begins_with("typical") else heavy).append(run.output_hp_modifier())
 		run.free()
 	_check(typical.all(func(m: float) -> bool: return m < 1.1), "typical builds stay within +10%% of baseline (%s)" % [typical])
-	_check(heavy.all(func(m: float) -> bool: return m >= 1.4 and m <= 2.0), "heavy builds get +46%% .. +100%% (%s)" % [heavy])
+	_check(heavy.all(func(m: float) -> bool: return m >= 1.15 and m <= 2.0), "heavy builds get +17%% .. +100%% (%s)" % [heavy])
 
 
 func _test_caps_and_exclusions() -> void:
@@ -136,8 +137,9 @@ func _test_snapshot_and_boss() -> void:
 	var room_a := await _enter(_dungeon.item_room_index(&"swift_boots"))
 	var enemy_a := _goblin(room_a)
 	_check(enemy_a != null and is_equal_approx(enemy_a.health.max_health, goblin), "weak build: room A goblin HP is the baseline (%.1f)" % enemy_a.health.max_health)
-	# Strengthen the build: Ember Core x3, Quick Cast x3, Shard x3, Sigil x3.
+	# Strengthen the build: Ember Core x3, Quick Cast x3, Shard x3, Sigil x3, Twin Cast.
 	_run.purchased[&"ember_core"] = 3
+	_run.purchased[&"twin_cast"] = 1
 	_run.purchased[&"quick_cast"] = 3
 	_run.collected[&"ember_shard"] = 3
 	_run.treasures[&"rune_sigil"] = 3

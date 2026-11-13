@@ -73,18 +73,18 @@ func _test_damage_growth_unit() -> void:
 
 
 func _test_baseline_hp() -> void:
-	_check(is_equal_approx(LevelScaling.enemy_health(1), 1.0) and is_equal_approx(LevelScaling.enemy_health(2), 1.25)
-			and is_equal_approx(LevelScaling.enemy_health(3), 1.5), "enemy HP baseline x1.00 / x1.25 / x1.50 for D1-D3")
+	_check(is_equal_approx(LevelScaling.enemy_health(1), 1.0) and is_equal_approx(LevelScaling.enemy_health(2), 1.08)
+			and is_equal_approx(LevelScaling.enemy_health(3), 1.16), "regular enemy HP baseline x1.00 / x1.08 / x1.16 for D1-D3 (Issue #55)")
 	var run := RunState.new()
 	run.configure(NORMAL)
 	var hp: Array[float] = []
 	for d in [1, 2, 3]:
 		run.dungeon_level = d
 		hp.append(run.enemy_health_multiplier())
-	_check(is_equal_approx(hp[0], 1.0) and is_equal_approx(hp[1], 1.25) and is_equal_approx(hp[2], 1.5), "RunState HP multiplier at D1-D3 (Normal): %s" % [hp])
+	_check(is_equal_approx(hp[0], 1.0) and is_equal_approx(hp[1], 1.08) and is_equal_approx(hp[2], 1.16), "RunState HP multiplier at D1-D3 (Normal): %s" % [hp])
 	run.dungeon_level = 3
-	_check(is_equal_approx(run.enemy_damage_multiplier(), 1.12 * 1.10) and is_equal_approx(run.enemy_pace_multiplier(), 1.04 * Tempo.ENEMY_ATTACK),
-			"enemy damage (+6%/level, then the x1.10 factor) and speed (+2%/level) scaling are unchanged")
+	_check(is_equal_approx(run.enemy_damage_multiplier(), 1.24 * 1.10) and is_equal_approx(run.enemy_pace_multiplier(), 1.05 * Tempo.ENEMY_ATTACK),
+			"regular enemy damage (+12%/level, then the x1.10 factor) and attack pace (+2.5%/level) scaling (Issue #55)")
 	run.free()
 
 
@@ -119,23 +119,23 @@ func _test_prices_and_caps() -> void:
 	var base := (load(FIRE_BALL) as Spell).cooldown
 	_check(is_equal_approx(base * mults[3], 0.31 * 0.85), "Fire Ball cooldown with 3 stacks: %.4f s" % (base * mults[3]))
 	run.claim_treasure(&"rune_sigil")
-	_check(is_equal_approx(run.spell_cooldown_multiplier(), 0.75), "Quick Cast x3 + Rune Sigil x1 add up to x0.75")
+	_check(is_equal_approx(run.spell_cooldown_multiplier(), 0.80), "Quick Cast x3 + Rune Sigil x1 add up to x0.80")
 	_next_level(run)
 	run.claim_treasure(&"rune_sigil")
 	run.claim_treasure(&"survivor_cache")
 	_next_level(run)
 	run.claim_treasure(&"rune_sigil")
-	_check(is_equal_approx(run.spell_cooldown_multiplier(), 0.55), "Quick Cast x3 + Rune Sigil x3 = x0.55")
+	_check(is_equal_approx(run.spell_cooldown_multiplier(), 0.70), "Quick Cast x3 + Rune Sigil x3 = x0.70")
 	run.free()
-	# Ember Core: +25% damage per stack.
+	# Ember Core: +10% damage per stack (Issue #55).
 	run = _new_run()
 	var gear: Array[float] = [run.spell_damage_multiplier() - run.damage_bonus_per_level * (run.level - 1)]
 	for stack in 3:
 		run.purchase(&"ember_core")
 		gear.append(run.spell_damage_multiplier() - run.damage_bonus_per_level * (run.level - 1))
 		_next_level(run)
-	_check(is_equal_approx(gear[1] - gear[0], 0.25) and is_equal_approx(gear[2] - gear[0], 0.50) and is_equal_approx(gear[3] - gear[0], 0.75),
-			"Ember Core: +25%% damage per stack (%s)" % [gear])
+	_check(is_equal_approx(gear[1] - gear[0], 0.10) and is_equal_approx(gear[2] - gear[0], 0.20) and is_equal_approx(gear[3] - gear[0], 0.30),
+			"Ember Core: +10%% damage per stack (%s)" % [gear])
 	run.free()
 
 
@@ -207,9 +207,9 @@ func _test_scene() -> void:
 	_check(station.purchase(&"quick_cast") and is_equal_approx(_mage.caster.get_cast_spell().cooldown, base_cooldown * 0.95), "anvil: Quick Cast stack 1 -> cooldown x0.95")
 	_check(not station.purchase(&"quick_cast"), "anvil: a second Quick Cast is refused on the same level")
 	_check(station._menu_label.text.contains("Quick Cast (1/3)") and station._menu_label.text.contains("bought this level"), "anvil menu shows the stack count and the sold-out state")
-	_check(station.purchase(&"vitality") and is_equal_approx(_mage.health.max_health, base_hp + 60.0 + 20.0), "anvil: Vitality +20 max HP (on top of 3 level-ups)")
-	_check(station.purchase(&"ember_core") and is_equal_approx(_mage.caster.get_cast_spell().damage, base_damage * (1.0 + 0.15 + 0.25)),
-			"anvil: Ember Core +25%% damage (%.3f)" % _mage.caster.get_cast_spell().damage)
+	_check(station.purchase(&"vitality") and is_equal_approx(_mage.health.max_health, base_hp + 30.0 + 20.0), "anvil: Vitality +20 max HP (on top of 3 level-ups at +10)")
+	_check(station.purchase(&"ember_core") and is_equal_approx(_mage.caster.get_cast_spell().damage, base_damage * (1.0 + 0.15 + 0.10)),
+			"anvil: Ember Core +10%% damage (%.3f)" % _mage.caster.get_cast_spell().damage)
 	# Next dungeon level: the anvil restocks, stacks persist, nothing is applied twice.
 	_run.boss_defeated = true
 	_run.choose_relic(&"vital_relic")

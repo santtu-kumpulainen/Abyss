@@ -104,8 +104,6 @@ func _test_enemies() -> void:
 	run.dungeon_level = 10
 	_check(is_equal_approx(run.enemy_pace_multiplier(), 1.2 * LevelScaling.enemy_pace(10) * 1.15),
 			"enemy checks run on Abyssal L10 (attack pace x%.3f)" % run.enemy_pace_multiplier())
-	var pace := run.enemy_pace_multiplier()
-	var move := run.enemy_move_pace_multiplier()
 	for path in ENEMIES:
 		var name := path.get_file().get_basename()
 		var enemy := (load(path) as PackedScene).instantiate() as Enemy
@@ -113,6 +111,10 @@ func _test_enemies() -> void:
 		var holder := Node2D.new()
 		root.add_child(holder)
 		holder.add_child(enemy)
+		# Each enemy on its own level curve (Issue #55: regular / miniboss / boss).
+		var category := LevelScaling.category_of(enemy)
+		var pace := run.enemy_pace_multiplier(category)
+		var move := run.enemy_move_pace_multiplier(category)
 		var before := _snapshot(enemy)
 		dungeon._scale_enemy(enemy, false)
 		var after := _snapshot(enemy)

@@ -986,10 +986,11 @@ func _test_group_room(level: int, size: int) -> void:
 			% [label, gold_shares, lineup_gold, comp, size, _dungeon.miniboss_bonus_gold])
 	# HP: base x group factor x the run's enemy HP scaling (each applied exactly once).
 	var factor := _dungeon.double_health_factor if size == 2 else _dungeon.triple_health_factor
-	var scaling := _run.enemy_health_multiplier() * _run.output_hp_modifier()
 	var hp_ok := true
 	var hp_text: Array[String] = []
 	for b: Miniboss in bosses:
+		# Minibosses use their own level curve (Issue #55: LevelScaling.Category.MINIBOSS).
+		var scaling := _run.enemy_health_multiplier(false, LevelScaling.category_of(b)) * _run.output_hp_modifier()
 		var base := (load(b.scene_file_path) as PackedScene).instantiate() as Miniboss
 		var base_hp := (base.get_node(^"Health") as Health).max_health
 		hp_ok = hp_ok and b.scaled and is_equal_approx(b.health.max_health, base_hp * factor * scaling)

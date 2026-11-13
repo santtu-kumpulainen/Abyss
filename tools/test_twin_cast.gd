@@ -166,7 +166,7 @@ func _test_casting() -> void:
 	var shots := _projectiles()
 	_check(first != null and shots.size() == 2 and casts[0] == 1, "one cast fires two projectiles and emits one cast signal")
 	var cast_spell := caster.get_cast_spell()
-	var expected_damage := fire_ball.damage * (1.0 + 0.05 * 6 + 0.5 + 0.15)
+	var expected_damage := fire_ball.damage * (1.0 + 0.05 * 6 + 0.2 + 0.08)
 	_check(is_equal_approx(cast_spell.damage, expected_damage) and shots.all(func(p: Projectile) -> bool: return is_equal_approx(p.damage_factor, 0.7)),
 			"projectiles carry the full damage bonuses (%.2f) and a 0.7 factor" % cast_spell.damage)
 	_check(is_equal_approx(fire_ball.damage, 10.0), "the shared Fire Ball resource keeps its damage")
@@ -345,11 +345,11 @@ func _test_enemy_damage_unit() -> void:
 	for d in [1, 2, 3]:
 		run.dungeon_level = d
 		values.append(run.enemy_damage_multiplier())
-	_check(is_equal_approx(values[0], 1.10) and is_equal_approx(values[1], 1.06 * 1.10) and is_equal_approx(values[2], 1.12 * 1.10),
-			"enemy damage = 1.10 x dungeon-level scaling (+6%%/level): %s" % [values])
-	_check(is_equal_approx(LevelScaling.enemy_damage(3), 1.12) and is_equal_approx(LevelScaling.enemy_health(3), 1.5) and is_equal_approx(LevelScaling.enemy_pace(3), 1.04),
-			"level scaling constants are unchanged (damage, HP, speed)")
-	_check(is_equal_approx(run.enemy_pace_multiplier(), LevelScaling.enemy_pace(3) * Tempo.ENEMY_ATTACK) and is_equal_approx(run.enemy_health_multiplier(), 1.5),
+	_check(is_equal_approx(values[0], 1.10) and is_equal_approx(values[1], 1.12 * 1.10) and is_equal_approx(values[2], 1.24 * 1.10),
+			"enemy damage = 1.10 x dungeon-level scaling (+12%%/level, Issue #55): %s" % [values])
+	_check(is_equal_approx(LevelScaling.enemy_damage(3), 1.24) and is_equal_approx(LevelScaling.enemy_health(3), 1.16) and is_equal_approx(LevelScaling.enemy_pace(3), 1.05),
+			"regular level scaling at the Issue #55 values (damage, HP, speed)")
+	_check(is_equal_approx(run.enemy_pace_multiplier(), LevelScaling.enemy_pace(3) * Tempo.ENEMY_ATTACK) and is_equal_approx(run.enemy_health_multiplier(), 1.16),
 			"enemy HP and speed multipliers do not include the damage factor")
 	run.free()
 	run = RunState.new()
