@@ -9,6 +9,8 @@
 script = ExtResource("1_spell")
 id = &"water_bolt"
 display_name = "Water Bolt"
+cast_sound = &"water_bolt_cast"
+impact_sound = &"water_bolt_impact"
 projectile_scene = ExtResource("2_projectile")
 frames = ExtResource("3_frames")
 visual_scale = 0.04

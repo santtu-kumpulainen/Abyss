@@ -51,6 +51,9 @@ var _sfx: Array[AudioStreamPlayer] = []
 var _last_played := {}
 ## Sound id -> index of the variant it played last.
 var _last_variant := {}
+## Sound id -> play_sfx() requests / actual plays (tests and debugging).
+var sfx_requests := {}
+var sfx_plays := {}
 
 
 func _init() -> void:
@@ -82,6 +85,15 @@ static func instance(tree: SceneTree) -> AudioManager:
 		_fallback.name = &"Audio"
 		tree.root.add_child.call_deferred(_fallback)
 	return _fallback
+
+
+## Plays sound event `id` for gameplay node `node` (Issue #53 Stage 3 hooks):
+## one line at the event, nothing when `id` is &"" or `node` is outside the tree.
+static func sfx(node: Node, id: StringName) -> bool:
+	if id == &"" or node == null or not node.is_inside_tree():
+		return false
+	var audio := instance(node.get_tree())
+	return audio.play_sfx(id) if audio else false
 
 
 # --- Music ------------------------------------------------------------------------
@@ -168,6 +180,7 @@ func _kill_music_tween(index: int) -> void:
 ## Plays a variant of sound event `id`. Returns false if nothing was played: an
 ## unknown id (warns), a missing event (silent), the cooldown or voice limit.
 func play_sfx(id: StringName) -> bool:
+	sfx_requests[id] = int(sfx_requests.get(id, 0)) + 1
 	if not SoundLibrary.has(id):
 		push_warning("AudioManager: unknown sound event '%s'" % id)
 		return false
@@ -194,6 +207,7 @@ func play_sfx(id: StringName) -> bool:
 	player.play()
 	_last_played[id] = now
 	_last_variant[id] = index
+	sfx_plays[id] = int(sfx_plays.get(id, 0)) + 1
 	return true
 
 
@@ -208,6 +222,12 @@ func stop_all_sfx() -> void:
 	for player in _sfx:
 		player.stop()
 	_last_played.clear()
+
+
+## Clears the request / play counters (tests).
+func reset_sfx_counters() -> void:
+	sfx_requests.clear()
+	sfx_plays.clear()
 
 
 func _free_sfx_player() -> AudioStreamPlayer:

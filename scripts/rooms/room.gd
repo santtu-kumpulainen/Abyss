@@ -62,6 +62,7 @@ func start_encounter() -> void:
 		_clear()
 		return
 	_set_doors_locked(true)
+	AudioManager.sfx(self, &"door_close")
 	for enemy in _enemies:
 		_set_enemy_active(enemy, true)
 	_set_state(State.COMBAT)
@@ -154,6 +155,9 @@ func get_doors() -> Array[Door]:
 
 
 func _clear() -> void:
+	# Doors only unlock audibly after a fight (an empty room clears silently).
+	if state == State.COMBAT:
+		AudioManager.sfx(self, &"door_open")
 	_set_doors_locked(false)
 	_set_state(State.CLEARED)
 	cleared.emit()

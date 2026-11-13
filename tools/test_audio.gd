@@ -11,6 +11,11 @@ extends SceneTree
 ## ordinary room changes, miniboss and boss encounters (battle music until the
 ## room clears, then normal music at once), Victory (music keeps playing while
 ## paused), Game Over (fade-out) and Restart (one fresh normal track).
+## Stage 3: every gameplay hook requests its catalog event once per event (Mage
+## hurt / death / dash, spell launch / impact / bounce / burst, Goblin, Demon,
+## Blood Monster, minibosses, Abyss Warden, level up, potions, seals, Home
+## Teleport, room doors), volleys collapse into one sound, missing events stay
+## silent and idle frames request nothing.
 ##
 ## Usage (after importing):
 ##   godot --headless --path . --script res://tools/test_audio.gd
@@ -48,6 +53,7 @@ func _run_tests() -> void:
 	await _test_sfx_api()
 	await _test_music_api()
 	await _test_run_music()
+	await _test_gameplay_sfx()
 	_check(_audio_nodes() == 1 and AudioManager.instance(self) == _audio, "still one AudioManager after every scene change")
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	RunState.seed_override = 0
@@ -319,6 +325,226 @@ func _test_run_music() -> void:
 	await _seconds(_audio.fade_out_time + 0.3)
 	_check(_audio.current_music() == NORMAL and _audio.playing_music_players() == 1, "Main Menu after Game Over: one normal track")
 	_audio.stop_music(0.0)
+
+
+# --- Stage 3: gameplay sound effects ---------------------------------------------
+
+## Drives each gameplay hook and counts play_sfx() requests (every trigger) and
+## plays (after cooldown / voice limits). Enemies are spawned far away with their
+## AI disabled, so only the triggered event can request a sound.
+func _test_gameplay_sfx() -> void:
+	await _change_scene(DUNGEON_SCENE)
+	_dungeon = current_scene as Dungeon
+	var mage := _dungeon.mage
+	var run := _dungeon.run_state
+	mage.health.increase_max_health(1000000.0, 1000000.0)
+	await _frames(5)
+	_fresh()
+	await _frames(30)
+	_check(_audio.sfx_requests.is_empty(), "idle frames request no sound effects %s" % [_audio.sfx_requests])
+
+	# Mage.
+	mage.take_damage(1.0)
+	await _frames(20)
+	_check(_req(&"mage_hurt") == 1 and _plays(&"mage_hurt") == 1, "Mage hurt: once per hit, not per frame")
+	_fresh()
+	_check(mage.try_dash(Vector2.RIGHT), "Mage dash starts")
+	await _frames(30)
+	_check(_req(&"mage_dash") == 1 and _plays(&"mage_dash") == 1, "Mage dash: once per dash")
+
+	# Projectiles: launch, impact (once), bounce splash, burst; lifetime end of a non-bouncing spell is silent.
+	_fresh()
+	var fire := _projectile("res://scenes/spells/fire_ball/fire_ball.tres", mage)
+	_check(_plays(&"mage_cast") == 1, "Fire Ball launch plays mage_cast")
+	var wall := StaticBody2D.new()
+	current_scene.add_child(wall)
+	fire._on_body_entered(wall)
+	fire._on_body_entered(wall)
+	_check(_req(&"mage_spell_impact") == 1 and _plays(&"mage_spell_impact") == 1, "Fire Ball impact: once per projectile")
+	_fresh()
+	var fizzle := _projectile("res://scenes/spells/fire_ball/fire_ball.tres", mage)
+	fizzle._expire()
+	_check(_req(&"mage_spell_impact") == 0, "Fire Ball lifetime end is silent (no impact shown)")
+	_fresh()
+	var cast := mage.caster.try_cast(mage.global_position + Vector2(200, 0))
+	_check(cast != null and _plays(&"mage_cast") == 1, "Mage cast through SpellCaster plays one cast sound (Twin Cast pairs collapse)")
+	_fresh()
+	for i in 5:
+		_projectile("res://scenes/spells/enemy_bolt/enemy_bolt.tres", null)
+	_check(_req(&"enemy_bolt_cast") == 5 and _plays(&"enemy_bolt_cast") == 1, "a 5-bolt volley plays one violet cast sound")
+	_fresh()
+	var bolt := _projectile("res://scenes/spells/enemy_bolt/enemy_bolt.tres", null)
+	bolt._on_body_entered(wall)
+	_check(_plays(&"enemy_bolt_impact") == 1, "violet bolt impact")
+	_fresh()
+	var water := _projectile("res://scenes/spells/water_bolt/water_bolt.tres", null)
+	water._on_body_entered(wall)
+	_check(_plays(&"water_bolt_cast") == 1 and _plays(&"water_bolt_impact") == 1, "Water bolt launch and impact")
+	_fresh()
+	var big := _projectile("res://scenes/spells/water_bolt/big_water_bolt.tres", null)
+	if big.bounces_left() > 0:
+		big._bounce(Vector2.LEFT, big.global_position)
+	_check(big.spell.max_bounces > 0 and _plays(&"water_bolt_impact") == 1, "big water bolt bounce splash")
+	_fresh()
+	big._expire()
+	big._expire()
+	_check(_req(&"water_bolt_impact") == 1, "big water bolt burst at its end: once")
+	wall.queue_free()
+
+	# Goblin.
+	_fresh()
+	var goblin := _spawn("res://scenes/enemies/giant_goblin.tscn") as Goblin
+	goblin.take_damage(1.0)
+	_check(_plays(&"goblin_hurt") == 1, "Goblin hurt")
+	goblin._resolve_swing()
+	_check(_plays(&"goblin_swing") == 1, "Goblin sword swing")
+	goblin.phase = TelegraphedMelee.Phase.WINDUP
+	goblin._phase_left = 0.0
+	goblin.process_mode = Node.PROCESS_MODE_INHERIT
+	await physics_frame
+	await physics_frame
+	goblin.process_mode = Node.PROCESS_MODE_DISABLED
+	_check(goblin.phase != TelegraphedMelee.Phase.WINDUP and _plays(&"goblin_special") == 1,
+			"Goblin special strike (phase %s, plays %d)" % [TelegraphedMelee.Phase.keys()[goblin.phase], _plays(&"goblin_special")])
+	goblin.take_damage(1e9)
+	goblin.take_damage(1e9)
+	_check(_req(&"goblin_death") == 1 and _plays(&"goblin_death") == 1, "Goblin death: exactly once")
+
+	# Demon: hurt and death are registered but missing (silent).
+	_fresh()
+	var demon := _spawn("res://scenes/enemies/enemy.tscn") as Enemy
+	demon.take_damage(1.0)
+	demon.take_damage(1e9)
+	_check(_req(&"enemy_hurt") == 1 and _req(&"enemy_death") == 1 and _plays(&"enemy_hurt") == 0
+			and _plays(&"enemy_death") == 0, "Demon hurt / death requested once each, silent (missing sounds)")
+
+	# Blood Monster charge windup and death blast.
+	_fresh()
+	var monster := _spawn("res://scenes/enemies/blood_monster.tscn") as BloodMonster
+	monster.target = mage
+	_check(monster.begin_special() and _plays(&"blood_monster_charge") == 1, "Blood Monster charge windup")
+	_fresh()
+	BloodBlast.spawn_blast(current_scene, Vector2(5000, 5000), 30.0, 0.05, 0.0, 0.0)
+	await _seconds(0.5)
+	_check(_req(&"blood_blast") == 1 and _plays(&"blood_blast") == 1, "Blood Monster death blast: once")
+	_check(_req(&"blood_blast_warning") == 0, "Blood Monster warning stays silent")
+
+	# Minibosses.
+	_fresh()
+	var mother := _spawn("res://scenes/enemies/brood_mother.tscn") as BroodMother
+	mother._begin(&"summon", 0.05, true)
+	_check(_plays(&"brood_summon") == 1, "Brood Mother summon")
+	mother._begin(&"charge", 0.05)
+	_check(_req(&"brood_charge") == 1 and _plays(&"brood_charge") == 0, "Brood Mother charge: silent (missing)")
+	_fresh()
+	var hex := _spawn("res://scenes/enemies/hexcaller.tscn") as Hexcaller
+	hex._begin(&"hex", 0.05)
+	_check(_plays(&"hexcaller_hex") == 1 and _req(&"hexcaller_blink") == 0, "Hexcaller hex cast")
+	hex._begin(&"blink", 0.0)
+	_check(_req(&"hexcaller_blink") == 0, "Hexcaller blink is silent during its windup")
+	hex.process_mode = Node.PROCESS_MODE_INHERIT
+	await physics_frame
+	await physics_frame
+	hex.process_mode = Node.PROCESS_MODE_DISABLED
+	_check(_plays(&"hexcaller_blink") == 1, "Hexcaller blink at the teleport")
+	_fresh()
+	var caster := _spawn("res://scenes/enemies/water_caster_boss.tscn") as WaterCasterBoss
+	caster._begin(&"zones", 0.05)
+	_check(_plays(&"water_boss_zones") == 1, "Water Caster Boss zones cast")
+
+	# Abyss Warden.
+	_fresh()
+	var warden := _spawn("res://scenes/enemies/abyss_warden.tscn") as Boss
+	warden.take_damage(warden.health.max_health * 0.4)
+	_check(warden.phase >= 2 and _req(&"boss_phase") == warden.phase - 1 and _plays(&"boss_phase") == 1, "Abyss Warden phase change")
+	warden.current_attack = &"slam"
+	warden._resolve_attack()
+	_check(_plays(&"boss_slam") == 1, "Abyss Warden slam impact")
+	_check(_req(&"enemy_death") == 0, "no death sound while the boss lives")
+
+	# Run events.
+	_fresh()
+	var level := run.level
+	run.grant_enemy_rewards(100000, 0)
+	_check(run.level > level and _plays(&"mage_level_up") == 1, "level up (several at once play once)")
+	_fresh()
+	run.currency = 100000
+	run.buy_consumable(&"speed_potion")
+	_check(_dungeon.use_speed_potion() and _plays(&"potion_speed") == 1, "Speed Potion")
+	run.buy_consumable(&"health_potion")
+	mage.health.take_damage(mage.health.max_health * 0.5)
+	_check(_dungeon.use_health_potion() and _plays(&"potion_health") == 1, "Health Potion")
+	_fresh()
+	var seal_rooms := _dungeon.seal_rooms()
+	_check(not seal_rooms.is_empty() and run.collect_seal(_dungeon.seal_id(seal_rooms.keys()[0]))
+			and _plays(&"seal_collected") == 1, "Ancient Seal collected")
+	_fresh()
+	_dungeon.home_teleport._on_teleport_finished(true)
+	_check(_plays(&"home_teleport_complete") == 1, "Home Teleport completed")
+	_dungeon.home_teleport._on_teleport_finished(false)
+	_check(_req(&"home_teleport_complete") == 1, "a failed Home Teleport is silent")
+
+	# Room doors: lock on encounter start, unlock on clear; an empty room is silent.
+	_fresh()
+	var ordinary := _ordinary_neighbour(_dungeon.start_room)
+	_dungeon.enter_room(ordinary, _dungeon.door_to(ordinary, _dungeon.start_room))
+	await _frames(2)
+	var fought := _dungeon.current_room.state == Room.State.COMBAT
+	_check(fought and _plays(&"door_close") == 1 and _req(&"door_open") == 0, "doors lock audibly when the encounter starts")
+	await _clear_room(_dungeon.current_room)
+	_check(_dungeon.current_room.state == Room.State.CLEARED and _plays(&"door_open") == 1, "doors unlock audibly when the room clears")
+	_dungeon.enter_room(_dungeon.start_room)
+	await _frames(2)
+	_fresh()
+	_dungeon.enter_room(ordinary, _dungeon.door_to(ordinary, _dungeon.start_room))
+	await _frames(5)
+	_check(_req(&"door_close") == 0 and _req(&"door_open") == 0, "re-entering a cleared room plays no door sound")
+
+	# Mage death: once, and music behaviour unchanged (fade-out).
+	_fresh()
+	mage.health.take_damage(1e12)
+	mage.health.take_damage(1e12)
+	await _frames(10)
+	_check(_req(&"mage_death") == 1 and _plays(&"mage_death") == 1 and _req(&"mage_hurt") == 0,
+			"Mage death: once, no hurt sound for the killing blow")
+	_check(_audio.current_music() == &"", "Mage death still fades the music out")
+	_check(_audio.sfx_requests.keys().all(func(id: StringName) -> bool: return SoundLibrary.has(id)),
+			"every requested event is in the catalog")
+	await _seconds(_audio.fade_out_time + 0.2)
+	_audio.stop_all_sfx()
+
+
+func _fresh() -> void:
+	_audio.stop_all_sfx()
+	_audio.reset_sfx_counters()
+
+
+func _req(id: StringName) -> int:
+	return int(_audio.sfx_requests.get(id, 0))
+
+
+func _plays(id: StringName) -> int:
+	return int(_audio.sfx_plays.get(id, 0))
+
+
+## An enemy far from the Mage with its AI off (hooks are called directly).
+func _spawn(path: String) -> Enemy:
+	var enemy := (load(path) as PackedScene).instantiate() as Enemy
+	enemy.position = Vector2(5000, 5000)
+	current_scene.add_child(enemy)
+	enemy.process_mode = Node.PROCESS_MODE_DISABLED
+	return enemy
+
+
+## A projectile of the spell at `path`, launched far away (physics off).
+func _projectile(path: String, source: Node) -> Projectile:
+	var spell := load(path) as Spell
+	var shot := spell.projectile_scene.instantiate() as Projectile
+	shot.setup(spell, Vector2.RIGHT, source)
+	shot.position = Vector2(-5000, -5000)
+	current_scene.add_child(shot)
+	shot.process_mode = Node.PROCESS_MODE_DISABLED
+	return shot
 
 
 ## A neighbour of `index` that is neither the boss room nor a miniboss room.

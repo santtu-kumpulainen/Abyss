@@ -77,6 +77,8 @@ func _ready() -> void:
 	_shape.shape = circle
 	_bounces_left = maxi(spell.max_bounces, 0)
 	_face_direction()
+	# Launch sound once per projectile (volleys collapse through the event cooldown).
+	AudioManager.sfx(self, spell.cast_sound)
 
 
 ## Wall bounces left before the next wall ends the projectile.
@@ -116,6 +118,7 @@ func _bounce(normal: Vector2, at: Vector2) -> void:
 	_face_direction()
 	if spell.bounce_effect:
 		PixelEffect.spawn(spell.bounce_effect, get_parent(), at, 0.0, spell.collision_radius * 4.0)
+	AudioManager.sfx(self, spell.impact_sound)
 	bounced.emit(at)
 
 
@@ -131,6 +134,7 @@ func _expire() -> void:
 	_spent = true
 	if spell.max_bounces > 0 and spell.impact_effect:
 		PixelEffect.spawn(spell.impact_effect, get_parent(), global_position)
+		AudioManager.sfx(self, spell.impact_sound)
 	set_deferred(&"monitoring", false)
 	queue_free()
 
@@ -149,6 +153,8 @@ func _on_body_entered(body: Node) -> void:
 	_spent = true
 	if spell.impact_effect:
 		PixelEffect.spawn(spell.impact_effect, get_parent(), global_position)
+	# Once per projectile: `_spent` blocks every later contact.
+	AudioManager.sfx(self, spell.impact_sound)
 	if body.has_method(&"take_damage"):
 		body.take_damage(_damage_for(body))
 		HitFeedback.knock(body, direction)

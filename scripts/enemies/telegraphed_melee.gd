@@ -30,6 +30,10 @@ enum Phase { CHASE, WINDUP, ACTIVE, RECOVER }
 @export var special_windup: float = 0.6
 ## Pause after the special.
 @export var special_recover: float = 0.5
+## SoundLibrary event ids (Issue #53) played when the special's windup starts /
+## when its active part starts. &"" = silent.
+@export var special_windup_sound: StringName
+@export var special_active_sound: StringName
 ## Seconds from one special's start to the next (scaled by attack pace).
 @export var special_cooldown: float = 2.5
 @export var special_damage: float = 14.0
@@ -82,6 +86,7 @@ func begin_special() -> bool:
 	_lock_special()
 	phase = Phase.WINDUP
 	_phase_left = special_windup
+	AudioManager.sfx(self, special_windup_sound)
 	special_started.emit()
 	return true
 
@@ -104,6 +109,7 @@ func _physics_process(delta: float) -> void:
 			_phase_left -= delta
 			if _phase_left <= 0.0:
 				phase = Phase.ACTIVE
+				AudioManager.sfx(self, special_active_sound)
 				_start_active()
 		Phase.ACTIVE:
 			if _special_active(delta):

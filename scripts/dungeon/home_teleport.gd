@@ -191,6 +191,7 @@ func _on_teleport_finished(success: bool) -> void:
 	_state = State.IDLE
 	_elapsed = 0.0
 	if success:
+		AudioManager.sfx(self, &"home_teleport_complete")
 		cast_completed.emit()
 	else:
 		cast_cancelled.emit(&"failed")

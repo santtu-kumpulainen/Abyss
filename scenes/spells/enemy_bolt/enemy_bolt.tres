@@ -8,6 +8,8 @@
 script = ExtResource("1_spell")
 id = &"enemy_bolt"
 display_name = "Enemy Bolt"
+cast_sound = &"enemy_bolt_cast"
+impact_sound = &"enemy_bolt_impact"
 projectile_scene = ExtResource("2_projectile")
 frames = ExtResource("3_frames")
 visual_scale = 0.035
