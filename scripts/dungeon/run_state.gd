@@ -679,15 +679,19 @@ func output_hp_modifier() -> float:
 	return LevelScaling.output_hp_modifier(player_output(), dungeon_level)
 
 
-## Enemy max HP multiplier (`treasure_room`: the enemy belongs to a treasure room).
-func enemy_health_multiplier(treasure_room: bool = false) -> float:
+## Enemy max HP multiplier (`treasure_room`: the enemy belongs to a treasure room;
+## `category`: its level curve, see LevelScaling.category_of()).
+func enemy_health_multiplier(treasure_room: bool = false,
+		category: LevelScaling.Category = LevelScaling.Category.REGULAR) -> float:
 	var bonus := _bonus_sum(&"enemy_health") + (_bonus_sum(&"treasure_enemy_health") if treasure_room else 0.0)
-	return Difficulty.data(difficulty)["enemy_health"] * LevelScaling.enemy_health(dungeon_level) * (1.0 + bonus)
+	return Difficulty.data(difficulty)["enemy_health"] * LevelScaling.enemy_health(dungeon_level, category) * (1.0 + bonus)
 
 
-## Multiplier on all damage an enemy deals.
-func enemy_damage_multiplier(elite: bool = false, treasure_room: bool = false) -> float:
-	var result: float = Difficulty.data(difficulty)["enemy_damage"] * LevelScaling.enemy_damage(dungeon_level) * ENEMY_DAMAGE_FACTOR
+## Multiplier on all damage an enemy deals (`category`: its level curve).
+func enemy_damage_multiplier(elite: bool = false, treasure_room: bool = false,
+		category: LevelScaling.Category = LevelScaling.Category.REGULAR) -> float:
+	var result: float = Difficulty.data(difficulty)["enemy_damage"] * LevelScaling.enemy_damage(dungeon_level, category) \
+			* ENEMY_DAMAGE_FACTOR
 	if treasure_room:
 		result *= 1.0 + _bonus_sum(&"treasure_enemy_damage")
 	if elite:
@@ -696,9 +700,9 @@ func enemy_damage_multiplier(elite: bool = false, treasure_room: bool = false) -
 
 
 ## Enemy attack rate multiplier (cooldowns, projectile speed): difficulty x
-## level x the global Tempo.ENEMY_ATTACK (Issue #51).
-func enemy_pace_multiplier() -> float:
-	return Difficulty.data(difficulty)["enemy_pace"] * LevelScaling.enemy_pace(dungeon_level) * Tempo.ENEMY_ATTACK
+## level x the global Tempo.ENEMY_ATTACK (Issue #51). `category`: the level curve.
+func enemy_pace_multiplier(category: LevelScaling.Category = LevelScaling.Category.REGULAR) -> float:
+	return Difficulty.data(difficulty)["enemy_pace"] * LevelScaling.enemy_pace(dungeon_level, category) * Tempo.ENEMY_ATTACK
 
 
 ## Divisor of enemy post-attack recovery pauses: the fixed Tempo.ENEMY_RECOVERY,
@@ -717,8 +721,10 @@ func goblin_swings_before_special() -> int:
 ## Enemy move speed multiplier: difficulty x level x bounded catch-up on the
 ## Mage's speed bonus x the global Tempo.ENEMY_MOVE (Issue #51).
 ## Enemy.apply_scaling() also caps the result at LevelScaling.MAX_PURSUER_SPEED.
-func enemy_move_pace_multiplier() -> float:
-	return Difficulty.data(difficulty)["enemy_move_pace"] * LevelScaling.enemy_move_pace(dungeon_level) 			* LevelScaling.player_catchup(move_speed_multiplier()) * Tempo.ENEMY_MOVE
+## `category`: the level curve.
+func enemy_move_pace_multiplier(category: LevelScaling.Category = LevelScaling.Category.REGULAR) -> float:
+	return Difficulty.data(difficulty)["enemy_move_pace"] * LevelScaling.enemy_move_pace(dungeon_level, category) \
+			* LevelScaling.player_catchup(move_speed_multiplier()) * Tempo.ENEMY_MOVE
 
 
 ## Multiplier on damage an enemy takes from the Mage.
