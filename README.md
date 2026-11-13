@@ -89,8 +89,11 @@ Boss:
 ### Main Menu
 <img width="2030" height="1148" alt="Näyttökuva 2026-11-13 112455" src="https://github.com/user-attachments/assets/d6994b0a-db2e-4fc6-bb0e-cbc5dfdb99bb" />
 
-### Enemy wave - Puzzle room
+### Survival room 
 <img width="2229" height="1259" alt="Näyttökuva 2026-11-13 125100" src="https://github.com/user-attachments/assets/49bd36c8-9a22-4ef3-991c-1eec90bf3884" />
+
+### Triple miniboss encounter
+<img width="1990" height="1118" alt="Näyttökuva 2026-11-13 132955" src="https://github.com/user-attachments/assets/dbe350b6-fc45-4b87-8fac-123c777f0a84" />
 
 
 ## Technology
