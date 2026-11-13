@@ -86,7 +86,10 @@ Boss:
 
 ## Screenshots
 
-No screenshots have been added yet. To add some, place the images in a new folder (for example `docs/screenshots/`) and reference them here with standard Markdown image syntax. Useful shots: the main menu, the Home room controls guide, a combat room, an Anvil menu and the boss fight.
+### Main Menu
+<img width="2030" height="1148" alt="Näyttökuva 2026-11-13 112455" src="https://github.com/user-attachments/assets/d6994b0a-db2e-4fc6-bb0e-cbc5dfdb99bb" />
+
+
 
 ## Technology
 
