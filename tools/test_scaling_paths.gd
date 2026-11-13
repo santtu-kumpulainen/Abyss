@@ -6,7 +6,8 @@ extends SceneTree
 ##   pre-#55 values (+25% HP, +6% damage, +2% attack pace capped at +30%, +1.5%
 ##   move pace capped at +15% per level) and the regular curve gives the Stage 4
 ##   values (+8% HP, +12% damage, +2.5% pace capped at +25%, +1% move capped at
-##   +10%), directly and through RunState on every tier;
+##   +10%); miniboss HP grows +50% per level (Stage 5), the rest of the miniboss
+##   curve is unchanged; directly and through RunState on every tier;
 ## - calls without a category stay on the regular curve;
 ## - Dungeon._scale_enemy() scales a regular enemy, a miniboss and the boss by
 ##   their own curve (max HP and contact damage of the real scenes).
@@ -28,6 +29,8 @@ const EXPECTED := {
 	"pace": [1.0, 1.04, 1.08, 1.18],
 	"move": [1.0, 1.03, 1.06, 1.135],
 }
+## Issue #55 Stage 5 miniboss HP multipliers on levels 1 / 3 / 5 / 10 (+50% per level).
+const EXPECTED_MINIBOSS_HEALTH: Array[float] = [1.0, 2.0, 3.0, 5.5]
 ## Issue #55 Stage 4 regular-enemy multipliers on levels 1 / 3 / 5 / 10.
 const EXPECTED_REGULAR := {
 	"health": [1.0, 1.16, 1.32, 1.72],
@@ -64,6 +67,8 @@ static func _legacy(kind: String, level: int, category: LevelScaling.Category = 
 			"pace":
 				return 1.0 + minf(0.025 * steps, 0.25)
 		return 1.0 + minf(0.01 * steps, 0.1)
+	if category == LevelScaling.Category.MINIBOSS and kind == "health":
+		return 1.0 + 0.5 * steps
 	match kind:
 		"health":
 			return 1.0 + 0.25 * steps
@@ -93,11 +98,14 @@ func _test_curves() -> void:
 		for kind: String in table:
 			var shown: Array[String] = []
 			var ok := true
+			var miniboss_hp := category == LevelScaling.Category.MINIBOSS and kind == "health"
 			for i in LEVELS.size():
 				var value := _curve(kind, LEVELS[i], category)
+				var want: float = EXPECTED_MINIBOSS_HEALTH[i] if miniboss_hp else table[kind][i]
 				shown.append("L%d %.4f" % [LEVELS[i], value])
-				ok = ok and is_equal_approx(value, table[kind][i]) and is_equal_approx(value, _legacy(kind, LEVELS[i], category))
-			_check(ok, "%s %s curve %s (%s)" % [label, kind, "at the Stage 4 values" if regular else "unchanged", ", ".join(shown)])
+				ok = ok and is_equal_approx(value, want) and is_equal_approx(value, _legacy(kind, LEVELS[i], category))
+			var state := "at the Stage 4 values" if regular else ("at +50% per level (Stage 5)" if miniboss_hp else "unchanged")
+			_check(ok, "%s %s curve %s (%s)" % [label, kind, state, ", ".join(shown)])
 	# The caps hold deep in the run (level 20): regular +25% / +10%, the others unchanged +30% / +15%.
 	for category: int in LevelScaling.Category.values():
 		var regular := category == LevelScaling.Category.REGULAR
@@ -147,8 +155,7 @@ func _test_run_state() -> void:
 							and run.enemy_move_pace_multiplier(category) == run.enemy_move_pace_multiplier()
 				run.free()
 			_check(ok, "%s: %s RunState multipliers %s on levels 1/3/5/10" % [Difficulty.display_name(tier),
-					LevelScaling.Category.keys()[category],
-					"at the Stage 4 values" if category == LevelScaling.Category.REGULAR else "unchanged"])
+					LevelScaling.Category.keys()[category], ["at the Stage 4 values", "with the Stage 5 HP curve", "unchanged"][category]])
 
 
 func _test_categories_and_dungeon() -> void:
