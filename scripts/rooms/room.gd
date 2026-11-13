@@ -32,6 +32,16 @@ enum State { IDLE, COMBAT, CLEARED }
 @export var cleared_text: String = "Room cleared"
 ## Detection radius given to enemies added with add_encounter_enemies().
 @export var spawn_detection_radius: float = 800.0
+## Sampled extra-enemy spawns (extra_spawn_points()): least distance to any
+## enemy, SpawnPoints marker, Decor object, the PlayerSpawn or another sample.
+@export var extra_spawn_spacing: float = 72.0
+## Sampled extra-enemy spawns: least distance to the floor edge (walls) and to
+## every Obstacle footprint.
+@export var extra_spawn_clearance: float = 40.0
+
+## Random tries per sampled extra-enemy position before extra_spawn_points()
+## falls back to the free SpawnPoints markers.
+const EXTRA_SPAWN_TRIES := 60
 
 var state: State = State.IDLE
 var enemies_remaining: int = 0
@@ -83,23 +93,120 @@ func add_encounter_enemies(scenes: Array[PackedScene]) -> void:
 
 
 ## Difficulty pressure: adds up to `count` enemies (cycling through `scenes`)
-## at SpawnPoints markers not used by the first `used` enemies and at least
-## `min_door_distance` from every door, so nothing spawns on top of another
-## enemy or next to an arriving Mage. If too few safe markers are free, fewer
-## enemies are added. Returns the number added. Call before the room enters the tree.
-func add_extra_enemies(scenes: Array[PackedScene], count: int, used: int, min_door_distance: float = 180.0) -> int:
+## at `positions` (room coordinates, e.g. from extra_spawn_points()) or, if none
+## are given, at the SpawnPoints markers not used by the first `used` enemies and
+## at least `min_door_distance` from every door, so nothing spawns on top of
+## another enemy or next to an arriving Mage. At most `max_elites` of them are
+## elites (-1 = no limit): an elite scene past the limit is skipped for the next
+## non-elite one, and nothing more is added if the pool has none. If too few
+## positions are available, fewer enemies are added. Returns the number added.
+## Call before the room enters the tree.
+func add_extra_enemies(scenes: Array[PackedScene], count: int, used: int, min_door_distance: float = 180.0,
+		positions: Array[Vector2] = [], max_elites: int = -1) -> int:
 	if scenes.is_empty() or count <= 0:
 		return 0
+	var spots := positions if not positions.is_empty() else safe_extra_points(used, min_door_distance)
 	var added := 0
-	for pos in safe_extra_points(used, min_door_distance):
+	var elites := 0
+	var next := 0
+	for pos in spots:
 		if added >= count:
 			break
-		var enemy := scenes[added % scenes.size()].instantiate() as Enemy
+		var enemy: Enemy = null
+		for attempt in scenes.size():
+			var candidate := scenes[(next + attempt) % scenes.size()].instantiate() as Enemy
+			if max_elites < 0 or not candidate.elite or elites < max_elites:
+				enemy = candidate
+				next += attempt + 1
+				break
+			candidate.free()
+		if enemy == null:
+			break
+		if enemy.elite:
+			elites += 1
 		enemy.position = pos
 		enemy.detection_radius = spawn_detection_radius
 		get_node(^"Enemies").add_child(enemy, true)
 		added += 1
 	return added
+
+
+## Up to `count` positions (room coordinates) for extra enemies, sampled from
+## `rng_seed` (same seed and room = same positions): random points on the floor
+## that pass is_valid_extra_spawn() and keep extra_spawn_spacing from each other.
+## If sampling finds too few, the free safe SpawnPoints markers (safe_extra_points
+## with `used`) fill up the rest (samples never come close to a marker). Call
+## before the room enters the tree, after the planned enemies were added.
+func extra_spawn_points(count: int, used: int, rng_seed: int, min_door_distance: float = 180.0) -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	if count <= 0:
+		return result
+	var area := _floor_area().grow(-extra_spawn_clearance)
+	if area.has_area():
+		var rng := RandomNumberGenerator.new()
+		rng.seed = rng_seed
+		var tries := 0
+		while result.size() < count and tries < count * EXTRA_SPAWN_TRIES:
+			tries += 1
+			var pos := Vector2(rng.randf_range(area.position.x, area.end.x), rng.randf_range(area.position.y, area.end.y))
+			if is_valid_extra_spawn(pos, result, min_door_distance):
+				result.append(pos)
+	for pos in safe_extra_points(used, min_door_distance):
+		if result.size() >= count:
+			break
+		result.append(pos)
+	return result
+
+
+## True if an extra enemy may spawn at `pos` (room coordinates): on the floor at
+## least extra_spawn_clearance from its edge, `min_door_distance` from every door
+## and from the PlayerSpawn, clear of every Obstacle footprint (+ clearance), and
+## extra_spawn_spacing from every enemy, SpawnPoints marker, Decor object and
+## position in `taken`.
+func is_valid_extra_spawn(pos: Vector2, taken: Array[Vector2] = [], min_door_distance: float = 180.0) -> bool:
+	if not _floor_area().grow(-extra_spawn_clearance).has_point(pos):
+		return false
+	if has_node(^"Doors"):
+		for door in get_node(^"Doors").get_children():
+			if door is Node2D and pos.distance_to(_local_position(door as Node2D)) < min_door_distance:
+				return false
+	if has_node(^"PlayerSpawn") and pos.distance_to(_local_position(get_node(^"PlayerSpawn") as Node2D)) < min_door_distance:
+		return false
+	for node in find_children("*", "Obstacle", true, false):
+		var obstacle := node as Obstacle
+		var footprint := Rect2(_local_position(obstacle) - obstacle.footprint / 2.0, obstacle.footprint)
+		if footprint.grow(extra_spawn_clearance).has_point(pos):
+			return false
+	var near: Array[Vector2] = taken.duplicate()
+	for path: NodePath in [^"Enemies", ^"SpawnPoints", ^"Decor"]:
+		if has_node(path):
+			for child in get_node(path).get_children():
+				if child is Node2D and not child is Obstacle:
+					near.append(_local_position(child as Node2D))
+	for other in near:
+		if pos.distance_to(other) < extra_spawn_spacing:
+			return false
+	return true
+
+
+## The walkable floor in room coordinates (RoomVisuals.floor_rect; the whole
+## default room if there is no Visuals node).
+func _floor_area() -> Rect2:
+	var visuals := get_node_or_null(^"Visuals") as RoomVisuals
+	if visuals == null:
+		return Rect2(0, 0, 1152, 648)
+	return Rect2(visuals.position + visuals.floor_rect.position, visuals.floor_rect.size)
+
+
+## `node`'s position in room coordinates (works before the room is in the tree).
+func _local_position(node: Node2D) -> Vector2:
+	var xf := Transform2D.IDENTITY
+	var current: Node = node
+	while current != null and current != self:
+		if current is Node2D:
+			xf = (current as Node2D).transform * xf
+		current = current.get_parent()
+	return xf.origin
 
 
 ## Adds `enemy` (not yet in the tree) to the running encounter at global `pos`,
