@@ -37,6 +37,8 @@ const OUTLINE_WIDTH := 4.0
 @export var pulse_interval: float = 1.0
 @export var target_group: StringName = &"player"
 @export var color := Color(0.75, 0.35, 1.0)
+## Screen shake when it erupts with damage (Issue #58; capped by CombatFeedback trauma).
+@export var eruption_shake: CombatFeedback.Shake = CombatFeedback.Shake.LIGHT
 ## Optional sheet played over the zone when it erupts (fitted to its diameter).
 @export var erupt_effect: EffectSheet
 
@@ -106,6 +108,8 @@ func _physics_process(delta: float) -> void:
 			_left -= delta
 			if _left <= 0.0:
 				erupted.emit(_hit())
+				if damage > 0.0:
+					CombatFeedback.shake_from(self, eruption_shake)
 				_flash = ERUPT_FLASH
 				_spawn_burst()
 				if lifetime > 0.0:

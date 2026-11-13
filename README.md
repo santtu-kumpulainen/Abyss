@@ -28,11 +28,12 @@ Implemented:
 - Room types: combat rooms (arena, cave and crypt scenes), a Home room, survival trials, treasure rooms (a timed challenge altar and a rune sequence puzzle), miniboss rooms and a boss room.
 - Anvil upgrade stations, supply purchases and consumable items in an ability bar (Health Potion, Speed Potion, Home Teleport).
 - Seeded loot chests (1-4 per run, spread over the first dungeon levels) that open once their room is cleared.
-- Pause menu (Esc) with Resume, Restart and Main Menu.
+- Pause menu (Esc) with Resume, Restart, Main Menu and a Screen Shake setting (Full, Reduced, Off). With an Anvil menu open, Esc closes it first.
 - Relics, optional Pacts chosen before a run, and relic synergies.
 - Difficulty tiers (Normal, Hard, Abyssal), unlocked in order.
 - Endless dungeon levels with biomes.
 - Health bars, hit feedback, knockback and enemy death animations.
+- Combat and reward feedback: floating damage numbers (critical Fire Ball hits: 10% chance, x1.5 damage, shown larger in gold), XP floats, coins that fly to the Mage, a level-up burst, reward banners with rarity colours, and a short, restrained screen shake for heavy impacts and boss attacks.
 - Central audio system with music and sound effects.
 - Main menu with a Settings screen that lists the controls, and an in-world controls guide in the Home room.
 - Victory and game-over screens with a run summary.
@@ -53,7 +54,7 @@ Keyboard and mouse. These are the bindings in `project.godot`; the same list is 
 | 1, 2, 3 | Use item slots (drag to reorder) |
 | 1-4 | Buy upgrade (only while an Anvil menu is open) |
 | 5-7 | Buy supply (only while an Anvil menu is open) |
-| Esc | Pause menu (Resume, Restart, Main Menu) |
+| Esc | Pause menu (Resume, Screen Shake, Restart, Main Menu); closes an open Anvil menu first |
 
 An open Anvil menu uses keys 1-7, so the item slots are not triggered while it is open.
 

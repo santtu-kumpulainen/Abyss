@@ -243,9 +243,11 @@ func _resolve_attack() -> void:
 		&"slam":
 			_slam_flash = 0.15
 			AudioManager.sfx(self, &"boss_slam")
+			CombatFeedback.shake_from(self, CombatFeedback.Shake.MEDIUM)
 			var victim := _find_target()
 			if victim and global_position.distance_to(victim.global_position) <= slam_radius:
 				victim.take_damage(slam_damage)
+				CombatFeedback.shake_from(self, CombatFeedback.Shake.LIGHT)
 				HitFeedback.knock(victim, victim.global_position - global_position)
 				hit = true
 		&"ring":

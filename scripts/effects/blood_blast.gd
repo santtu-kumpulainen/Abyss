@@ -31,6 +31,7 @@ static func spawn_blast(parent: Node, pos: Vector2, p_radius: float, p_delay: fl
 	blast.delay = p_delay
 	blast.damage = p_mage_damage
 	blast.enemy_damage = p_enemy_damage
+	blast.eruption_shake = CombatFeedback.Shake.MEDIUM
 	blast.excluded = p_excluded
 	blast.color = BLAST_COLOR
 	blast.erupt_effect = p_effect

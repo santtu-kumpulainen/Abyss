@@ -118,7 +118,8 @@ func _test_file_selection() -> void:
 	var local := used.keys().filter(func(p: String) -> bool: return ignored.has(p))
 	_check(unused.is_empty(), "every tracked audio file is used by the catalog %s" % [unused])
 	_check(local.is_empty(), "the catalog uses no local-only file %s" % [local])
-	_check(tracked.size() == 52, "52 tracked audio files: 2 music + 33 Dungeon SFX + 17 Magic Spells (got %d)" % tracked.size())
+	# Issue #58 Stage 2 adds 4 Magic Spells sounds (coin, XP, crit, valuable reward).
+	_check(tracked.size() == 56, "56 tracked audio files: 2 music + 33 Dungeon SFX + 21 Magic Spells (got %d)" % tracked.size())
 	_check(not ignored.is_empty() and ignored.has(AUDIO_DIR + "magic_spells_sfx_lite/wav/blood_cast_01.wav"),
 			".gitignore lists the local-only files")
 

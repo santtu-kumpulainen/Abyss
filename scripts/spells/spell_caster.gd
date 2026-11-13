@@ -27,6 +27,11 @@ var momentum_window := 1.5
 var projectile_count := 1
 var projectile_damage_factor := 1.0
 var spread_degrees := 8.0
+## Critical hits (Issue #58): each projectile rolls `crit_chance` (0 = never,
+## the default; the Dungeon sets RunState.CRIT_CHANCE for the Mage) to deal
+## `crit_multiplier` x damage to an Enemy. Shown as a CRIT damage number.
+var crit_chance := 0.0
+var crit_multiplier := 1.5
 
 var _cooldown_left := 0.0
 var _momentum_left := 0.0
@@ -87,6 +92,8 @@ func try_cast(target: Vector2) -> Projectile:
 		var angle := deg_to_rad((i - (projectile_count - 1) / 2.0) * spread_degrees)
 		projectile.setup(_cast_spell, dir.rotated(angle), get_parent())
 		projectile.damage_factor = projectile_damage_factor
+		if crit_chance > 0.0 and randf() < crit_chance:
+			projectile.crit_multiplier = crit_multiplier
 		container.add_child(projectile)
 		projectile.global_position = global_position
 		projectile.hit.connect(_on_projectile_hit)

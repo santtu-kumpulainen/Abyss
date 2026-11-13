@@ -1,4 +1,7 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://b7nsyariaiewy"]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/water_caster_boss.tscn" id="1_mjm5x"]
+[ext_resource type="PackedScene" path="res://scenes/mage/mage.tscn" id="2_fn815"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
 size = Vector2(1152, 32)
@@ -6,24 +9,24 @@ size = Vector2(1152, 32)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_vertical"]
 size = Vector2(32, 648)
 
-[node name="TestRoom" type="Node2D"]
+[node name="TestRoom" type="Node2D" unique_id=1929205752]
 
-[node name="Floor" type="ColorRect" parent="."]
+[node name="Floor" type="ColorRect" parent="." unique_id=1448667569]
 z_index = -10
 offset_right = 1152.0
 offset_bottom = 648.0
 mouse_filter = 2
 color = Color(0.12, 0.12, 0.16, 1)
 
-[node name="Walls" type="Node2D" parent="."]
+[node name="Walls" type="Node2D" parent="." unique_id=1099071596]
 
-[node name="WallTop" type="StaticBody2D" parent="Walls"]
+[node name="WallTop" type="StaticBody2D" parent="Walls" unique_id=1091398122]
 position = Vector2(576, 16)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallTop"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallTop" unique_id=108651406]
 shape = SubResource("RectangleShape2D_horizontal")
 
-[node name="ColorRect" type="ColorRect" parent="Walls/WallTop"]
+[node name="ColorRect" type="ColorRect" parent="Walls/WallTop" unique_id=140152381]
 offset_left = -576.0
 offset_top = -16.0
 offset_right = 576.0
@@ -31,13 +34,13 @@ offset_bottom = 16.0
 mouse_filter = 2
 color = Color(0.45, 0.45, 0.55, 1)
 
-[node name="WallBottom" type="StaticBody2D" parent="Walls"]
+[node name="WallBottom" type="StaticBody2D" parent="Walls" unique_id=656004937]
 position = Vector2(576, 632)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallBottom"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallBottom" unique_id=1088382785]
 shape = SubResource("RectangleShape2D_horizontal")
 
-[node name="ColorRect" type="ColorRect" parent="Walls/WallBottom"]
+[node name="ColorRect" type="ColorRect" parent="Walls/WallBottom" unique_id=865663]
 offset_left = -576.0
 offset_top = -16.0
 offset_right = 576.0
@@ -45,13 +48,13 @@ offset_bottom = 16.0
 mouse_filter = 2
 color = Color(0.45, 0.45, 0.55, 1)
 
-[node name="WallLeft" type="StaticBody2D" parent="Walls"]
+[node name="WallLeft" type="StaticBody2D" parent="Walls" unique_id=149141423]
 position = Vector2(16, 324)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallLeft"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallLeft" unique_id=1776511496]
 shape = SubResource("RectangleShape2D_vertical")
 
-[node name="ColorRect" type="ColorRect" parent="Walls/WallLeft"]
+[node name="ColorRect" type="ColorRect" parent="Walls/WallLeft" unique_id=112744678]
 offset_left = -16.0
 offset_top = -324.0
 offset_right = 16.0
@@ -59,16 +62,59 @@ offset_bottom = 324.0
 mouse_filter = 2
 color = Color(0.45, 0.45, 0.55, 1)
 
-[node name="WallRight" type="StaticBody2D" parent="Walls"]
+[node name="WallRight" type="StaticBody2D" parent="Walls" unique_id=41163744]
 position = Vector2(1136, 324)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRight"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRight" unique_id=85241313]
 shape = SubResource("RectangleShape2D_vertical")
 
-[node name="ColorRect" type="ColorRect" parent="Walls/WallRight"]
+[node name="ColorRect" type="ColorRect" parent="Walls/WallRight" unique_id=656244262]
 offset_left = -16.0
 offset_top = -324.0
 offset_right = 16.0
 offset_bottom = 324.0
 mouse_filter = 2
 color = Color(0.45, 0.45, 0.55, 1)
+
+[node name="WaterCasterBoss" parent="Walls" unique_id=1153039791 instance=ExtResource("1_mjm5x")]
+position = Vector2(482, 360)
+bolt_damage = 14.0
+bolt_speed = 300.0
+bolt_windup = 0.7
+bolt_cooldown = 2.6
+bolt_burst = 1
+bolt_burst_interval = 0.3
+bolt_range = 700.0
+zone_count = 3
+zone_radius = 95.0
+zone_delay = 1.1
+zone_stagger = 0.4
+zone_spacing = 210.0
+zone_damage = 12.0
+zone_windup = 0.6
+zone_cooldown = 6.5
+zone_color = Color(0.3, 0.65, 1, 1)
+wave_cast = 0.5
+wave_telegraph = 1.4
+wave_speed = 520.0
+wave_thickness = 80.0
+wave_lane_fraction = 0.5
+wave_damage = 12.0
+wave_slow_factor = 0.6
+wave_slow_duration = 2.5
+wave_cooldown = 10.0
+wave_followup_zones = 0
+wave_color = Color(0.35, 0.7, 1, 1)
+preferred_min = 220.0
+preferred_max = 380.0
+aura_color = Color(0.35, 0.7, 1, 0.4)
+aura_radius = 48.0
+cast_stretch = 0.08
+tier_cooldown_step = 0.1
+opening_delay = 1.2
+recover_time = 0.6
+punish_multiplier = 1.6
+floor_margin = 150.0
+
+[node name="Mage" parent="Walls" unique_id=875247372 instance=ExtResource("2_fn815")]
+position = Vector2(227, 363)

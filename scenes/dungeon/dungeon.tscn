@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" path="res://scenes/rooms/upgrade_station.tscn" id="13_upgrade_station"]
 [ext_resource type="PackedScene" path="res://scenes/ui/victory_overlay.tscn" id="14_victory"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="21_pause"]
+[ext_resource type="Script" path="res://scripts/effects/combat_feedback.gd" id="22_feedback"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/survival_room.tscn" id="15_survival"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/rune_puzzle_room.tscn" id="16_rune"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster.tscn" id="e_blood"]
@@ -225,3 +226,10 @@ player = NodePath("../Mage")
 [node name="VictoryOverlay" parent="." unique_id=1336298155 instance=ExtResource("14_victory")]
 
 [node name="PauseMenu" parent="." instance=ExtResource("21_pause")]
+
+[node name="Camera" type="Camera2D" parent="."]
+anchor_mode = 0
+
+[node name="CombatFeedback" type="Node2D" parent="." node_paths=PackedStringArray("camera")]
+script = ExtResource("22_feedback")
+camera = NodePath("../Camera")

@@ -15,6 +15,8 @@ extends CanvasLayer
 @onready var _resume_button: Button = %ResumeButton
 @onready var _restart_button: Button = %RestartButton
 @onready var _main_menu_button: Button = %MainMenuButton
+## Cycles the screen shake setting (Full / Reduced / Off, CombatFeedback; kept for the session).
+@onready var _shake_button: Button = %ShakeButton
 
 ## True while this menu paused the game (guards against double open / close).
 var _open := false
@@ -28,6 +30,12 @@ func _ready() -> void:
 	_resume_button.pressed.connect(resume)
 	_restart_button.pressed.connect(restart)
 	_main_menu_button.pressed.connect(main_menu)
+	_shake_button.pressed.connect(func() -> void: _update_shake_text(CombatFeedback.cycle_shake_setting()))
+	_update_shake_text(CombatFeedback.shake_label())
+
+
+func _update_shake_text(label: String) -> void:
+	_shake_button.text = "Screen Shake: %s" % label
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -76,6 +76,11 @@ signal speed_potion_expired
 ## (EncounterPlanner.SEAL_SOURCES), so one can be skipped.
 const SEALS_REQUIRED := 3
 
+## Fire Ball critical hits (Issue #58 Stage 2): chance per projectile and damage
+## multiplier (applied to the Mage's SpellCaster by the Dungeon).
+const CRIT_CHANCE := 0.1
+const CRIT_MULTIPLIER := 1.5
+
 ## Gold every run starts with (Issue #58); not part of gold_earned.
 const STARTING_GOLD := 250
 ## Base gold of a loot chest on dungeon level 1, and the base added per later level
@@ -244,6 +249,9 @@ static var seed_override: int = 0
 
 ## If > 0, used instead of MageLevels.xp_multiplier() (see xp_multiplier()).
 var xp_multiplier_override: float = 0.0
+
+## XP (after scaling) granted by the last grant_enemy_rewards() call (for feedback).
+var last_xp_granted := 0
 
 var _configured := false
 var _relic_claimed := false
@@ -646,6 +654,7 @@ func grant_enemy_rewards(xp_amount: int, base_gold: int) -> int:
 	var scaled := xp_amount * xp_multiplier() + _xp_fraction
 	var whole := floori(scaled)
 	_xp_fraction = scaled - whole
+	last_xp_granted = whole
 	add_rewards(whole, gold)
 	return gold
 
