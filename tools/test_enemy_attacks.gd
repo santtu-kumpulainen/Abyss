@@ -90,9 +90,10 @@ func _test_player_speed() -> void:
 func _test_enemy_speed_scaling() -> void:
 	var base := _mage_base_speed()
 	_check(LevelScaling.MAX_PURSUER_SPEED < base, "pursuer speed cap %.0f is below the Mage's base speed %.0f" % [LevelScaling.MAX_PURSUER_SPEED, base])
-	_check(is_equal_approx(LevelScaling.enemy_move_pace(1), 1.0) and is_equal_approx(LevelScaling.enemy_move_pace(3), 1.03)
-			and is_equal_approx(LevelScaling.enemy_move_pace(99), 1.0 + LevelScaling.MOVE_PACE_CAP), "move pace: +1.5%/level, capped at +15%")
-	_check(is_equal_approx(LevelScaling.enemy_pace(99), 1.0 + LevelScaling.PACE_CAP), "attack pace keeps its +30% cap")
+	_check(is_equal_approx(LevelScaling.enemy_move_pace(1), 1.0) and is_equal_approx(LevelScaling.enemy_move_pace(3), 1.02)
+			and is_equal_approx(LevelScaling.enemy_move_pace(99), 1.0 + LevelScaling.MOVE_PACE_CAP), "regular move pace: +1%/level, capped at +10% (Issue #55)")
+	_check(is_equal_approx(LevelScaling.enemy_pace(99), 1.0 + LevelScaling.PACE_CAP) and is_equal_approx(LevelScaling.PACE_CAP, 0.25),
+			"regular attack pace capped at +25% (Issue #55)")
 	_check(is_equal_approx(LevelScaling.player_catchup(1.0), 1.0) and is_equal_approx(LevelScaling.player_catchup(1.1), 1.05)
 			and is_equal_approx(LevelScaling.player_catchup(10.0), 1.0 + LevelScaling.CATCHUP_CAP) and is_equal_approx(LevelScaling.player_catchup(0.5), 1.0),
 			"catch-up: half the Mage's bonus, never below x1, capped at +10%")
@@ -103,8 +104,8 @@ func _test_enemy_speed_scaling() -> void:
 	for i in 20:
 		run.relics.append(&"wind_relic")
 	var move := run.enemy_move_pace_multiplier()
-	_check(is_equal_approx(move, 1.1 * 1.15 * 1.1 * Tempo.ENEMY_MOVE), "worst-case move pace x%.3f (Abyssal x level cap x catch-up cap x tempo 1.25)" % move)
-	_check(is_equal_approx(run.enemy_pace_multiplier(), 1.2 * 1.3 * Tempo.ENEMY_ATTACK), "attack pace: Abyssal x level cap x tempo 1.15 (x%.2f)" % run.enemy_pace_multiplier())
+	_check(is_equal_approx(move, 1.1 * 1.1 * 1.1 * Tempo.ENEMY_MOVE), "worst-case move pace x%.3f (Abyssal x level cap x catch-up cap x tempo 1.25)" % move)
+	_check(is_equal_approx(run.enemy_pace_multiplier(), 1.2 * 1.25 * Tempo.ENEMY_ATTACK), "attack pace: Abyssal x level cap x tempo 1.15 (x%.2f)" % run.enemy_pace_multiplier())
 	var speeds := {}
 	for path in PURSUERS:
 		var enemy := (load(path) as PackedScene).instantiate() as Enemy
