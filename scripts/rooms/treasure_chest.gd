@@ -47,6 +47,7 @@ func interact() -> bool:
 	if not can_interact() or not run_state.claim_treasure(treasure_id):
 		return false
 	refresh()
+	AudioManager.sfx(self, &"chest_open")
 	opened.emit()
 	interacted.emit()
 	return true

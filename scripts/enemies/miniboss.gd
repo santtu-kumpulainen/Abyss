@@ -117,6 +117,7 @@ func _physics_process(delta: float) -> void:
 		State.WINDUP:
 			_state_left -= delta
 			if _state_left <= 0.0:
+				AudioManager.sfx(self, _attack_sound(current_attack, true))
 				_windup_finished(current_attack)
 		State.ACTION:
 			if _action(delta):
@@ -137,6 +138,7 @@ func _begin(attack: StringName, windup: float, vulnerable: bool = false) -> void
 	_state_left = windup
 	_windup_total = windup
 	_vulnerable = vulnerable
+	AudioManager.sfx(self, _attack_sound(attack, false))
 	attack_started.emit(attack)
 
 
@@ -242,6 +244,12 @@ func _choose(_delta: float, _can_attack: bool) -> void:
 
 
 ## The windup of `attack` is over: resolve it, then _end_attack() or _start_action().
+## SoundLibrary event of `attack` (Issue #53): when its windup starts
+## (`finished` false) or ends (true). &"" = silent. Bolts sound through their Spell.
+func _attack_sound(_attack: StringName, _finished: bool) -> StringName:
+	return &""
+
+
 func _windup_finished(_attack: StringName) -> void:
 	_end_attack()
 

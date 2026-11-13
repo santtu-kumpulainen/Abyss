@@ -11,6 +11,8 @@
 script = ExtResource("1_spell")
 id = &"fire_ball"
 display_name = "Fire Ball"
+cast_sound = &"mage_cast"
+impact_sound = &"mage_spell_impact"
 projectile_scene = ExtResource("2_projectile")
 frames = ExtResource("3_frames")
 visual_scale = 0.05

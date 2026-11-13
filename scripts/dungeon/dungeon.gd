@@ -416,6 +416,7 @@ func use_health_potion() -> bool:
 	var fraction: float = RunState.CONSUMABLES[&"health_potion"]["heal_fraction"]
 	var healed := heal_mage(mage.health.max_health * fraction)
 	EffectLibrary.spawn(&"heal", mage, mage.caster.global_position)
+	AudioManager.sfx(self, &"potion_health")
 	_run_hud.show_message("Health Potion: +%d HP" % roundi(healed))
 	return true
 
@@ -427,6 +428,7 @@ func use_speed_potion() -> bool:
 	if mage.is_dead() or victory or not run_state.use_speed_potion():
 		return false
 	EffectLibrary.spawn(&"haste", mage, mage.caster.global_position)
+	AudioManager.sfx(self, &"potion_speed")
 	var factor: float = RunState.CONSUMABLES[&"speed_potion"]["speed_factor"]
 	_run_hud.show_message("Speed Potion: +%d%% move speed for %s" % [roundi((factor - 1.0) * 100.0),
 			RunState.format_time(run_state.speed_potion_remaining)])
@@ -1143,6 +1145,7 @@ func _seal_room_candidates() -> Array[int]:
 
 ## Refreshes the boss gate and announces the seal count.
 func _on_seal_collected(_id: StringName) -> void:
+	AudioManager.sfx(self, &"seal_collected")
 	if current_index >= 0:
 		_update_level_gates(current_index)
 	map_changed.emit()
@@ -1176,6 +1179,7 @@ func _on_relic_chosen(id: StringName) -> void:
 
 
 func _on_leveled_up(new_level: int) -> void:
+	AudioManager.sfx(self, &"mage_level_up")
 	raise_max_health(run_state.max_health_per_level, run_state.heal_per_level)
 	if current_index >= 0:
 		_update_level_gates(current_index)

@@ -26,6 +26,10 @@ extends Resource
 ## Played at the caster when the spell is cast / where a projectile hits.
 @export var cast_effect: EffectSheet
 @export var impact_effect: EffectSheet
+## SoundLibrary event ids (Issue #53) played when a projectile is launched / when
+## it hits, bounces or bursts (where impact_effect shows). &"" = silent.
+@export var cast_sound: StringName
+@export var impact_sound: StringName
 
 @export_group("Stats")
 @export var damage: float = 10.0

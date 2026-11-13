@@ -56,6 +56,8 @@ func can_damage(node: Node) -> bool:
 
 
 func _hit() -> int:
+	# The blast erupts once (no lingering pulses), so this plays once per blast.
+	AudioManager.sfx(self, &"blood_blast")
 	# Collect first: damage may kill enemies (and start chain blasts) mid-loop.
 	var victims: Array[Node2D] = []
 	for group: StringName in [&"player", &"enemies"]:
