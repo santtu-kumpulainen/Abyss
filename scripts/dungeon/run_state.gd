@@ -80,8 +80,18 @@ const ENEMY_DAMAGE_FACTOR := 1.10
 ## Upper limit of the summed spell cooldown reduction (Issue #55: 0.4 = the
 ## cooldown multiplier never goes below 0.60), Swift Casting included.
 const MAX_COOLDOWN_REDUCTION := 0.4
-## Most extra enemies added to one room or survival wave by scaling.
-const MAX_EXTRA_ENEMIES := 4
+## Most extra enemies added to one regular combat room by scaling (Issue #55: 4 -> 12).
+const MAX_EXTRA_ENEMIES := 12
+## Most enemies in one regular combat room, planned line-up and extras together.
+const MAX_ROOM_ENEMIES := 20
+## Most elite enemies among one room's extras (Room.add_extra_enemies skips elite
+## scenes past it); planned and scene-placed elites are not counted.
+const MAX_ELITE_EXTRAS := 4
+## Most extra enemies added to one survival wave (unchanged by Issue #55).
+const MAX_WAVE_EXTRA_ENEMIES := 4
+## Cap of the extras a miniboss room is paid for (miniboss_omitted_extras()): the
+## pre-Issue-#55 room rule, so miniboss gold is unchanged by the larger room caps.
+const MINIBOSS_OMITTED_EXTRAS_CAP := 4
 ## Upper limit of move_speed_multiplier() (Issue #47): stacked speed items,
 ## Bloodstones and endless-mode Wind Relics never push the Mage past this.
 const MAX_MOVE_SPEED_MULTIPLIER := 1.4
@@ -736,19 +746,34 @@ func enemy_vulnerability_multiplier(elite: bool = false) -> float:
 	return 1.0 + (_bonus_sum(&"elite_vulnerability") if elite else 0.0)
 
 
-## Extra enemies for a combat room needing `required_level` that has
-## `free_points` free safe spawn points: the difficulty's extras plus the
-## level's (LevelScaling.room_extra_enemies), capped at MAX_EXTRA_ENEMIES and
-## at the free points. Boss and treasure rooms never ask for extras.
-func extra_room_enemies(required_level: int, free_points: int) -> int:
-	var total := Difficulty.extra_enemies(difficulty, required_level) + LevelScaling.room_extra_enemies(
-			dungeon_level, required_level >= 2, free_points)
-	return clampi(total, 0, mini(MAX_EXTRA_ENEMIES, maxi(free_points, 0)))
+## Extra enemies for a regular combat room needing `required_level` that already
+## holds `planned` enemies and has `free_points` free safe SpawnPoints markers:
+## the difficulty's extras plus the level's (LevelScaling.room_extra_enemies; the
+## markers only gate its tier-2 bonus), capped at MAX_EXTRA_ENEMIES and so the room
+## never holds more than MAX_ROOM_ENEMIES. Their positions are sampled
+## (Room.extra_spawn_points); Room.add_extra_enemies places fewer if it runs out
+## of valid positions. Boss and treasure rooms never ask for extras.
+func extra_room_enemies(required_level: int, free_points: int, planned: int = 0) -> int:
+	var total := _extra_enemies_wanted(required_level, free_points)
+	return clampi(total, 0, mini(MAX_EXTRA_ENEMIES, maxi(MAX_ROOM_ENEMIES - planned, 0)))
 
 
-## Extra enemies per survival wave (difficulty + level, capped at MAX_EXTRA_ENEMIES).
+## Extras a miniboss room omits and pays its minibosses for (Dungeon
+## miniboss_compensation_gold): the same wanted count, capped by the unchanged
+## pre-Issue-#55 rule (MINIBOSS_OMITTED_EXTRAS_CAP and the free markers).
+func miniboss_omitted_extras(required_level: int, free_points: int) -> int:
+	var total := _extra_enemies_wanted(required_level, free_points)
+	return clampi(total, 0, mini(MINIBOSS_OMITTED_EXTRAS_CAP, maxi(free_points, 0)))
+
+
+## Extra enemies per survival wave (difficulty + level, capped at MAX_WAVE_EXTRA_ENEMIES).
 func extra_wave_enemies() -> int:
-	return mini(Difficulty.data(difficulty)["extra_wave"] + LevelScaling.wave_extra_enemies(dungeon_level), MAX_EXTRA_ENEMIES)
+	return mini(Difficulty.data(difficulty)["extra_wave"] + LevelScaling.wave_extra_enemies(dungeon_level), MAX_WAVE_EXTRA_ENEMIES)
+
+
+func _extra_enemies_wanted(required_level: int, free_points: int) -> int:
+	return Difficulty.extra_enemies(difficulty, required_level) + LevelScaling.room_extra_enemies(
+			dungeon_level, required_level >= 2, free_points)
 
 
 ## True if `id` (Pact, item, treasure, upgrade or relic) is owned this run.

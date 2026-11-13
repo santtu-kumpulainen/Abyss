@@ -699,13 +699,17 @@ func _get_room(index: int) -> Room:
 		if _minibosses.has(index):
 			# The extras this room would have spawned as a normal room (same rule and
 			# spawn points as below); their gold is paid by the minibosses instead.
-			var omitted := run_state.extra_room_enemies(spec.required_level, room.safe_extra_points(pool.size()).size())
+			var omitted := run_state.miniboss_omitted_extras(spec.required_level, room.safe_extra_points(pool.size()).size())
 			_add_miniboss(room, index, lineup, pool, EncounterPlanner.extra_enemies_gold(pool, omitted))
 		elif not lineup.is_empty():
 			room.add_encounter_enemies(pool)
 			if not spec.is_boss and not spec.is_treasure():
 				var free := room.safe_extra_points(pool.size()).size()
-				room.add_extra_enemies(pool, run_state.extra_room_enemies(spec.required_level, free), pool.size())
+				var planned := room.get_node(^"Enemies").get_child_count()
+				var count := run_state.extra_room_enemies(spec.required_level, free, planned)
+				# Seeded per level and room: the same run seed rebuilds the same positions.
+				var spots := room.extra_spawn_points(count, pool.size(), extra_spawn_seed(index))
+				room.add_extra_enemies(pool, count, pool.size(), 180.0, spots, RunState.MAX_ELITE_EXTRAS)
 		if room is SurvivalRoom:
 			var trial := room as SurvivalRoom
 			trial.extra_per_wave = run_state.extra_wave_enemies()
@@ -787,6 +791,12 @@ func _spawn_final_anvil() -> void:
 	final_anvil.run_state = run_state
 	_get_room(index).get_node(^"Decor").add_child(final_anvil, true)
 	_run_hud.show_message("Dungeon cleared! An anvil awaits before the boss gate.")
+
+
+## Seed of room `index`'s extra-enemy spawn sampling on this level (from the
+## level seed, so a run seed always rebuilds the same positions).
+func extra_spawn_seed(index: int) -> int:
+	return hash([run_state.level_seed(), index, "extra_spawns"])
 
 
 ## Applies the run's enemy modifiers once to `enemy` (Enemy.apply_scaling() ignores repeats),
