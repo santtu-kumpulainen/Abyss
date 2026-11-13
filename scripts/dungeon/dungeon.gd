@@ -789,13 +789,15 @@ func _spawn_final_anvil() -> void:
 	_run_hud.show_message("Dungeon cleared! An anvil awaits before the boss gate.")
 
 
-## Applies the run's enemy modifiers once to `enemy` (Enemy.apply_scaling() ignores repeats).
+## Applies the run's enemy modifiers once to `enemy` (Enemy.apply_scaling() ignores repeats),
+## on its level curve (regular / miniboss / boss: LevelScaling.category_of()).
 func _scale_enemy(enemy: Enemy, treasure_room: bool, output_modifier: float = 1.0) -> void:
 	var elite := enemy.elite or enemy is Boss
-	enemy.apply_scaling(run_state.enemy_health_multiplier(treasure_room) * output_modifier,
-			run_state.enemy_damage_multiplier(elite, treasure_room),
-			run_state.enemy_pace_multiplier(), run_state.enemy_vulnerability_multiplier(elite),
-			run_state.enemy_move_pace_multiplier(), run_state.enemy_recovery_multiplier())
+	var category := LevelScaling.category_of(enemy)
+	enemy.apply_scaling(run_state.enemy_health_multiplier(treasure_room, category) * output_modifier,
+			run_state.enemy_damage_multiplier(elite, treasure_room, category),
+			run_state.enemy_pace_multiplier(category), run_state.enemy_vulnerability_multiplier(elite),
+			run_state.enemy_move_pace_multiplier(category), run_state.enemy_recovery_multiplier())
 	if enemy is Goblin:
 		(enemy as Goblin).swings_before_special = run_state.goblin_swings_before_special()
 	if enemy is Miniboss:
