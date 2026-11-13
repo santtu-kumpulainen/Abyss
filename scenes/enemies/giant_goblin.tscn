@@ -7,6 +7,9 @@
 
 [node name="GiantGoblin" instance=ExtResource("1_enemy")]
 script = ExtResource("3_script")
+hurt_sound = &"goblin_hurt"
+death_sound = &"goblin_death"
+special_active_sound = &"goblin_special"
 special_max_range = 180.0
 speed = 100.0
 sprite_frames = ExtResource("2_frames")

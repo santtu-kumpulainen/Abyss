@@ -183,6 +183,15 @@ func _choose(delta: float, can_attack: bool) -> void:
 			HitFeedback.knock(target, to_target)
 
 
+## Hex cast at its start, Blink at the teleport itself (Issue #53).
+func _attack_sound(attack: StringName, finished: bool) -> StringName:
+	if attack == &"hex" and not finished:
+		return &"hexcaller_hex"
+	if attack == &"blink" and finished:
+		return &"hexcaller_blink"
+	return &""
+
+
 func _windup_finished(attack: StringName) -> void:
 	match attack:
 		&"fan":

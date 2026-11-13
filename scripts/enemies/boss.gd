@@ -242,6 +242,7 @@ func _resolve_attack() -> void:
 	match attack:
 		&"slam":
 			_slam_flash = 0.15
+			AudioManager.sfx(self, &"boss_slam")
 			var victim := _find_target()
 			if victim and global_position.distance_to(victim.global_position) <= slam_radius:
 				victim.take_damage(slam_damage)
@@ -280,6 +281,7 @@ func _update_phase() -> void:
 		_apply_phase_visuals()
 		_sprite.modulate = Color(2.0, 2.0, 2.0)
 		create_tween().tween_property(_sprite, ^"modulate", Color.WHITE, 0.4)
+		AudioManager.sfx(self, &"boss_phase")
 		phase_changed.emit(phase)
 
 

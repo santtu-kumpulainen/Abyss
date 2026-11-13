@@ -327,6 +327,11 @@ func _choose(_delta: float, can_attack: bool) -> void:
 			target.take_damage(contact_damage)
 
 
+## Staggered zones cast (Issue #53); the bolts sound through their Spell.
+func _attack_sound(attack: StringName, finished: bool) -> StringName:
+	return &"water_boss_zones" if attack == &"zones" and not finished else &""
+
+
 func _windup_finished(attack: StringName) -> void:
 	match attack:
 		&"bolt":

@@ -66,6 +66,12 @@ var target: Node2D
 ## World width of death_effect (0 = the sheet's own scale).
 @export var death_effect_diameter: float = 0.0
 
+@export_group("Sounds")
+## SoundLibrary event ids (Issue #53): played when damaged but alive / once on
+## death. The defaults are catalog events without a suitable sound yet (silent).
+@export var hurt_sound: StringName = &"enemy_hurt"
+@export var death_sound: StringName = &"enemy_death"
+
 @export_group("Hit feedback")
 ## Knockback when damaged (Issue #51 Stage 3): speed along the hit direction for
 ## `knockback_duration` s. `knockback_falloff` 0 keeps the speed constant
@@ -179,6 +185,7 @@ func take_damage(amount: float) -> void:
 	health.take_damage(amount * damage_taken_multiplier)
 	if not health.is_dead():
 		_flash()
+		AudioManager.sfx(self, hurt_sound)
 
 
 ## Starts a knockback along `direction` (see knockback_speed). Ignored while
@@ -275,6 +282,7 @@ func _handle_death() -> void:
 	if dying:
 		return
 	dying = true
+	AudioManager.sfx(self, death_sound)
 	_leave_combat()
 	_on_died()
 

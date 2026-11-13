@@ -67,6 +67,7 @@ func _break_ward() -> void:
 		if is_instance_valid(e):
 			e.damage_taken_multiplier /= ward_multiplier
 	warded.clear()
+	AudioManager.sfx(self, &"champion_ward_broken")
 	ward_broken.emit()
 
 
