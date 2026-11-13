@@ -73,18 +73,18 @@ func _test_damage_growth_unit() -> void:
 
 
 func _test_baseline_hp() -> void:
-	_check(is_equal_approx(LevelScaling.enemy_health(1), 1.0) and is_equal_approx(LevelScaling.enemy_health(2), 1.25)
-			and is_equal_approx(LevelScaling.enemy_health(3), 1.5), "enemy HP baseline x1.00 / x1.25 / x1.50 for D1-D3")
+	_check(is_equal_approx(LevelScaling.enemy_health(1), 1.0) and is_equal_approx(LevelScaling.enemy_health(2), 1.08)
+			and is_equal_approx(LevelScaling.enemy_health(3), 1.16), "regular enemy HP baseline x1.00 / x1.08 / x1.16 for D1-D3 (Issue #55)")
 	var run := RunState.new()
 	run.configure(NORMAL)
 	var hp: Array[float] = []
 	for d in [1, 2, 3]:
 		run.dungeon_level = d
 		hp.append(run.enemy_health_multiplier())
-	_check(is_equal_approx(hp[0], 1.0) and is_equal_approx(hp[1], 1.25) and is_equal_approx(hp[2], 1.5), "RunState HP multiplier at D1-D3 (Normal): %s" % [hp])
+	_check(is_equal_approx(hp[0], 1.0) and is_equal_approx(hp[1], 1.08) and is_equal_approx(hp[2], 1.16), "RunState HP multiplier at D1-D3 (Normal): %s" % [hp])
 	run.dungeon_level = 3
-	_check(is_equal_approx(run.enemy_damage_multiplier(), 1.12 * 1.10) and is_equal_approx(run.enemy_pace_multiplier(), 1.04 * Tempo.ENEMY_ATTACK),
-			"enemy damage (+6%/level, then the x1.10 factor) and speed (+2%/level) scaling are unchanged")
+	_check(is_equal_approx(run.enemy_damage_multiplier(), 1.24 * 1.10) and is_equal_approx(run.enemy_pace_multiplier(), 1.05 * Tempo.ENEMY_ATTACK),
+			"regular enemy damage (+12%/level, then the x1.10 factor) and attack pace (+2.5%/level) scaling (Issue #55)")
 	run.free()
 
 

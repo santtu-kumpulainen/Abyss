@@ -12,18 +12,20 @@ extends RefCounted
 ## Which level curve an enemy uses (see category_of()).
 enum Category { REGULAR, MINIBOSS, BOSS }
 
-## Regular enemies.
-## Max HP gained per level above 1 (0.25 = +25% each, additive): x1.00 / 1.25 / 1.50 on levels 1-3.
-const HEALTH_PER_LEVEL := 0.25
-## Damage gained per level above 1.
-const DAMAGE_PER_LEVEL := 0.06
-## Attack rate (cooldowns, projectile speed) gained per level above 1, capped by PACE_CAP.
-const PACE_PER_LEVEL := 0.02
-const PACE_CAP := 0.3
-## Move speed gained per level above 1, capped by MOVE_PACE_CAP (Issue #47:
-## split from the attack pace so pursuers stay outrunnable).
-const MOVE_PACE_PER_LEVEL := 0.015
-const MOVE_PACE_CAP := 0.15
+## Regular enemies (Issue #55 Stage 4: shorter fights, more threat per hit).
+## Max HP gained per level above 1 (0.08 = +8% each, additive): x1.00 / 1.16 / 1.32 / 1.72 on levels 1 / 3 / 5 / 10.
+const HEALTH_PER_LEVEL := 0.08
+## Damage gained per level above 1 (+12% each): x1.00 / 1.24 / 1.48 / 2.08 on levels 1 / 3 / 5 / 10.
+const DAMAGE_PER_LEVEL := 0.12
+## Attack rate (cooldowns, projectile speed) gained per level above 1, capped by
+## PACE_CAP (+25%, reached on level 11). Tempo.ENEMY_ATTACK is applied on top once.
+const PACE_PER_LEVEL := 0.025
+const PACE_CAP := 0.25
+## Move speed gained per level above 1, capped by MOVE_PACE_CAP (+10%, reached on
+## level 11; Issue #47: split from the attack pace so pursuers stay outrunnable).
+## Tempo.ENEMY_MOVE, catch-up and MAX_PURSUER_SPEED are applied on top once.
+const MOVE_PACE_PER_LEVEL := 0.01
+const MOVE_PACE_CAP := 0.1
 
 ## Minibosses (Miniboss subclasses); same meaning as the regular constants.
 const MINIBOSS_HEALTH_PER_LEVEL := 0.25
