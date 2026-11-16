@@ -2,6 +2,12 @@
 .godot/
 /android/
 
+# Release builds
+/build/
+*.exe
+*.exe.truncated
+*.pck
+
 # Audio (Issue #53): only the audio files the game uses or has planned are tracked.
 # The rest of each pack stays local (see assets/audio/README.md). Each excluded
 # file is listed explicitly, so a newly selected sound is never ignored by accident.
