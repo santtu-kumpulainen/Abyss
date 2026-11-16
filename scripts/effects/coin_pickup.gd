@@ -80,6 +80,10 @@ func _target_valid() -> bool:
 		return false
 	if target.has_method(&"is_dead") and target.call(&"is_dead"):
 		return false
+	# Victory (Mage.end_run() sets `invulnerable`): coins stop homing; the gold was
+	# already granted and the next level clears them.
+	if target.get(&"invulnerable") == true:
+		return false
 	var fb := get_parent() as CombatFeedback
 	return fb == null or fb.active
 

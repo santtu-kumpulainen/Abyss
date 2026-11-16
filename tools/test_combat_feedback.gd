@@ -156,6 +156,21 @@ func _test_coins() -> void:
 		far._collect()
 		_check(once[0] == 1 and far.is_collected(), "a double collect fires once")
 
+	# Victory: a target whose run ended (Mage.end_run() sets `invulnerable`) collects nothing.
+	var ended_script := GDScript.new()
+	ended_script.source_code = "extends Node2D\nvar invulnerable := true\n"
+	ended_script.reload()
+	var ended := Node2D.new()
+	ended.set_script(ended_script)
+	ended.position = Vector2(230, 300)  # inside the magnet radius
+	root.add_child(ended)
+	var after := [0]
+	for coin in fb.drop_coins(Vector2(200, 300), 10, ended):
+		coin.collected.connect(func() -> void: after[0] += 1)
+	await _seconds(1.5)
+	_check(after[0] == 0, "no coins are collected after victory (run ended)")
+	ended.queue_free()
+
 	# Freed target: coins fade out uncollected.
 	var gone := [0]
 	var lost := fb.drop_coins(Vector2(200, 300), 10, target)
