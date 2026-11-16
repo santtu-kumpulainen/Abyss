@@ -212,7 +212,7 @@ func _restart_via_game_over_path() -> void:
 
 func _check_fresh_run(label: String) -> void:
 	_check(not paused and not _overlay().is_open and not _overlay().visible, "%s: unpaused, victory screen closed" % label)
-	_check(_run.level == 1 and _run.xp == 0 and _run.currency == 0, "%s: level, XP and gold reset" % label)
+	_check(_run.level == 1 and _run.xp == 0 and _run.currency == RunState.STARTING_GOLD, "%s: level, XP and gold reset" % label)
 	_check(_run.collected.is_empty() and _run.purchased.is_empty() and _run.relic.is_empty() and _run.relics.is_empty(), "%s: items, purchases and relics reset" % label)
 	_check(_run.dungeon_level == 1 and _run.run_time < 2.0 and not _run.is_replay, "%s: dungeon level and timers reset" % label)
 	_check(not _run.boss_defeated and not _dungeon.victory and _run.enemies_defeated == 0, "%s: boss state and counters reset" % label)

@@ -154,6 +154,7 @@ func _physics_process(delta: float) -> void:
 				phase = Phase.SWEEP
 				_travelled = 0.0
 				sweep_started.emit()
+				CombatFeedback.shake_from(self, CombatFeedback.Shake.LIGHT)
 				_hit_band(-thickness, 0.0)
 		Phase.SWEEP:
 			var from := _travelled - thickness

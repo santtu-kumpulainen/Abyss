@@ -111,6 +111,19 @@ const EVENTS := {
 			"volume_db": -4.0, "cooldown": 0.2, "max_voices": 1},
 	&"item_pickup": {"streams": [], "missing": "No pickup sound yet (gold, items, consumables)."},
 
+	# --- Combat and reward feedback (Issue #58 Stage 2) ---------------------------
+	## A dropped coin reaches the Mage (many per kill: short cooldown, few voices).
+	&"coin_pickup": {"streams": [preload(MAGIC + "spell_ready_01.wav")],
+			"volume_db": -16.0, "pitch": 0.12, "cooldown": 0.05, "max_voices": 2},
+	## XP gained from a kill (quiet: it plays with every kill).
+	&"xp_gain": {"streams": [preload(MAGIC + "mana_01.wav")],
+			"volume_db": -18.0, "pitch": 0.1, "cooldown": 0.15, "max_voices": 1},
+	## Critical Fire Ball hit / miniboss punish hit.
+	&"crit_hit": {"streams": [preload(MAGIC + "impact_01.wav")],
+			"volume_db": -7.0, "pitch": 0.08, "cooldown": 0.08, "max_voices": 2},
+	## Valuable reward revealed (item, relic, treasure, upgrade, boss reward).
+	&"reward_valuable": {"streams": [preload(MAGIC + "holy_01.wav")], "volume_db": -6.0, "pitch": 0.0, "max_voices": 1},
+
 	# --- UI -----------------------------------------------------------------------
 	&"ui_click": {"streams": [], "missing": "No UI button sounds in the current packs."},
 }

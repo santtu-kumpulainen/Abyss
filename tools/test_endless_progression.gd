@@ -213,7 +213,7 @@ func _test_level_select_and_replay() -> void:
 	var completions := _prog.completion_count(NORMAL)
 	await _load_scene(SCENE)
 	_check(_run.dungeon_level == 3 and _run.is_replay and RunHud.status_text(_run).contains("practice"), "a replay run starts at the chosen level and is marked")
-	_check(_run.level == MageLevels.arrival_level(3) and _run.collected.is_empty() and _run.relics.is_empty() and _run.purchased.is_empty() and _run.currency == 0, "a replay run starts at the arrival Mage level with no items, relics or gold")
+	_check(_run.level == MageLevels.arrival_level(3) and _run.collected.is_empty() and _run.relics.is_empty() and _run.purchased.is_empty() and _run.currency == RunState.STARTING_GOLD, "a replay run starts at the arrival Mage level with no items, relics or gold")
 	await _win_fast()
 	_check(_overlay().choose_relic(&"wind_relic") and _run.dungeon_level == 4, "a replay run still progresses")
 	_check(_prog.best_run == best_before and _prog.highest_level == highest and _prog.completion_count(NORMAL) == completions

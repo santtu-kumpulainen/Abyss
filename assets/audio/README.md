@@ -11,7 +11,7 @@ Only the audio files the game uses, or has planned for upcoming room objects, ar
   - **Local only:** human attack, charge, jump and footstep sounds, orc jump, footsteps and charging loop, sword hit and miss.
 - **Magic Spells SFX Lite** v2.1 (`magic_spells_sfx_lite/`) by Willosuna, https://willosuna.itch.io/magic-spells-sfx-lite.
   - **License:** see `LICENSE.txt`: royalty free for commercial use, attribution not required. The audio may not be resold or redistributed as a sound pack, library or collection. `README.txt` is the pack's original readme.
-  - **Tracked:** the 17 used `wav/` sounds: fire, water, void and blood cast/impact, summon, teleport, debuff, portal, shadow, heal, buff, rune, shield break, magic level up.
-  - **Local only:** the 25 unused WAVs, `manifest.json` and `ogg/`. The OGGs duplicate the WAVs, and `ogg/` carries a local `.gdignore` so Godot does not import them.
+  - **Tracked:** the 21 used `wav/` sounds: fire, water, void and blood cast/impact, summon, teleport, debuff, portal, shadow, heal, buff, rune, shield break, magic level up, plus (Issue #58) spell ready (coin pickup), mana (XP gain), impact (critical hit) and holy (valuable reward).
+  - **Local only:** the 21 unused WAVs, `manifest.json` and `ogg/`. The OGGs duplicate the WAVs, and `ogg/` carries a local `.gdignore` so Godot does not import them.
 
 To start using a local-only sound, remove its line from `.gitignore` and add it to `scripts/audio/sound_library.gd`.

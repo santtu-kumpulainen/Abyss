@@ -16,9 +16,20 @@ var run_state: RunState:
 			refresh()
 
 var _room: Room
+var _sprite: ChestSprite
+## Draws the seal chains above the sprite (the node's own _draw is beneath its children).
+var _chains: Node2D
 
 
 func _ready() -> void:
+	_sprite = ChestSprite.new()
+	_sprite.name = &"Sprite"
+	_sprite.cell = ChestSprite.TREASURE_CELL
+	add_child(_sprite)
+	_chains = Node2D.new()
+	_chains.name = &"Chains"
+	_chains.draw.connect(_draw_chains)
+	add_child(_chains)
 	super._ready()
 	_room = find_room()
 	if _room:
@@ -63,30 +74,26 @@ func prompt_text() -> String:
 	return "[E] Open chest: %s" % RunState.TREASURES[treasure_id]["name"]
 
 
+func refresh() -> void:
+	if _sprite:
+		_sprite.opened = is_claimed()
+		# A sealed chest looks dull until its challenge is done.
+		_sprite.self_modulate = Color(0.7, 0.7, 0.75) if not is_unlocked() else Color.WHITE
+	if _chains:
+		_chains.queue_redraw()
+	super.refresh()
+
+
+## Shadow and the "ready to open" glow (the chest itself is the ChestSprite).
 func _draw() -> void:
-	var claimed := is_claimed()
-	var unlocked := is_unlocked()
-	var wood := Color(0.45, 0.27, 0.13) if unlocked else Color(0.32, 0.22, 0.15)
-	var band := Color(0.95, 0.75, 0.3) if unlocked else Color(0.55, 0.5, 0.42)
 	draw_circle(Vector2(0, 2), 26.0, Color(0, 0, 0, 0.3))
-	if unlocked and not claimed:
+	if is_unlocked() and not is_claimed():
 		draw_circle(Vector2(0, -14), 34.0, Color(1.0, 0.8, 0.35, 0.18))
-	# Body.
-	draw_rect(Rect2(-22, -24, 44, 26), wood)
-	draw_rect(Rect2(-22, -24, 44, 26), wood.darkened(0.4), false, 2.0)
-	for x in [-16.0, 12.0]:
-		draw_rect(Rect2(x, -24, 4, 26), band)
-	if claimed:
-		# Open lid tilted back, empty inside.
-		draw_rect(Rect2(-22, -40, 44, 10), wood.lightened(0.1))
-		draw_rect(Rect2(-20, -26, 40, 4), Color(0.08, 0.05, 0.03))
+
+
+func _draw_chains() -> void:
+	if is_unlocked() or is_claimed():
 		return
-	# Closed lid with lock.
-	draw_rect(Rect2(-24, -36, 48, 12), wood.lightened(0.1))
-	draw_rect(Rect2(-24, -36, 48, 12), wood.darkened(0.4), false, 2.0)
-	draw_rect(Rect2(-4, -28, 8, 9), band)
-	if not unlocked:
-		# Chains across the chest.
-		var chain := Color(0.7, 0.72, 0.78)
-		draw_line(Vector2(-24, -34), Vector2(24, -2), chain, 3.0)
-		draw_line(Vector2(24, -34), Vector2(-24, -2), chain, 3.0)
+	var chain := Color(0.7, 0.72, 0.78)
+	_chains.draw_line(Vector2(-24, -34), Vector2(24, -2), chain, 3.0)
+	_chains.draw_line(Vector2(24, -34), Vector2(-24, -2), chain, 3.0)

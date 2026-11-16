@@ -304,6 +304,7 @@ func _special_active(delta: float) -> bool:
 		if victim and in_strike_area(victim.global_position):
 			_struck = true
 			victim.take_damage(special_damage)
+			CombatFeedback.shake_from(self, CombatFeedback.Shake.LIGHT)
 			HitFeedback.knock(victim, aim)
 	_active_left -= delta
 	return _active_left <= 0.0

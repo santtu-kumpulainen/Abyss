@@ -199,7 +199,7 @@ func _test_restart() -> void:
 	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).restart()
 	await _wait_for_scene(scene_id)
 	_bind()
-	_check(_run.level == 1 and _run.xp == 0 and _run.currency == 0 and _run.purchased.is_empty(), "Restart resets the run")
+	_check(_run.level == 1 and _run.xp == 0 and _run.currency == RunState.STARTING_GOLD and _run.purchased.is_empty(), "Restart resets the run")
 	var visited := range(_dungeon.rooms.size()).filter(func(i: int) -> bool: return _dungeon.is_visited(i))
 	_check(visited == [0] and _dungeon.current_room.state == Room.State.IDLE, "Restart resets room progression (only Hall visited)")
 	var old_cell := _gate_cell

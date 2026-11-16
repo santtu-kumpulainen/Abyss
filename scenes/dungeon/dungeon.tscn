@@ -19,6 +19,9 @@
 [ext_resource type="PackedScene" path="res://scenes/enemies/water_caster_boss.tscn" id="20_water_caster"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/upgrade_station.tscn" id="13_upgrade_station"]
 [ext_resource type="PackedScene" path="res://scenes/ui/victory_overlay.tscn" id="14_victory"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="21_pause"]
+[ext_resource type="Script" path="res://scripts/effects/combat_feedback.gd" id="22_feedback"]
+[ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster_elite.tscn" id="23_blood_elite"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/survival_room.tscn" id="15_survival"]
 [ext_resource type="PackedScene" path="res://scenes/rooms/rune_puzzle_room.tscn" id="16_rune"]
 [ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster.tscn" id="e_blood"]
@@ -202,6 +205,7 @@ rooms = Array[ExtResource("10_room_spec")]([SubResource("Room_2_4"), SubResource
 item_pickup_scene = ExtResource("12_item_pickup")
 ancient_seal_scene = ExtResource("17_seal")
 miniboss_scenes = Array[PackedScene]([ExtResource("18_brood"), ExtResource("19_hex"), ExtResource("20_water_caster")])
+blood_elite_scene = ExtResource("23_blood_elite")
 upgrade_station_scene = ExtResource("13_upgrade_station")
 
 [node name="Mage" parent="." unique_id=534239917 instance=ExtResource("5_mage")]
@@ -222,3 +226,12 @@ script = ExtResource("8_run_state")
 player = NodePath("../Mage")
 
 [node name="VictoryOverlay" parent="." unique_id=1336298155 instance=ExtResource("14_victory")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("21_pause")]
+
+[node name="Camera" type="Camera2D" parent="."]
+anchor_mode = 0
+
+[node name="CombatFeedback" type="Node2D" parent="." node_paths=PackedStringArray("camera")]
+script = ExtResource("22_feedback")
+camera = NodePath("../Camera")

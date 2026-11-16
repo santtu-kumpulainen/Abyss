@@ -30,8 +30,9 @@ func _run_tests() -> void:
 	await _wait_for_scene(scene_id)
 	_bind()
 	var base_max_hp := _mage.health.max_health
-	_check(_run.level == 1 and _run.xp == 0 and _run.currency == 0, "run starts at Lv 1, 0 XP, 0 currency")
-	_check(_hud_text() == "Lv 1   XP 0/50   Gold 0", "HUD shows starting level/XP/currency (%s)" % _hud_text())
+	_check(_run.level == 1 and _run.xp == 0 and _run.currency == RunState.STARTING_GOLD, "run starts at Lv 1, 0 XP, starting gold")
+	_check(_hud_text() == "Lv 1   XP 0/50   Gold %d" % RunState.STARTING_GOLD, "HUD shows starting level/XP/currency (%s)" % _hud_text())
+	_run.currency = 0  # Issue #58: the absolute gold checks below count from 0, not the starting gold.
 
 	# --- Per-enemy reward values ---
 	var goblin := load("res://scenes/enemies/giant_goblin.tscn").instantiate() as Enemy
@@ -109,11 +110,11 @@ func _run_tests() -> void:
 	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).restart()
 	await _wait_for_scene(scene_id)
 	_bind()
-	_check(_run != run_before and _run.level == 1 and _run.xp == 0 and _run.currency == 0,
+	_check(_run != run_before and _run.level == 1 and _run.xp == 0 and _run.currency == RunState.STARTING_GOLD,
 			"Restart resets XP, currency and level")
 	_check(is_equal_approx(_mage.health.max_health, base_max_hp) and is_equal_approx(_mage.health.current, base_max_hp),
 			"Restart resets Mage max HP")
-	_check(_hud_text() == "Lv 1   XP 0/50   Gold 0", "HUD reset after Restart (%s)" % _hud_text())
+	_check(_hud_text() == "Lv 1   XP 0/50   Gold %d" % RunState.STARTING_GOLD, "HUD reset after Restart (%s)" % _hud_text())
 
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])
 	RunState.seed_override = 0
@@ -127,7 +128,7 @@ func _test_run_state_unit() -> void:
 	run.add_rewards(49, 3)
 	_check(run.level == 1 and run.xp == 49 and levels.is_empty(), "RunState: 49 XP stays Lv 1")
 	run.add_rewards(51, 0)  # 100 total: 50 -> Lv 2, 50 left (< 100)
-	_check(run.level == 2 and run.xp == 50 and levels == [2] and run.currency == 3,
+	_check(run.level == 2 and run.xp == 50 and levels == [2] and run.currency == RunState.STARTING_GOLD + 3,
 			"RunState: level-up carries leftover XP (Lv %d, XP %d, %s)" % [run.level, run.xp, levels])
 	run.add_rewards(500, 0)  # Lv 4 is the dungeon level 1 cap: excess XP is discarded
 	_check(run.level == 4 and run.xp == 0 and levels == [2, 3, 4] and run.is_max_level(),
@@ -135,7 +136,7 @@ func _test_run_state_unit() -> void:
 	run.add_rewards(999, 0)
 	_check(run.level == 4 and run.xp == 0 and levels == [2, 3, 4], "RunState: more XP at cap emits no level-up")
 	run.reset()
-	_check(run.level == 1 and run.xp == 0 and run.currency == 0, "RunState: reset() clears progression")
+	_check(run.level == 1 and run.xp == 0 and run.currency == RunState.STARTING_GOLD, "RunState: reset() clears progression")
 	run.free()
 
 

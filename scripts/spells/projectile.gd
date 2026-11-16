@@ -47,6 +47,9 @@ var damage_factor := 1.0
 ## the victim's CURRENT max HP instead of the spell's damage (boss bolts); no
 ## other damage multiplier is applied to such a hit.
 var max_hp_fraction := 0.0
+## > 1: this projectile is a critical hit; Enemy victims take this x damage
+## and are marked for a CRIT damage number (CombatFeedback.mark_crit()).
+var crit_multiplier := 1.0
 ## Global area the projectile must stay in (empty = no limit). Set before or
 ## after adding it to the tree.
 var bounds := Rect2()
@@ -156,7 +159,14 @@ func _on_body_entered(body: Node) -> void:
 	# Once per projectile: `_spent` blocks every later contact.
 	AudioManager.sfx(self, spell.impact_sound)
 	if body.has_method(&"take_damage"):
-		body.take_damage(_damage_for(body))
+		var amount := _damage_for(body)
+		if crit_multiplier > 1.0 and body is Enemy and max_hp_fraction <= 0.0:
+			amount *= crit_multiplier
+			CombatFeedback.mark_crit(body)
+		body.take_damage(amount)
+		# The mark is read by the damage handler; never let it leak to a later hit.
+		if body.has_meta(CombatFeedback.CRIT_META):
+			body.remove_meta(CombatFeedback.CRIT_META)
 		HitFeedback.knock(body, direction)
 		hit.emit(body)
 	set_deferred(&"monitoring", false)

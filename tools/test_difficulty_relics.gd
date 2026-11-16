@@ -262,7 +262,7 @@ func _test_restart_and_death() -> void:
 	var unlocks := _prog.completions.duplicate()
 	await _restart()
 	_check(_run.difficulty == HARD and _run.pact == &"avarice", "Restart keeps the selected difficulty and Pact")
-	_check(_run.level == 1 and _run.currency == 0 and _run.gold_earned == 0 and _run.collected.is_empty()
+	_check(_run.level == 1 and _run.currency == RunState.STARTING_GOLD and _run.gold_earned == 0 and _run.collected.is_empty()
 			and _run.active_synergies().is_empty() and not _dungeon.is_visited(index) and not _dungeon.victory,
 			"Restart resets level, gold, items, synergies and rooms")
 	_check(is_equal_approx(_mage.health.current, _base_hp) and is_equal_approx(_mage.health.max_health, _base_hp), "Restart resets HP")
@@ -313,7 +313,7 @@ func _test_pacts() -> void:
 	var xp_reward := enemy.xp_reward
 	enemy.take_damage(99999.0)
 	await _frames(1)
-	_check(_run.currency == roundi(reward * 1.4), "Avarice: +40% enemy gold")
+	_check(_run.currency == RunState.STARTING_GOLD + roundi(reward * 1.4), "Avarice: +40% enemy gold")
 	var gold := _run.currency
 	_run.claim_treasure(&"survivor_cache")
 	_check(_run.currency == gold + 210, "Avarice: +40% treasure gold (150 -> 210)")
@@ -431,6 +431,7 @@ func _test_synergies() -> void:
 	# Greed's Reward.
 	await _start_run(NORMAL, &"avarice")
 	_check(_run.upgrade_cost(&"vitality") == 100, "no anvil surcharge without the synergy")
+	_run.currency = 0  # Greed scales with carried gold: measure from 0, not the starting gold.
 	_run.claim_treasure(&"survivor_cache")
 	_check(_run.is_synergy_active(&"greeds_reward"), "Greed's Reward: Avarice + Survivor's Cache")
 	_check(_run.currency == 210 and is_equal_approx(_run.gold_damage_bonus(), 0.1)

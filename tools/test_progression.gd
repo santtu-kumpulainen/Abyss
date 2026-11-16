@@ -44,6 +44,7 @@ func _run_tests() -> void:
 	_check(not station.is_open, "menu cannot open while the Mage is out of range")
 	await _move_mage(station.global_position + Vector2(50, 0))
 	_check(station.is_usable() and (station.get_node(^"Prompt") as Label).visible, "prompt shows when the Mage is near")
+	_run.currency = 0  # Issue #58 starting gold would buy Vitality; test the broke case.
 	station.set_open(true)
 	_check(station.is_open and (station.get_node(^"Menu") as CanvasLayer).visible, "menu opens near the station")
 	var menu_text := (station.get_node(^"Menu/Panel/MenuLabel") as Label).text
@@ -116,11 +117,11 @@ func _run_tests() -> void:
 	(current_scene.get_node(^"GameOverOverlay") as GameOverOverlay).restart()
 	await _wait_for_scene(scene_id)
 	_bind()
-	_check(_run.level == 1 and _run.xp == 0 and _run.currency == 0 and _run.purchased.is_empty(),
+	_check(_run.level == 1 and _run.xp == 0 and _run.currency == RunState.STARTING_GOLD and _run.purchased.is_empty(),
 			"Restart resets level, XP, gold and upgrades")
 	_check(is_equal_approx(_mage.health.max_health, base_max_hp) and is_equal_approx(_cast_damage(), base_damage)
 			and is_equal_approx(_cast_cooldown(), base_cooldown), "Restart resets Mage stats")
-	_check(_station() != null and _station().run_state == _run and _hud_text() == "Lv 1   XP 0/50   Gold 0",
+	_check(_station() != null and _station().run_state == _run and _hud_text() == "Lv 1   XP 0/50   Gold %d" % RunState.STARTING_GOLD,
 			"fresh station and HUD after Restart")
 
 	print("RESULT: %s (%d failure(s))" % ["PASS" if _failures == 0 else "FAIL", _failures])

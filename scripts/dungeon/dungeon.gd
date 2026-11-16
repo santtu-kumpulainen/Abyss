@@ -99,6 +99,16 @@ extends Node2D
 ## and cells are only valid for the current level. boss_index(),
 ## treasure_index(), item_room_index(), door_to() and entry_door() find rooms
 ## and doors by role.
+## Loot chests (Issue #58): a run holds EncounterPlanner.loot_chest_count() (1-4)
+## chests in total, spread from the run seed over its first levels
+## (EncounterPlanner.loot_chest_levels()). Each level picks rooms for its share
+## among _loot_chest_candidates() (level seed); each gets a LootChest at a seeded
+## safe point (seal_spawn_points()) when built. Too few rooms or no safe point
+## means fewer chests, never an invalid spot.
+## The optional "PauseMenu" child handles ESC (PauseMenu).
+## Blood Monster Elites (Issue #58 Stage 3): from EncounterPlanner.ELITE_MIN_LEVEL,
+## each combat room (not boss / treasure / miniboss / champion) may promote one
+## of its Blood Monsters to `blood_elite_scene` while it is built (seeded).
 
 signal room_changed(room: Room, index: int)
 ## Something the map shows changed (room entered or cleared, level gates).
@@ -158,6 +168,8 @@ const DOOR_BY_DIRECTION := {
 @export_group("")
 ## Miniboss scenes (roots must be Minibosses) dealt to the miniboss rooms.
 @export var miniboss_scenes: Array[PackedScene] = []
+## Blood Monster Elite (Issue #58 Stage 3), promoted in combat rooms; see _promote_blood_elite().
+@export var blood_elite_scene: PackedScene
 ## Gold bonus of each miniboss (Issue #51: once per miniboss, so a double room
 ## pays it twice), on top of the replaced encounter's gold and its omitted extras.
 @export var miniboss_bonus_gold: int = 40
@@ -226,6 +238,8 @@ var _miniboss_compensation := {}
 var _miniboss_rooms: Array[int] = []
 var _double_rooms: Array[int] = []
 var _triple_rooms: Array[int] = []
+## Rooms holding a LootChest on this level (Issue #58).
+var _chest_rooms: Array[int] = []
 ## Authored room pool and its start room index (seeded_layout only).
 var _room_pool: Array[RoomSpec] = []
 var _pool_start := 0
@@ -237,6 +251,8 @@ var _pool_start := 0
 @onready var _map: DungeonMap = get_node_or_null(^"DungeonMap/Map")
 @onready var _victory_overlay: VictoryOverlay = get_node_or_null(^"VictoryOverlay")
 @onready var _ability_bar: AbilityBar = get_node_or_null(^"AbilityBar")
+## Combat / reward feedback (Issue #58 Stage 2), optional.
+@onready var feedback: CombatFeedback = get_node_or_null(^"CombatFeedback")
 
 
 func _ready() -> void:
@@ -254,6 +270,10 @@ func _ready() -> void:
 		mage.health.increase_max_health(run_state.max_health_per_level * run_state.max_health_multiplier(), 0.0)
 	mage.health.increase_max_health(0.0, mage.health.max_health)
 	mage.caster.momentum_window = Pacts.MOMENTUM_WINDOW
+	mage.caster.crit_chance = RunState.CRIT_CHANCE
+	mage.caster.crit_multiplier = RunState.CRIT_MULTIPLIER
+	mage.health.damaged.connect(_on_mage_damaged)
+	run_state.consumable_bought.connect(_on_consumable_bought)
 	run_state.synergy_activated.connect(_on_synergy_activated)
 	run_state.leveled_up.connect(_on_leveled_up)
 	run_state.upgrade_purchased.connect(_on_upgrade_purchased)
@@ -300,6 +320,9 @@ func enter_room(index: int, from_door: StringName = &"") -> void:
 	if current_room:
 		remove_child(current_room)
 	_clear_projectiles()
+	# Popups, sparks and coins never carry over into another room.
+	if feedback:
+		feedback.clear()
 	if _arrival_effect and is_instance_valid(_arrival_effect):
 		_arrival_effect.queue_free()
 	_arrival_effect = null
@@ -718,6 +741,8 @@ func _get_room(index: int) -> Room:
 		elif room is RunePuzzleRoom:
 			var puzzle := room as RunePuzzleRoom
 			puzzle.sequence = EncounterPlanner.rune_order(puzzle.sequence, hash([run_state.level_seed(), index]))
+		if not spec.is_boss and not spec.is_treasure() and not _minibosses.has(index) and _seal_rooms.get(index) != &"champion":
+			_promote_blood_elite(room, index)
 		if not spec.item.is_empty() and item_pickup_scene:
 			var pickup := item_pickup_scene.instantiate() as ItemPickup
 			pickup.item_id = spec.item
@@ -740,6 +765,9 @@ func _get_room(index: int) -> Room:
 			room.state_changed.connect(func(state: Room.State) -> void:
 				if state == Room.State.COMBAT:
 					_run_hud.show_message("Champion pack! Slay the crowned champion to break its ward."))
+		# After the seal and pickups, so the chest keeps clear of them.
+		if _chest_rooms.has(index):
+			_add_loot_chest(room, index)
 		# get_doors() needs the room to be ready; read the Doors node directly.
 		for door: Door in room.get_node(^"Doors").get_children():
 			door.sealed = not _link_map.has(_key(index, door.name))
@@ -757,6 +785,7 @@ func _get_room(index: int) -> Room:
 				(node as AncientSeal).run_state = run_state
 			elif node is Boss:
 				var boss := node as Boss
+				boss.phase_changed.connect(func(_p: int) -> void: CombatFeedback.shake_from(self, CombatFeedback.Shake.MEDIUM))
 				boss.phase_changed.connect(func(p: int) -> void:
 					_run_hud.show_message("%s grows stronger! Phase %d" % [boss.display_name, p]))
 		_room_cache[index] = room
@@ -813,6 +842,8 @@ func _scale_enemy(enemy: Enemy, treasure_room: bool, output_modifier: float = 1.
 	if enemy is Miniboss:
 		# Behaviour tier by dungeon level (Issue #51); its cooldowns are already pace-scaled above.
 		(enemy as Miniboss).configure_for_level(run_state.dungeon_level)
+	if feedback:
+		feedback.track_enemy(enemy)
 
 
 func _on_enemy_defeated(enemy: Enemy) -> void:
@@ -821,10 +852,63 @@ func _on_enemy_defeated(enemy: Enemy) -> void:
 	# Summons (miniboss adds) grant nothing, not even Blood Pact's kill heal.
 	if not enemy.summoned:
 		heal_mage(run_state.kill_heal(), true)
+	_enemy_defeat_feedback(enemy, gold)
 	if enemy is Boss and not run_state.boss_defeated:
 		run_state.boss_defeated = true
 		_run_hud.show_message("%s defeated! +%d gold. Victory!" % [(enemy as Boss).display_name, gold])
+		_reward_feedback("%s defeated!" % (enemy as Boss).display_name, "+%d gold - choose your relic" % gold, RunHud.Rarity.LEGENDARY)
 		_start_victory()
+
+
+## Kill feedback (Issue #58 Stage 2): XP float, coins for the gold just granted,
+## a death spark burst (stronger for elites / minibosses / the boss) and shake
+## for minibosses (medium) and the boss (heavy). The enemy's own death visuals
+## (corpse, death_effect, Blood Monster blast) are untouched.
+func _enemy_defeat_feedback(enemy: Enemy, gold: int) -> void:
+	if feedback == null:
+		return
+	var pos := enemy.global_position + Vector2(0, -20)
+	if not enemy.summoned and run_state.last_xp_granted > 0:
+		feedback.float_text(pos + Vector2(30, -6), "+%d XP" % run_state.last_xp_granted, Color(0.6, 0.85, 1.0), 15)
+		AudioManager.sfx(self, &"xp_gain")
+	feedback.drop_coins(pos, gold, mage)
+	if enemy is Boss:
+		feedback.burst(pos, Color(1.0, 0.75, 0.3), 40, 220.0, 0.8)
+		feedback.shake(CombatFeedback.Shake.HEAVY)
+	elif enemy is Miniboss:
+		feedback.burst(pos, Color(0.9, 0.5, 1.0), 24, 170.0, 0.6)
+		feedback.shake(CombatFeedback.Shake.MEDIUM)
+	elif enemy is BloodMonsterElite:
+		feedback.burst(pos, Color(0.9, 0.1, 0.2), 26, 170.0, 0.6)
+		feedback.shake(CombatFeedback.Shake.MEDIUM)
+	elif enemy.elite:
+		feedback.burst(pos, Color(1.0, 0.35, 0.3), 14, 130.0)
+	else:
+		feedback.burst(pos, Color(1.0, 0.92, 0.8), 8, 100.0, 0.35)
+
+
+## Mage hit feedback: red damage number; light shake for a heavy hit (>= 15% max HP).
+func _on_mage_damaged(amount: float, _current: float) -> void:
+	if feedback == null:
+		return
+	feedback.damage_number(mage.global_position + Vector2(0, -74), amount, CombatFeedback.Kind.PLAYER, mage)
+	if amount >= mage.health.max_health * 0.15:
+		feedback.shake(CombatFeedback.Shake.LIGHT)
+
+
+## Valuable reward presentation: HUD banner, sound and a burst around the Mage.
+func _reward_feedback(title: String, description: String, rarity: RunHud.Rarity) -> void:
+	_run_hud.show_reward(title, description, rarity)
+	AudioManager.sfx(self, &"reward_valuable")
+	if feedback:
+		feedback.burst(mage.global_position + Vector2(0, -24), RunHud.RARITY_COLORS[rarity], 18, 140.0, 0.6)
+
+
+func _on_consumable_bought(id: StringName) -> void:
+	# Ordinary purchase: understated (a float above the Mage, no banner).
+	if feedback:
+		feedback.float_text(mage.global_position + Vector2(0, -70), "+1 %s" % RunState.CONSUMABLES[id]["name"],
+				RunHud.RARITY_COLORS[RunHud.Rarity.COMMON], 15)
 
 
 ## Ends the run once: freezes the Mage, removes projectiles, then opens the
@@ -1019,6 +1103,9 @@ func _plan_level() -> void:
 	for i: int in _seal_rooms:
 		ids.append(seal_id(i))
 	run_state.set_seal_sources(ids)
+	# The run's 1-4 chests are planned once from the run seed; this level gets its share.
+	var chests := EncounterPlanner.loot_chests_on_level(run_state.run_seed, run_state.start_level, run_state.dungeon_level)
+	_chest_rooms = EncounterPlanner.pick_chest_rooms(_loot_chest_candidates(), chests, level_seed)
 
 
 ## Places the room pool for the current level (seeded_layout): replaces rooms,
@@ -1155,6 +1242,83 @@ func _seal_room_candidates() -> Array[int]:
 	return result
 
 
+## Replaces at most one of `room`'s Blood Monsters with a BloodMonsterElite
+## (`blood_elite_scene`) at the same spot, seeded per level and room
+## (EncounterPlanner.elite_pick). Runs while the room is built, before it is
+## ready, so the Elite is registered and scaled like any other enemy.
+## Returns the Elite (null if none).
+func _promote_blood_elite(room: Room, index: int) -> BloodMonsterElite:
+	if blood_elite_scene == null:
+		return null
+	var monsters: Array[BloodMonster] = []
+	for child in room.get_node(^"Enemies").get_children():
+		if child is BloodMonster and not child is BloodMonsterElite:
+			monsters.append(child)
+	var pick := EncounterPlanner.elite_pick(monsters.size(), run_state.dungeon_level,
+			hash([run_state.level_seed(), index]))
+	if pick < 0:
+		return null
+	var old := monsters[pick]
+	var elite := blood_elite_scene.instantiate() as BloodMonsterElite
+	elite.position = old.position
+	elite.detection_radius = old.detection_radius
+	var parent := old.get_parent()
+	parent.add_child(elite, true)
+	parent.move_child(elite, old.get_index())
+	parent.remove_child(old)
+	old.free()
+	elite.name = &"BloodMonsterElite"
+	room.state_changed.connect(func(state: Room.State) -> void:
+		if state == Room.State.COMBAT and is_instance_valid(elite):
+			_run_hud.show_message("A Blood Monster Elite! It frenzies at half health - and bursts when it dies."))
+	return elite
+
+
+## Rooms holding a loot chest on this level (ascending).
+func loot_chest_rooms() -> Array[int]:
+	return _chest_rooms.duplicate()
+
+
+## RunState id of room `index`'s loot chest (unique per level: the room cell).
+func loot_chest_id(index: int) -> StringName:
+	var cell := rooms[index].cell
+	return StringName("loot_chest_%d_%d" % [cell.x, cell.y])
+
+
+## Rooms that may hold a loot chest: combat rooms other than the start, boss,
+## treasure, miniboss and pre-boss anvil rooms (their rewards / anvil need the space).
+func _loot_chest_candidates() -> Array[int]:
+	var result: Array[int] = []
+	for i in rooms.size():
+		var spec := rooms[i]
+		if i != start_room and not spec.is_boss and not spec.is_treasure() and not spec.enemies.is_empty() \
+				and not _miniboss_rooms.has(i) and spec.cell != final_anvil_cell:
+			result.append(i)
+	return result
+
+
+## Adds room `index`'s LootChest at a seeded safe floor point (same rules as the
+## Ancient Seal: clear of walls, doors, obstacles, spawn points, enemies, pickups,
+## seals and interactables). No safe point: no chest (warned), never a bad spot.
+func _add_loot_chest(room: Room, index: int) -> void:
+	var spec := rooms[index]
+	var spot := EncounterPlanner.pick_point(seal_spawn_points(room), hash([run_state.level_seed(), "loot_chest", spec.cell]))
+	if spot == Vector2.INF:
+		push_warning("Dungeon: no safe loot chest spot in room %d; skipped" % index)
+		return
+	var chest := LootChest.new()
+	chest.name = &"LootChest"
+	chest.chest_id = loot_chest_id(index)
+	chest.position = spot
+	chest.run_state = run_state
+	chest.opened.connect(func(gold: int) -> void:
+		_run_hud.show_message("Chest opened! +%d gold" % gold)
+		if feedback:
+			feedback.drop_coins(chest.global_position + Vector2(0, -20), gold, mage)
+			feedback.float_text(chest.global_position + Vector2(0, -60), "+%d gold" % gold, Color(1.0, 0.85, 0.35), 20))
+	room.get_node(^"Decor").add_child(chest, true)
+
+
 ## Refreshes the boss gate and announces the seal count.
 func _on_seal_collected(_id: StringName) -> void:
 	AudioManager.sfx(self, &"seal_collected")
@@ -1181,6 +1345,8 @@ func _record_progress() -> void:
 
 func _on_mage_died() -> void:
 	_record_progress()
+	if feedback:
+		feedback.stop()
 
 
 ## RunState only emits this once per boss.
@@ -1188,10 +1354,17 @@ func _on_relic_chosen(id: StringName) -> void:
 	var bonus: float = RunState.RELICS[id].get("max_health", 0.0)
 	if bonus > 0.0:
 		raise_max_health(bonus, bonus)
+	var data: Dictionary = RunState.RELICS[id]
+	_reward_feedback(data["name"], data["effect"], RunHud.Rarity.LEGENDARY)
 
 
 func _on_leveled_up(new_level: int) -> void:
 	AudioManager.sfx(self, &"mage_level_up")
+	if feedback:
+		# Level-up moment: a big label and a violet ring of sparks around the Mage.
+		var at := mage.global_position + Vector2(0, -30)
+		feedback.float_text(at + Vector2(0, -50), "LEVEL UP!  Lv %d" % new_level, Color(0.8, 0.6, 1.0), 26)
+		feedback.burst(at, Color(0.75, 0.55, 1.0), 30, 180.0, 0.7)
 	raise_max_health(run_state.max_health_per_level, run_state.heal_per_level)
 	if current_index >= 0:
 		_update_level_gates(current_index)
@@ -1226,6 +1399,9 @@ func _on_upgrade_purchased(id: StringName) -> void:
 	var bonus: float = RunState.UPGRADES[id].get("max_health", 0.0)
 	if bonus > 0.0:
 		raise_max_health(bonus, bonus)
+	var data: Dictionary = RunState.UPGRADES[id]
+	_reward_feedback("%s %d/%d" % [data["name"], run_state.upgrade_stacks(id), run_state.upgrade_max_stacks(id)],
+			data["effect"], RunHud.Rarity.EPIC if id == &"twin_cast" else RunHud.Rarity.RARE)
 
 
 ## RunState only emits this once per treasure per run.
@@ -1235,6 +1411,7 @@ func _on_treasure_claimed(id: StringName) -> void:
 	if heal > 0.0:
 		heal_mage(heal * run_state.treasure_reward_multiplier())
 	_run_hud.show_message("%s: %s" % [data["name"], data["effect"]])
+	_reward_feedback(data["name"], data["effect"], RunHud.Rarity.EPIC)
 
 
 ## RunState only emits this once per item per run.
@@ -1244,6 +1421,7 @@ func _on_item_collected(id: StringName) -> void:
 	if bonus > 0.0:
 		raise_max_health(bonus, bonus)
 	_run_hud.show_message("%s: %s" % [data["name"], data["effect"]])
+	_reward_feedback(data["name"], data["effect"], RunHud.Rarity.EPIC if data.get("miniboss", false) else RunHud.Rarity.RARE)
 
 
 ## Idempotent: recomputed from RunState, so bonuses never stack twice.

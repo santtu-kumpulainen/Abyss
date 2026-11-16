@@ -309,7 +309,7 @@ func _test_practice_start() -> void:
 	_check(_prog.select(NORMAL, &"", 3), "setup: practice start at level 3 selected")
 	await _load_scene()
 	_check(_run.dungeon_level == 3 and _run.is_replay and _run.level == 7 and _run.max_level() == 10, "practice run starts at level 3 with Mage Lv 7")
-	_check(_run.collected.is_empty() and _run.relics.is_empty() and _run.treasures.is_empty() and _run.purchased.is_empty() and _run.currency == 0,
+	_check(_run.collected.is_empty() and _run.relics.is_empty() and _run.treasures.is_empty() and _run.purchased.is_empty() and _run.currency == RunState.STARTING_GOLD,
 			"practice run grants no items, relics, treasures or gold")
 	var base_hp := (load("res://scenes/mage/mage.tscn") as PackedScene).instantiate()
 	var expected_hp: float = (base_hp.get_node(^"Health") as Health).max_health + 6 * _run.max_health_per_level
