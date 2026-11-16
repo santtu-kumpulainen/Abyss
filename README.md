@@ -2,6 +2,8 @@
 
 Abyss is a small 2D top-down action roguelite made with Godot 4 and GDScript. You play a Mage who fights through a seeded grid of dungeon rooms, collects Ancient Seals to unseal the boss, and then continues into deeper dungeon levels. It is a solo course project, built as a small playable MVP and still in development.
 
+Check out the game on itch.io! https://santtu-kumpulainen.itch.io/abyss
+
 ## About the Game
 
 - **Genre:** action roguelite with real-time combat.
