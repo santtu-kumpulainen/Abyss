@@ -1119,8 +1119,11 @@ func _test_miniboss_economy(tier: int, level: int) -> String:
 		_dungeon.enter_room(normal)
 		await _frames(2)
 		var total := 0
+		var replaced: Array[PackedScene] = [load("res://scenes/enemies/blood_monster.tscn") as PackedScene]
 		for e: Enemy in _enemies(_dungeon.current_room):
-			total += e.currency_reward
+			# A Blood Monster Elite (Issue #58) replaces one Blood Monster and adds a
+			# deliberate bonus: count it as the monster it replaced.
+			total += EncounterPlanner.lineup_gold(replaced) if e is BloodMonsterElite else e.currency_reward
 		var pool_gold := EncounterPlanner.lineup_gold(_mapped(_dungeon.room_lineup(normal), level))
 		_check(_dungeon.miniboss_compensation_gold(normal) == 0 and total == pool_gold + placed + extras[1],
 				"%s economy: a normal room is unchanged and spawns the extras the rule assumes (%d extras, %d gold)" % [label, extras[0], extras[1]])

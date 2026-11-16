@@ -31,6 +31,12 @@ const MIN_LOOT_CHESTS := 1
 const MAX_LOOT_CHESTS := 4
 const LOOT_CHEST_LEVEL_SPAN := 3
 
+## Blood Monster Elites (Issue #58 Stage 3): from dungeon level ELITE_MIN_LEVEL,
+## each eligible combat room holding a Blood Monster promotes one of them with
+## chance ELITE_ROOM_CHANCE (seeded per level and room), at most one per room.
+const ELITE_MIN_LEVEL := 2
+const ELITE_ROOM_CHANCE := 0.35
+
 ## Scene path -> [xp_reward, currency_reward] of a fresh instance.
 static var _reward_cache := {}
 
@@ -38,6 +44,18 @@ static var _reward_cache := {}
 ## Seed of dungeon level `dungeon_level` in the run seeded with `run_seed`.
 static func level_seed(run_seed: int, dungeon_level: int) -> int:
 	return hash([run_seed, dungeon_level])
+
+
+## Index (into `candidates`, the room's Blood Monsters) of the one promoted to an
+## Elite, or -1 for none: never below ELITE_MIN_LEVEL, else ELITE_ROOM_CHANCE.
+static func elite_pick(candidates: int, dungeon_level: int, seed_value: int) -> int:
+	if candidates <= 0 or dungeon_level < ELITE_MIN_LEVEL:
+		return -1
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed_value, "blood_elite"])
+	if rng.randf() >= ELITE_ROOM_CHANCE:
+		return -1
+	return rng.randi_range(0, candidates - 1)
 
 
 ## Seeded loot-chest total of a whole run: MIN_LOOT_CHESTS..MAX_LOOT_CHESTS.

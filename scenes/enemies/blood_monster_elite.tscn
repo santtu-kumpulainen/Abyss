@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/enemies/blood_monster.tscn" id="1_blood"]
+[ext_resource type="Script" path="res://scripts/enemies/blood_monster_elite.gd" id="2_script"]
+
+[node name="BloodMonsterElite" instance=ExtResource("1_blood")]
+script = ExtResource("2_script")
+special_cooldown = 4.5
+special_damage = 20.0
+contact_damage = 18.0
+xp_reward = 10
+currency_reward = 30
+sprite_scale = 4.2
+dash_speed = 450.0
+dash_distance = 280.0
+death_blast_radius = 150.0
+death_blast_delay = 1.0
+death_blast_damage = 18.0
+
+[node name="AnimatedSprite2D" parent="." index="0"]
+scale = Vector2(4.2, 4.2)
+
+[node name="Health" parent="." index="3"]
+max_health = 200.0

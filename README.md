@@ -67,6 +67,7 @@ Regular enemies (`scenes/enemies/`):
 - **Demon:** a basic melee enemy that chases the Mage and deals contact damage.
 - **Giant Goblin:** a melee pursuer. It uses sword swings with a telegraphed sector, then a stronger special strike, then recovers.
 - **Blood Monster:** a slow, heavy elite. It uses a telegraphed straight-line dash and leaves a delayed blast when it dies.
+- **Blood Monster Elite:** from dungeon level 2, some combat rooms (35%, seeded) promote one Blood Monster to an Elite: a larger, dark-crimson monster with a red aura, more health and about 2.5x rewards. At half health it frenzies: a telegraphed blood nova (Mage only) and a faster dash. Its death blast is bigger, with a longer warning, and can set off other Blood Monsters (each monster blasts once).
 - **Demon Caster:** a ranged enemy that keeps its distance and fires projectiles. A Water Caster variant replaces it in a later biome.
 
 Minibosses (found in seal rooms; their attacks are telegraphed and some give a punish window):
