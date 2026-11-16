@@ -95,6 +95,11 @@ Boss:
 ### Main Menu
 <img width="2030" height="1148" alt="Näyttökuva 2026-11-13 112455" src="https://github.com/user-attachments/assets/d6994b0a-db2e-4fc6-bb0e-cbc5dfdb99bb" />
 
+### Survival room 
+<img width="2229" height="1259" alt="Näyttökuva 2026-11-13 125100" src="https://github.com/user-attachments/assets/49bd36c8-9a22-4ef3-991c-1eec90bf3884" />
+
+### Triple miniboss encounter
+<img width="1990" height="1118" alt="Näyttökuva 2026-11-13 132955" src="https://github.com/user-attachments/assets/dbe350b6-fc45-4b87-8fac-123c777f0a84" />
 
 
 ## Technology
@@ -134,7 +139,7 @@ One GitHub Issue per feature or task, one `feature/<issue>-<short-name>` branch,
 
 ## Development Status
 
-Abyss is an MVP in active development and has not been released. The core loop (menu, run, rooms, seals, boss, relic choice, next level) is implemented and covered by headless tests. Current work (Issue #58) is MVP finalization: starting gold, loot chests, the pause menu, combat and reward feedback, the Blood Monster Elite and a final verification pass. Balance values may still change after playtesting.
+Abyss is an MVP in active development and has not been released. The core loop (menu, run, rooms, seals, boss, relic choice, next level) is implemented and covered by headless tests. Balance values may still change after playtesting.
 
 Known limits:
 
@@ -144,12 +149,7 @@ Known limits:
 
 ## Roadmap
 
-Only items tracked in the repository's GitHub Issues are listed:
 
-- Finish the MVP finalization in Issue #58 (final playthrough and verification).
-- Blood Monster splitting is marked out of scope in Issue #55 and noted there as a possible follow-up issue.
-
-Nothing else is planned yet.
 
 ## License
 
