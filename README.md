@@ -133,7 +133,7 @@ One GitHub Issue per feature or task, one `feature/<issue>-<short-name>` branch,
 
 ## Development Status
 
-Abyss is an MVP in active development and has not been released. The core loop (menu, run, rooms, seals, boss, relic choice, next level) is implemented and covered by headless tests. Current work (Issue #55) is MVP polish: the controls guide and the balance of enemy difficulty scaling. Balance values may still change after playtesting.
+Abyss is an MVP in active development and has not been released. The core loop (menu, run, rooms, seals, boss, relic choice, next level) is implemented and covered by headless tests. Balance values may still change after playtesting.
 
 Known limits:
 
@@ -143,12 +143,7 @@ Known limits:
 
 ## Roadmap
 
-Only items tracked in the repository's GitHub Issues are listed:
 
-- Finish the MVP polish in Issue #55 (controls guide and enemy difficulty scaling).
-- Blood Monster splitting is marked out of scope in Issue #55 and noted there as a possible follow-up issue.
-
-Nothing else is planned yet.
 
 ## License
 
