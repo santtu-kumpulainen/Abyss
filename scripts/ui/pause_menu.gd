@@ -8,6 +8,10 @@ extends CanvasLayer
 ## menu open, ESC first closes that menu (close_active_menu()). Restart and
 ## Main Menu unpause first, like GameOverOverlay, so no stale paused state or
 ## background gameplay survives the scene change.
+## Save / resume (Issue #63): "Save & Main Menu" and "Save & Quit Game" save
+## the run first (Dungeon.save_run(); during a fight the room-entry checkpoint
+## is kept, which the note under the buttons explains). Quit is hidden on the
+## Web build, where a page cannot close itself.
 
 ## Scene loaded by Main Menu (a path, so the menu and dungeon can reference each other).
 @export_file("*.tscn") var main_menu_scene: String = "res://scenes/ui/main_menu.tscn"
@@ -15,6 +19,8 @@ extends CanvasLayer
 @onready var _resume_button: Button = %ResumeButton
 @onready var _restart_button: Button = %RestartButton
 @onready var _main_menu_button: Button = %MainMenuButton
+@onready var _quit_button: Button = %QuitButton
+@onready var _save_note: Label = %SaveNote
 ## Cycles the screen shake setting (Full / Reduced / Off, CombatFeedback; kept for the session).
 @onready var _shake_button: Button = %ShakeButton
 
@@ -30,6 +36,8 @@ func _ready() -> void:
 	_resume_button.pressed.connect(resume)
 	_restart_button.pressed.connect(restart)
 	_main_menu_button.pressed.connect(main_menu)
+	_quit_button.pressed.connect(quit_game)
+	_quit_button.visible = not OS.has_feature("web")
 	_shake_button.pressed.connect(func() -> void: _update_shake_text(CombatFeedback.cycle_shake_setting()))
 	_update_shake_text(CombatFeedback.shake_label())
 
@@ -83,6 +91,7 @@ func open() -> bool:
 		return false
 	_open = true
 	get_tree().paused = true
+	_save_note.text = save_note_text()
 	show()
 	_resume_button.grab_focus()
 	return true
@@ -103,9 +112,32 @@ func restart() -> void:
 	get_tree().reload_current_scene()
 
 
+## Saves the run and returns to the main menu (Continue resumes it).
 func main_menu() -> void:
+	_save_run()
 	_leave()
 	get_tree().change_scene_to_file(main_menu_scene)
+
+
+## Saves the run and closes the game.
+func quit_game() -> void:
+	_save_run()
+	_leave()
+	get_tree().quit()
+
+
+## What leaving now keeps: everything, or (mid-fight) the state on entering the room.
+func save_note_text() -> String:
+	var dungeon := get_parent() as Dungeon
+	if dungeon and dungeon.current_room and dungeon.current_room.state == Room.State.COMBAT:
+		return "Leaving during a fight: you will continue from the start of this fight."
+	return "Your run is saved. Continue it from the main menu."
+
+
+func _save_run() -> void:
+	var dungeon := get_parent() as Dungeon
+	if dungeon:
+		dungeon.save_run()
 
 
 func _leave() -> void:

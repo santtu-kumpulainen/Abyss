@@ -85,6 +85,8 @@ func _test_unlocks_and_save() -> void:
 
 func _test_menu() -> void:
 	_prog.clear_progress()
+	# No unfinished run (Issue #63): with one, Start Run first asks to replace it.
+	RunSave.delete()
 	change_scene_to_file(MENU)
 	await _wait_for_scene(0, false)
 	var menu := current_scene as MainMenu

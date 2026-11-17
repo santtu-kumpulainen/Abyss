@@ -891,6 +891,150 @@ func reset() -> void:
 	_notify()
 
 
+## Save validation limits: no real run gets near them; they only stop an edited
+## file from creating absurd loops (Mage level-ups) or values.
+const SAVE_MAX_DUNGEON_LEVEL := 1000
+const SAVE_MAX_COUNT := 99
+
+
+## Save / resume (Issue #63): the whole run as plain JSON-safe data (ids as
+## strings, counts as ints). apply_save_data() restores it exactly, including
+## the per-level claimed sets, so nothing can be claimed twice after a resume.
+func to_save_data() -> Dictionary:
+	return {
+		"difficulty": difficulty, "pact": String(pact), "start_level": start_level, "is_replay": is_replay,
+		"run_seed": run_seed, "dungeon_level": dungeon_level, "level": level, "xp": xp,
+		"xp_fraction": _xp_fraction, "currency": currency, "run_time": run_time, "level_time": level_time,
+		"enemies_defeated": enemies_defeated, "gold_earned": gold_earned,
+		"difficulty_bonus_gold": difficulty_bonus_gold, "modifier_bonus_gold": modifier_bonus_gold,
+		"speed_potion_remaining": speed_potion_remaining, "boss_defeated": boss_defeated,
+		"relic": String(relic), "relics": Array(relics.map(func(id: StringName) -> String: return String(id))),
+		"relic_claimed": _relic_claimed,
+		"purchased": _counts_to_save(purchased), "collected": _counts_to_save(collected),
+		"treasures": _counts_to_save(treasures), "consumables": _counts_to_save(consumables),
+		"level_purchased": _set_to_save(_level_purchased), "level_collected": _set_to_save(_level_collected),
+		"level_treasures": _set_to_save(_level_treasures), "level_chests": _set_to_save(_level_chests),
+		"level_seals": _set_to_save(_level_seals),
+	}
+
+
+## "" if `data` is a valid to_save_data() dictionary (types, ranges, known ids),
+## otherwise the first problem found.
+static func validate_save_data(data: Dictionary) -> String:
+	for key in ["difficulty", "start_level", "run_seed", "dungeon_level", "level", "xp", "currency",
+			"enemies_defeated", "gold_earned", "difficulty_bonus_gold", "modifier_bonus_gold"]:
+		if not RunSave._is_int(data.get(key)):
+			return "run.%s" % key
+	for key in ["xp_fraction", "run_time", "level_time", "speed_potion_remaining"]:
+		if not RunSave._is_number(data.get(key)) or float(data[key]) < 0.0:
+			return "run.%s" % key
+	for key in ["is_replay", "boss_defeated", "relic_claimed"]:
+		if not data.get(key) is bool:
+			return "run.%s" % key
+	if not Difficulty.is_valid(int(data["difficulty"])):
+		return "run.difficulty"
+	if not data.get("pact") is String or (not (data["pact"] as String).is_empty() and not Pacts.PACTS.has(StringName(data["pact"]))):
+		return "run.pact"
+	if int(data["start_level"]) < 1 or int(data["dungeon_level"]) < int(data["start_level"]) or int(data["level"]) < 1 \
+			or int(data["xp"]) < 0 or int(data["currency"]) < 0 or int(data["run_seed"]) == 0:
+		return "run ranges"
+	# Upper bounds far above anything reachable, so an edited file cannot hang the game.
+	if int(data["dungeon_level"]) > SAVE_MAX_DUNGEON_LEVEL or int(data["level"]) > SAVE_MAX_DUNGEON_LEVEL * 10 \
+			or int(data["xp"]) > 100_000_000 or int(data["currency"]) > 100_000_000:
+		return "run ranges"
+	if not data.get("relic") is String or (not (data["relic"] as String).is_empty() and not RELICS.has(StringName(data["relic"]))):
+		return "run.relic"
+	if not data.get("relics") is Array or (data["relics"] as Array).any(func(id: Variant) -> bool: return not id is String or not RELICS.has(StringName(id))):
+		return "run.relics"
+	var catalogs := {"purchased": UPGRADES, "collected": ITEMS, "treasures": TREASURES, "consumables": CONSUMABLES}
+	for key: String in catalogs:
+		var counts: Variant = data.get(key)
+		if not counts is Dictionary:
+			return "run.%s" % key
+		for id: Variant in counts:
+			if not catalogs[key].has(StringName(id)) or not RunSave._is_int(counts[id]) or int(counts[id]) < 0 \
+					or int(counts[id]) > SAVE_MAX_COUNT:
+				return "run.%s.%s" % [key, id]
+	var level_sets := {"level_purchased": UPGRADES, "level_collected": ITEMS, "level_treasures": TREASURES,
+			"level_chests": {}, "level_seals": {}}
+	for key: String in level_sets:
+		if not data.get(key) is Array:
+			return "run.%s" % key
+		for id: Variant in data[key]:
+			if not id is String or (not level_sets[key].is_empty() and not level_sets[key].has(StringName(id))):
+				return "run.%s" % key
+	return ""
+
+
+## Restores a validated to_save_data() dictionary (and marks the run
+## configured). Returns false, changing nothing, if it is invalid. Emits
+## `changed` but none of the reward signals, so no bonus is applied twice.
+func apply_save_data(data: Dictionary) -> bool:
+	if not validate_save_data(data).is_empty():
+		return false
+	_configured = true
+	difficulty = int(data["difficulty"])
+	pact = StringName(data["pact"])
+	start_level = int(data["start_level"])
+	is_replay = data["is_replay"]
+	run_seed = int(data["run_seed"])
+	dungeon_level = int(data["dungeon_level"])
+	level = int(data["level"])
+	xp = int(data["xp"])
+	_xp_fraction = float(data["xp_fraction"])
+	currency = int(data["currency"])
+	run_time = float(data["run_time"])
+	level_time = float(data["level_time"])
+	enemies_defeated = int(data["enemies_defeated"])
+	gold_earned = int(data["gold_earned"])
+	difficulty_bonus_gold = int(data["difficulty_bonus_gold"])
+	modifier_bonus_gold = int(data["modifier_bonus_gold"])
+	speed_potion_remaining = float(data["speed_potion_remaining"])
+	boss_defeated = data["boss_defeated"]
+	relic = StringName(data["relic"])
+	relics.assign((data["relics"] as Array).map(func(id: String) -> StringName: return StringName(id)))
+	_relic_claimed = data["relic_claimed"]
+	purchased = _counts_from_save(data["purchased"])
+	collected = _counts_from_save(data["collected"])
+	treasures = _counts_from_save(data["treasures"])
+	consumables = _counts_from_save(data["consumables"])
+	_level_purchased = _set_from_save(data["level_purchased"])
+	_level_collected = _set_from_save(data["level_collected"])
+	_level_treasures = _set_from_save(data["level_treasures"])
+	_level_chests = _set_from_save(data["level_chests"])
+	_level_seals = _set_from_save(data["level_seals"])
+	# Already-active synergies are not announced again.
+	_active_synergies = active_synergies()
+	_notify()
+	return true
+
+
+static func _counts_to_save(counts: Dictionary) -> Dictionary:
+	var out := {}
+	for id: StringName in counts:
+		out[String(id)] = int(counts[id])
+	return out
+
+
+static func _counts_from_save(counts: Dictionary) -> Dictionary:
+	var out := {}
+	for id: String in counts:
+		if int(counts[id]) > 0:
+			out[StringName(id)] = int(counts[id])
+	return out
+
+
+static func _set_to_save(ids: Dictionary) -> Array:
+	return ids.keys().map(func(id: StringName) -> String: return String(id))
+
+
+static func _set_from_save(ids: Array) -> Dictionary:
+	var out := {}
+	for id: String in ids:
+		out[StringName(id)] = true
+	return out
+
+
 ## `base` gold scaled by gold_multiplier() and `extra`; tracks the bonus parts.
 func _scaled_gold(base: int, extra: float) -> int:
 	base = maxi(base, 0)
