@@ -83,6 +83,11 @@ func try_cast(target: Vector2) -> Projectile:
 		return null
 	var container: Node = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	var first: Projectile = null
+	# Near a wall the cast point (above the caster's feet) can be inside it:
+	# spawn at the nearest clear point instead (aim direction is unchanged).
+	var anchor: Vector2 = (get_parent() as Node2D).global_position if get_parent() is Node2D else global_position
+	var spawn := Projectile.clear_spawn_point(get_world_2d().direct_space_state, anchor, global_position,
+			_cast_spell.collision_radius, get_parent())
 	for i in projectile_count:
 		var projectile := _cast_spell.projectile_scene.instantiate() as Projectile
 		if projectile == null:
@@ -95,12 +100,12 @@ func try_cast(target: Vector2) -> Projectile:
 		if crit_chance > 0.0 and randf() < crit_chance:
 			projectile.crit_multiplier = crit_multiplier
 		container.add_child(projectile)
-		projectile.global_position = global_position
+		projectile.global_position = spawn
 		projectile.hit.connect(_on_projectile_hit)
 		if first == null:
 			first = projectile
 	if _cast_spell.cast_effect:
-		PixelEffect.spawn(_cast_spell.cast_effect, container, global_position)
+		PixelEffect.spawn(_cast_spell.cast_effect, container, spawn)
 	# One cast: one cooldown, one `cast` signal (with the first projectile).
 	_cooldown_left = _cast_spell.cooldown
 	if has_momentum():
