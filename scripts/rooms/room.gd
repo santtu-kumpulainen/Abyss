@@ -238,6 +238,19 @@ func safe_extra_points(used: int, min_door_distance: float = 180.0) -> Array[Vec
 	return result
 
 
+## Save / resume (Issue #63): makes a freshly built room (not yet in the tree)
+## start out CLEARED, as it was when the run was saved. Its encounter enemies
+## are removed without dying, so no reward, kill or death effect happens again;
+## pickups, chests and seals then show by their own RunState rules.
+func restore_cleared() -> void:
+	if is_node_ready():
+		push_error("%s: restore_cleared() must be called before the room is ready" % name)
+		return
+	for child in get_node(^"Enemies").get_children():
+		child.free()
+	state = State.CLEARED
+
+
 ## True when the Mage may leave through an open door (the Dungeon checks this).
 func can_exit() -> bool:
 	return state == State.CLEARED

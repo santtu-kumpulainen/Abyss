@@ -44,11 +44,27 @@ extends StaticBody2D
 @export var open_color := Color(0.0, 0.0, 0.0, 0.25)
 @export var level_bar_color := Color(0.72, 0.56, 0.2, 1.0)
 @export var level_bar_highlight := Color(1.0, 0.86, 0.45, 1.0)
+@export_group("Open glow")
+## Open doors only (Issue #63): a faint light spilling a few pixels onto the
+## floor inside the doorway, so open exits read at a glance. Drawn in stepped
+## bands (pixel-art look), static, under characters (the Doors node sorts first).
+@export var glow_color := Color(1.0, 0.84, 0.55, 1.0)
+## Alpha of the brightest band (0 = no glow).
+@export_range(0.0, 1.0) var glow_strength: float = 0.18
+## Bands and the depth of each, in pixels, from the doorway into the room.
+@export var glow_bands: int = 3
+@export var glow_band_depth: float = 4.0
+@export_group("")
+
+## Local y direction pointing into the room (+1 or -1), found from the room's
+## floor centre when the door is ready.
+var _inward := 1.0
 
 @onready var _shape: CollisionShape2D = $CollisionShape2D
 
 
 func _ready() -> void:
+	_inward = _find_inward()
 	_apply()
 
 
@@ -68,6 +84,7 @@ func _draw() -> void:
 	if is_open():
 		draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, 3.0), open_color)
 		draw_rect(Rect2(rect.position.x, rect.end.y - 3.0, rect.size.x, 3.0), open_color)
+		_draw_glow(rect)
 		return
 	draw_rect(rect, backdrop_color)
 	var gated := level_locked and not sealed
@@ -86,6 +103,37 @@ func _draw() -> void:
 		draw_rect(Rect2(rect.position.x, y, rect.size.x, 1.0), highlight)
 	if gated and not lock_label.is_empty():
 		_draw_label()
+
+
+## Open-door glow: bands narrowing and fading from the room-side edge of the
+## doorway inwards, plus a very faint tint over the doorway itself.
+func _draw_glow(rect: Rect2) -> void:
+	if glow_strength <= 0.0 or glow_bands <= 0:
+		return
+	draw_rect(rect.grow_individual(-4.0, -3.0, -4.0, -3.0), Color(glow_color, glow_strength * 0.35))
+	var edge := rect.end.y if _inward > 0.0 else rect.position.y
+	for k in glow_bands:
+		var inset := minf(6.0 + 8.0 * k, rect.size.x / 2.0 - 2.0)
+		var alpha := glow_strength * (1.0 - float(k) / glow_bands)
+		var y := edge + (glow_band_depth * k if _inward > 0.0 else -glow_band_depth * (k + 1))
+		draw_rect(Rect2(rect.position.x + inset, y, rect.size.x - 2.0 * inset, glow_band_depth), Color(glow_color, alpha))
+
+
+## True if the glow is drawn (open door with a visible glow strength).
+func is_glowing() -> bool:
+	return is_open() and glow_strength > 0.0 and glow_bands > 0
+
+
+## Local y sign pointing from the door into its Room (doors sit on the walls).
+func _find_inward() -> float:
+	var node := get_parent()
+	while node and not node is Room:
+		node = node.get_parent()
+	if node == null:
+		return 1.0
+	var visuals := node.get_node_or_null(^"Visuals") as RoomVisuals
+	var center: Vector2 = (node as Node2D).to_global(visuals.floor_rect.get_center() if visuals else Vector2(576, 324))
+	return 1.0 if to_local(center).y >= 0.0 else -1.0
 
 
 ## Draws `lock_label` upright and centred, whatever the door's rotation.

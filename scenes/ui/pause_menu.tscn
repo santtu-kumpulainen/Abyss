@@ -76,7 +76,7 @@ custom_minimum_size = Vector2(220, 44)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 22
-text = "Restart"
+text = "Restart (New Run)"
 
 [node name="MainMenuButton" type="Button" parent="Root/Center/VBox"]
 unique_name_in_owner = true
@@ -84,4 +84,24 @@ custom_minimum_size = Vector2(220, 44)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 22
-text = "Main Menu"
+text = "Save & Main Menu"
+
+[node name="QuitButton" type="Button" parent="Root/Center/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 22
+text = "Save & Quit Game"
+
+[node name="SaveNote" type="Label" parent="Root/Center/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 15
+text = "Your run is saved. Continue it from the main menu."
+horizontal_alignment = 1
+autowrap_mode = 3

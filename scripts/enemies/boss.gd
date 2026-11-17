@@ -306,7 +306,7 @@ func _fire(direction: Vector2) -> Projectile:
 	shot.max_hp_fraction = volley_max_hp_fraction
 	var container: Node = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	container.add_child(shot)
-	shot.global_position = global_position + muzzle_offset
+	shot.place_at(global_position + muzzle_offset, global_position)
 	return shot
 
 

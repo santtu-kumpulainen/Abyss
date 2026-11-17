@@ -53,6 +53,27 @@ theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 20
 horizontal_alignment = 1
 
+[node name="ContinueButton" type="Button" parent="Center/VBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 24
+text = "Continue"
+
+[node name="RunInfoLabel" type="Label" parent="Center/VBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(560, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="StartButton" type="Button" parent="Center/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 48)
@@ -60,6 +81,14 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 24
 text = "Start Run"
+
+[node name="RecordsButton" type="Button" parent="Center/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 24
+text = "Records"
 
 [node name="QuitButton" type="Button" parent="Center/VBox"]
 unique_name_in_owner = true
@@ -257,6 +286,32 @@ theme_override_constants/h_separation = 24
 theme_override_constants/v_separation = 6
 columns = 2
 
+[node name="RecordsSettingsHeading" type="Label" parent="Settings/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.55, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 22
+text = "Records"
+horizontal_alignment = 1
+
+[node name="ResetRecordsButton" type="Button" parent="Settings/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 40)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(1, 0.6, 0.55, 1)
+theme_override_font_sizes/font_size = 18
+text = "Reset Records..."
+
+[node name="ResetRecordsInfo" type="Label" parent="Settings/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 14
+text = "Clears the best level and run stats of every difficulty."
+horizontal_alignment = 1
+
 [node name="SettingsBackButton" type="Button" parent="Settings/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(160, 48)
@@ -264,3 +319,58 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 24
 text = "Back"
+
+[node name="Records" type="CenterContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Records"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="RecordsHeading" type="Label" parent="Records/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.55, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 32
+text = "Records"
+horizontal_alignment = 1
+
+[node name="RecordsSubtitle" type="Label" parent="Records/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.9, 1)
+theme_override_font_sizes/font_size = 16
+text = "Best endless run on each difficulty (practice runs are not recorded)"
+horizontal_alignment = 1
+
+[node name="RecordsGrid" type="GridContainer" parent="Records/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 28
+theme_override_constants/v_separation = 10
+columns = 6
+
+[node name="RecordsBackButton" type="Button" parent="Records/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 24
+text = "Back"
+
+[node name="ConfirmDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Confirm"
+initial_position = 2
+size = Vector2i(520, 200)
+ok_button_text = "OK"
+dialog_autowrap = true

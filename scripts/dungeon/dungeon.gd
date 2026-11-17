@@ -109,6 +109,18 @@ extends Node2D
 ## Blood Monster Elites (Issue #58 Stage 3): from EncounterPlanner.ELITE_MIN_LEVEL,
 ## each combat room (not boss / treasure / miniboss / champion) may promote one
 ## of its Blood Monsters to `blood_elite_scene` while it is built (seeded).
+## Save / resume (Issue #63): the run is saved to RunSave at safe points -
+## entering a room, clearing it, any RunState change outside combat (pickups,
+## chests, anvil, seals, consumables), the boss kill, a new level, leaving
+## through the pause menu, closing the window or losing focus. During combat
+## nothing is saved, so the save stays the checkpoint taken when the room was
+## entered: resuming then re-enters that room through the same door with its
+## encounter reset and every reward of the fight rolled back with it (nothing
+## can be gained twice). A level is rebuilt from its seed, so the save keeps
+## RunState (to_save_data()), the Mage's HP and per visited room only whether
+## it was cleared and which reward pickups were still there (capture_save()).
+## Death deletes the save; a new run replaces it. A run is resumed when the
+## Progression autoload holds a pending resume (main menu Continue).
 
 signal room_changed(room: Room, index: int)
 ## Something the map shows changed (room entered or cleared, level gates).
@@ -243,6 +255,14 @@ var _chest_rooms: Array[int] = []
 ## Authored room pool and its start room index (seeded_layout only).
 var _room_pool: Array[RoomSpec] = []
 var _pool_start := 0
+## True if this run was restored from a save (Issue #63).
+var resumed := false
+## Door the current room was entered through (&"" = placed at PlayerSpawn).
+var _entry_door: StringName = &""
+## Saving stops for good once the Mage died (the save is deleted then).
+var _saving_enabled := true
+var _restoring := false
+var _save_queued := false
 
 @onready var mage: Mage = $Mage
 @onready var _hud: RoomHud = $RoomHud
@@ -258,17 +278,35 @@ var _pool_start := 0
 func _ready() -> void:
 	_build_links()
 	var progression := ProgressionStore.instance(get_tree())
-	run_state.configure(progression.selected_difficulty, progression.selected_pact,
-			clampi(progression.selected_start_level, 1, progression.highest_level))
-	_run_id = int(Time.get_unix_time_from_system() * 1000.0) ^ randi()
-	run_state.run_seed = RunState.seed_override if RunState.seed_override != 0 else (randi() | 1)
+	var resume := progression.take_pending_resume()
+	if not resume.is_empty() and run_state.apply_save_data(resume["run"]):
+		resumed = true
+		_run_id = int(resume["dungeon"]["run_id"])
+		_reach_time = float(resume["dungeon"]["reach_time"])
+	else:
+		run_state.configure(progression.selected_difficulty, progression.selected_pact,
+				clampi(progression.selected_start_level, 1, progression.highest_level))
+		_run_id = int(Time.get_unix_time_from_system() * 1000.0) ^ randi()
+		run_state.run_seed = RunState.seed_override if RunState.seed_override != 0 else (randi() | 1)
 	print("Abyss run seed: %d" % run_state.run_seed)
 	_plan_level()
+	if resumed and not _can_restore(resume["dungeon"]):
+		# Valid data that does not fit the rebuilt level: start a fresh run instead.
+		push_warning("Dungeon: the saved run does not match its level layout; starting a new run")
+		RunSave.delete()
+		_saving_enabled = false
+		get_tree().reload_current_scene.call_deferred()
+		return
 	mage.health.scale_max_health(run_state.max_health_multiplier())
 	# A practice run starts at a higher Mage level: grant those level-ups' max HP.
 	for i in run_state.level - 1:
 		mage.health.increase_max_health(run_state.max_health_per_level * run_state.max_health_multiplier(), 0.0)
 	mage.health.increase_max_health(0.0, mage.health.max_health)
+	if resumed:
+		# Saved HP replaces everything above (it already includes every bonus).
+		mage.health.max_health = float(resume["mage"]["max_health"])
+		mage.health.current = float(resume["mage"]["health"])
+		mage.health.changed.emit(mage.health.current)
 	mage.caster.momentum_window = Pacts.MOMENTUM_WINDOW
 	mage.caster.crit_chance = RunState.CRIT_CHANCE
 	mage.caster.crit_multiplier = RunState.CRIT_MULTIPLIER
@@ -300,6 +338,12 @@ func _ready() -> void:
 	music.name = "DungeonMusic"
 	add_child(music)
 	music.setup(self)
+	run_state.changed.connect(_queue_save)
+	victory_started.connect(_queue_save)
+	if resumed:
+		_restore_rooms(resume["dungeon"])
+		_run_hud.show_message("Run resumed - Level %d, %s" % [run_state.dungeon_level, Biomes.biome_name(run_state.dungeon_level)])
+		return
 	enter_room(start_room)
 	_run_hud.show_message("Find %d Ancient Seals to unseal the Abyss Warden's gate" % RunState.SEALS_REQUIRED)
 
@@ -327,6 +371,7 @@ func enter_room(index: int, from_door: StringName = &"") -> void:
 		_arrival_effect.queue_free()
 	_arrival_effect = null
 	current_index = index
+	_entry_door = from_door
 	current_room = _get_room(index)
 	_update_level_gates(index)
 	add_child(current_room)
@@ -347,6 +392,119 @@ func enter_room(index: int, from_door: StringName = &"") -> void:
 	_hud.set_room(current_room)
 	room_changed.emit(current_room, index)
 	map_changed.emit()
+	# Room-entry checkpoint (kept through the fight that may start now).
+	save_run(true)
+
+
+## Writes the run to RunSave now. Outside combat this is a normal save; during
+## combat it only writes when `checkpoint` is set (the room-entry checkpoint),
+## so a fight in progress is never saved. Never saves after the Mage died or
+## while the run is being restored. Returns true if the save was written.
+func save_run(checkpoint: bool = false) -> bool:
+	if not _saving_enabled or _restoring or current_room == null or mage.is_dead():
+		return false
+	if current_room.state == Room.State.COMBAT and not checkpoint:
+		return false
+	return RunSave.write(capture_save()) == OK
+
+
+## Saves at the end of the frame (several changes in one frame save once).
+func _queue_save(_arg: Variant = null) -> void:
+	if _save_queued:
+		return
+	_save_queued = true
+	_flush_save.call_deferred()
+
+
+func _flush_save() -> void:
+	_save_queued = false
+	save_run()
+
+
+## Everything RunSave needs to resume this run (see the class description).
+func capture_save() -> Dictionary:
+	var room_entries: Array = []
+	for index: int in _room_cache:
+		if not is_instance_valid(_room_cache[index]):
+			continue
+		var room: Room = _room_cache[index]
+		# Pickups still offered: node name + item id, so the exact offer is restored.
+		var pickups: Array = []
+		for node in room.get_node(^"Decor").get_children():
+			if node is ItemPickup and not node.is_queued_for_deletion():
+				pickups.append({"name": String(node.name), "id": String((node as ItemPickup).item_id)})
+		room_entries.append({"index": index, "cleared": room.state == Room.State.CLEARED, "pickups": pickups})
+	return {
+		"run": run_state.to_save_data(),
+		"mage": {"max_health": mage.health.max_health, "health": mage.health.current},
+		"dungeon": {
+			"current_index": current_index, "entry_door": String(_entry_door),
+			"in_combat": current_room != null and current_room.state == Room.State.COMBAT,
+			"position": [mage.global_position.x, mage.global_position.y],
+			"victory": victory, "victory_recorded": _victory_recorded, "unlocked_tier": unlocked_tier,
+			"final_anvil": final_anvil != null, "run_id": _run_id, "reach_time": _reach_time,
+			"layout": layout_fingerprint(), "rooms": room_entries,
+		},
+	}
+
+
+## Hash of the current level's plan (room scenes and cells, links, seal,
+## miniboss and chest rooms). A save is only restored into the same plan, so a
+## game change that alters level generation never marks the wrong rooms cleared.
+func layout_fingerprint() -> int:
+	var cells: Array = []
+	for spec in rooms:
+		cells.append([spec.scene.resource_path if spec.scene else "", spec.cell, spec.is_boss])
+	return hash([cells, Array(links), _seal_rooms, _miniboss_rooms, _double_rooms, _triple_rooms, _chest_rooms])
+
+
+## True if saved dungeon data fits the level just planned from the save.
+func _can_restore(data: Dictionary) -> bool:
+	if int(data["layout"]) != layout_fingerprint() or int(data["current_index"]) >= rooms.size():
+		return false
+	var door := String(data["entry_door"])
+	if not door.is_empty() and not _link_map.has(_key(int(data["current_index"]), StringName(door))):
+		return false
+	for entry: Dictionary in data["rooms"]:
+		if int(entry["index"]) >= rooms.size():
+			return false
+	return true
+
+
+## Rebuilds the saved rooms (cleared ones without their enemies, collected
+## pickups removed), then enters the saved room: through its entry door, and
+## at the saved position unless the save is a combat checkpoint.
+func _restore_rooms(data: Dictionary) -> void:
+	_restoring = true
+	for entry: Dictionary in data["rooms"]:
+		var room := _get_room(int(entry["index"]))
+		if entry["cleared"]:
+			room.restore_cleared()
+		var keep := {}
+		for pickup: Dictionary in entry["pickups"]:
+			keep[pickup["name"]] = StringName(pickup["id"])
+		for node in room.get_node(^"Decor").get_children():
+			if not node is ItemPickup:
+				continue
+			if not keep.has(String(node.name)):
+				node.free()
+			else:
+				# Not ready yet: the saved id replaces a rebuilt choice that may differ.
+				(node as ItemPickup).item_id = keep[String(node.name)]
+	if data["final_anvil"]:
+		_spawn_final_anvil()
+	enter_room(int(data["current_index"]), StringName(data["entry_door"]))
+	var pos := Vector2(float(data["position"][0]), float(data["position"][1]))
+	var visuals := current_room.get_node(^"Visuals") as RoomVisuals
+	var floor_area := Rect2(current_room.to_global(visuals.floor_rect.position), visuals.floor_rect.size)
+	if not data["in_combat"] and floor_area.grow(-40.0).has_point(pos):
+		mage.global_position = pos
+	unlocked_tier = int(data["unlocked_tier"])
+	_victory_recorded = data["victory_recorded"]
+	_restoring = false
+	if data["victory"] and run_state.boss_defeated:
+		_start_victory()
+	save_run(true)
 
 
 ## True if room `index` has been entered this run.
@@ -804,6 +962,7 @@ func _outward(door: Door) -> Vector2:
 func _on_room_cleared() -> void:
 	map_changed.emit()
 	_spawn_final_anvil()
+	_queue_save()
 
 
 ## Adds the pre-boss anvil once, after the last non-boss room is cleared.
@@ -1339,11 +1498,17 @@ func _on_seal_collected(_id: StringName) -> void:
 func _record_progress() -> void:
 	if run_state.is_replay:
 		return
+	# Bosses defeated: one per level completed, plus this level's if it is down.
+	var bosses := run_state.dungeon_level - run_state.start_level + (1 if run_state.boss_defeated else 0)
 	ProgressionStore.instance(get_tree()).record_run(_run_id, run_state.dungeon_level, run_state.run_time,
-			_reach_time, run_state.difficulty, Biomes.biome_id(run_state.dungeon_level))
+			_reach_time, run_state.difficulty, Biomes.biome_id(run_state.dungeon_level),
+			run_state.enemies_defeated, bosses)
 
 
 func _on_mage_died() -> void:
+	# A dead run can never be resumed.
+	_saving_enabled = false
+	RunSave.delete()
 	_record_progress()
 	if feedback:
 		feedback.stop()
@@ -1471,6 +1636,13 @@ func _build_links() -> void:
 func _parse_cell(text: String) -> Vector2i:
 	var parts := text.strip_edges().split(",")
 	return Vector2i(int(parts[0]), int(parts[1])) if parts.size() == 2 else Vector2i(-99, -99)
+
+
+## Closing the window or switching away (e.g. another browser tab) saves first.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_FOCUS_OUT \
+			or what == NOTIFICATION_APPLICATION_PAUSED:
+		save_run()
 
 
 func _exit_tree() -> void:

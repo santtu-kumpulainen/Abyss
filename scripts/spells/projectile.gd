@@ -84,6 +84,52 @@ func _ready() -> void:
 	AudioManager.sfx(self, spell.cast_sound)
 
 
+## Call right after adding the projectile to the tree, instead of setting
+## global_position: puts it at `desired` (the muzzle) or, if that would overlap
+## a wall, at the nearest clear point toward `anchor` (see clear_spawn_point()).
+func place_at(desired: Vector2, anchor: Vector2) -> void:
+	global_position = Projectile.clear_spawn_point(get_world_2d().direct_space_state, anchor, desired,
+			spell.collision_radius if spell else 8.0, source)
+
+
+## Where a projectile of `radius` can spawn without overlapping a wall (the
+## "world" layer), so shots fired next to a wall don't explode inside it.
+## `anchor` is the caster's body origin (always clear of walls, since bodies
+## collide with them); `desired` is the muzzle, which can be inside a wall
+## because it sits above the feet. The anchor is first pushed out of any wall
+## the (wider) projectile circle touches, then the circle slides toward
+## `desired` and stops just before the first wall. `exclude` (a physics body,
+## e.g. the caster) is ignored.
+static func clear_spawn_point(space: PhysicsDirectSpaceState2D, anchor: Vector2, desired: Vector2,
+		radius: float, exclude: Node = null) -> Vector2:
+	if space == null:
+		return desired
+	var circle := CircleShape2D.new()
+	circle.radius = radius
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = circle
+	query.collision_mask = WORLD_MASK
+	if exclude is CollisionObject2D:
+		query.exclude = [(exclude as CollisionObject2D).get_rid()]
+	var base := anchor
+	for i in 4:
+		query.transform = Transform2D(0.0, base)
+		var info := space.get_rest_info(query)
+		if info.is_empty():
+			break
+		var normal: Vector2 = info["normal"]
+		var depth := radius - (base - (info["point"] as Vector2)).dot(normal)
+		if normal == Vector2.ZERO or depth <= 0.0:
+			break
+		base += normal * (depth + 0.5)
+	query.transform = Transform2D(0.0, base)
+	query.motion = desired - base
+	var fractions := space.cast_motion(query)
+	if fractions.is_empty():
+		return base
+	return base + (desired - base) * fractions[0]
+
+
 ## Wall bounces left before the next wall ends the projectile.
 func bounces_left() -> int:
 	return _bounces_left

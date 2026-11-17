@@ -99,7 +99,7 @@ func fire(at: Vector2) -> Projectile:
 	shot.setup(_spell, dir, self)
 	var container: Node = get_tree().current_scene if get_tree().current_scene else get_tree().root
 	container.add_child(shot)
-	shot.global_position = origin
+	shot.place_at(origin, global_position)
 	_attack_cooldown_left = attack_cooldown
 	fired.emit(shot)
 	return shot
