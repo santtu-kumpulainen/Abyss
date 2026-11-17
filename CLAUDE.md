@@ -40,3 +40,107 @@
 - Never use destructive Git commands (reset, force-push, clean, etc.) without explicit approval.
 - Keep `.godot/` and other generated editor/cache files ignored; commit `.import` and `.uid` files.
 - `CLAUDE.md` is tracked by Git; never add it to `.gitignore`.
+
+
+# Abyss - Development Workflow Rules
+
+## Git and GitHub Permissions
+
+Claude Code is authorized to:
+
+- Create GitHub Issues.
+- Add comments to existing Issues when necessary.
+- Create new feature branches.
+- Switch to existing branches when instructed.
+- Inspect Git status, history and diffs.
+- Modify project files and run tests.
+
+Claude Code MUST NEVER:
+
+- Stage changes (`git add`).
+- Create commits (`git commit`).
+- Push changes (`git push`).
+- Create Pull Requests.
+- Merge Pull Requests or branches.
+- Delete branches.
+- Rewrite Git history.
+
+The user is responsible for all staging, commits,
+pushes, Pull Requests and merges.
+
+Claude must remind the user of the appropriate Git
+commands when a development stage is complete.
+
+## Issue and Branch Workflow
+
+For new features:
+
+1. Review the feature requirements.
+2. Create a detailed GitHub Issue.
+3. Add clarifying comments when necessary.
+4. Create a feature branch using the Issue number.
+5. Switch to the new branch.
+6. Implement the feature.
+7. Run relevant tests.
+8. Review all changes.
+9. Report the results and recommended Git commands.
+
+Never create commits or Pull Requests.
+
+## Model Selection
+
+Use Claude Opus for:
+
+- Architecture and system design.
+- Complex gameplay mechanics.
+- Large refactoring tasks.
+- Difficult debugging.
+- Technical decision-making.
+
+Use Claude Sonnet for:
+
+- Small and clearly defined implementation tasks.
+- UI components.
+- Documentation.
+- Focused bug fixes.
+- Routine tests and code reviews.
+
+## Agent Usage
+
+Multiple agents may be used when parallel work
+provides a meaningful benefit.
+
+Default to 1-2 agents in addition to the main agent.
+Use a maximum of 3 agents unless explicitly authorized.
+
+Avoid:
+- Duplicate investigations.
+- Simultaneous edits to the same files.
+- Unnecessary agent delegation.
+- Excessive context duplication.
+
+The main agent is responsible for coordination
+and final integration.
+
+## Development Safety
+
+- Explain the goal before choosing an approach.
+- Inspect existing architecture before modifying it.
+- Warn before destructive Docker or Git operations.
+- Do not execute destructive operations without
+  explicit user approval.
+- Do not overwrite unrelated user changes.
+- Preserve existing project functionality.
+- Explain briefly what was implemented and why.
+
+## Completion Report
+
+At the end of each implementation task, report:
+
+1. Changes implemented.
+2. Files modified.
+3. Tests executed and results.
+4. Remaining issues.
+5. Recommended manual Git commands.
+
+Leave all changes uncommitted for user review.
