@@ -3,8 +3,10 @@
 - **Fire / Water Arrow, Ball, Spell and Icons** — Craftpix.net free assets. Use is subject
   to the Craftpix license (https://craftpix.net/file-licenses/; see `license.txt`).
   Original filenames and folders are preserved. Used by the game: `Fire Ball/PNG/`
-  (Mage spell) and `Water Ball/PNG/` (Water Caster bolt). The other folders keep their
-  `.gdignore` and are not imported.
+  (Mage spell) and `Water Ball/PNG/` (Water Caster bolt). `Fire Spell/` and
+  `Water Arrow/` keep their `.gdignore` and are not imported. The unused Fire Arrow,
+  Water Spell and Icons art and the EPS/AI vector sources were removed in Issue #61
+  (only the original preview GIFs are kept); get them from the Craftpix download if needed.
 - **Free Pixel Effects Pack** (`Free Pixel Effects Pack/`) — by CodeManu,
   https://codemanu.itch.io/pixelart-effect-pack, created with Pixel FX Designer.
   Public domain per its `README.txt`; credit is optional. Sheets are 100x100 px frames.
